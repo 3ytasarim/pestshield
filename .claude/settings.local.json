@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx skills add coreyhaines31/marketingskills 2>&1)",
+      "WebFetch(domain:github.com)",
+      "PowerShell(npx skills add alirezarezvani/claude-skills 2>&1)",
+      "PowerShell(npx skills add obra/superpowers 2>&1)",
+      "PowerShell(npx skills add garrytan/gstack 2>&1)",
+      "Read(//c/Users/ygzeg/.claude/skills/gstack/**)",
+      "Bash(bun --version)",
+      "Bash(./setup)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.bun\\\\bin\\\\\" -Recurse | Select-Object FullName)",
+      "Bash(npm run *)",
+      "Bash(cp .env.example .env)",
+      "Bash(timeout 15 node dist/main.js)",
+      "Bash(echo \"---exit:$?---\")",
+      "mcp__ea37e9dc-7901-40bb-b8d0-899a320be974__list_tables",
+      "Bash(npx tsc *)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

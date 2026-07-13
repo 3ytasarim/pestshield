@@ -1,0 +1,10 @@
+<svg viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Y icon: two diagonal stripes -->
+  <polygon points="2,2 16,2 34,30 20,30" fill="#8C8C8C"/>
+  <polygon points="16,2 32,2 50,30 36,30" fill="#F7941D" opacity="0.9"/>
+  <polygon points="20,30 34,30 34,54 20,54" fill="#F7941D"/>
+  <!-- 3Y TASARIM text -->
+  <text x="58" y="24" font-family="Arial,sans-serif" font-weight="700" font-size="15" letter-spacing="0.5" fill="#F7941D">3Y TASARIM</text>
+  <!-- Yazılım Hizmetleri text -->
+  <text x="58" y="40" font-family="Arial,sans-serif" font-weight="400" font-size="9.5" letter-spacing="1.2" fill="#8C8C8C">YAZILIM HİZMETLERİ</text>
+</svg>

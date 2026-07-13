@@ -1,0 +1,68 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: ipm-backend
+
+# ============================================================
+# BUILD
+# Varsayılan (dev) hedefi: Cloud Code "Run on Cloud Run emulator" /
+# "Debug on Cloud Run" akışını tetikler; Dockerfile'ın `development`
+# stage'ini kullanır (hot-reload + Node inspector açık).
+#
+# ÖNEMLİ: Aşağıdaki imaj adını kendi Artifact Registry deponuza göre
+# değiştirin: <REGION>-docker.pkg.dev/<PROJECT_ID>/<REPOSITORY>/<IMAGE>
+# ============================================================
+build:
+  artifacts:
+    - image: europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/ipm-backend-repo/ipm-backend
+      docker:
+        dockerfile: Dockerfile
+        target: development
+      sync:
+        infer:
+          - "src/**/*.ts"
+  local:
+    push: false
+    useDockerCLI: true
+
+# ============================================================
+# LOCAL DEBUG — Cloud Code'un port-forward mekanizması.
+# 3000: uygulama (Nest HTTP), 9229: Node inspector (VS Code /
+# Cloud Code "Attach to Node process" için gereklidir).
+# ============================================================
+portForward:
+  - resourceType: service
+    resourceName: ipm-backend
+    port: 8080
+    localPort: 3000
+  - resourceType: service
+    resourceName: ipm-backend
+    port: 9229
+    localPort: 9229
+
+# ============================================================
+# DEPLOY — varsayılan: Cloud Code'un yerel Cloud Run emulator'ü
+# (minikube/kind benzeri) bu artifact'ı ayağa kaldırıp izler.
+# Gerçek Cloud Run'a dağıtım için `production` profilini kullanın:
+#   skaffold run -p production
+# ============================================================
+deploy:
+  cloudrun:
+    projectid: YOUR_GCP_PROJECT_ID
+    region: europe-west1
+
+profiles:
+  - name: production
+    build:
+      artifacts:
+        - image: europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/ipm-backend-repo/ipm-backend
+          docker:
+            dockerfile: Dockerfile
+            target: production
+      local:
+        push: true
+        useDockerCLI: true
+    deploy:
+      cloudrun:
+        projectid: YOUR_GCP_PROJECT_ID
+        region: europe-west1

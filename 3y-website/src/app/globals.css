@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/* ── 3Y Brand Tokens ── */
+:root {
+  --bg:   #000000;
+  --bg-2: #0a0a0a;
+  --bg-3: #111111;
+  --section-light:   #edf6fc;
+  --section-light-2: #f5f9fd;
+
+  --text-primary:   #f5f4f2;
+  --text-secondary: #888;
+  --text-muted:     #444;
+
+  --border:       rgba(247, 148, 29, 0.10);
+  --border-hover: rgba(247, 148, 29, 0.28);
+
+  /* 3Y Orange — logo primary */
+  --accent:     #F7941D;
+  --accent-hover: #FFA940;
+  --accent-dim: rgba(247, 148, 29, 0.12);
+
+  /* 3Y Gray — logo secondary */
+  --accent-2:     #8C8C8C;
+  --accent-2-dim: rgba(140, 140, 140, 0.12);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-body);
+}
+
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; color-scheme: dark; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+
+  /* Subtle warm noise */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.022;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px;
+  }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #2a2015; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  ::selection { background: rgba(247, 148, 29, 0.28); color: #fff; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+}
+
+/* ── Utilities ── */
+.font-display { font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif; }
+.accent-text  { color: var(--accent); }
+
+.rule {
+  width: 100%; height: 1px;
+  background: var(--border);
+}
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  transition: border-color 0.2s ease;
+}
+.card:hover { border-color: var(--border-hover); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: 100px;
+  padding: 4px 12px;
+}
+
+/* Border divider utility */
+.divide-lines > * + * { border-top: 1px solid var(--border); }
+
+/* 3D perspective wrapper */
+.perspective-card { perspective: 900px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

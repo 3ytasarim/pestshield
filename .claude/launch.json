@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "3y-website (Next.js dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "autoPort": true,
+      "cwd": "3y-website"
+    },
+    {
+      "name": "pestshield-frontend (Next.js dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3100,
+      "autoPort": true,
+      "cwd": "pestshield-frontend"
+    },
+    {
+      "name": "pestshield-app (Next.js dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3200"],
+      "port": 3200,
+      "autoPort": true,
+      "cwd": "pestshield-app"
+    }
+  ]
+}
