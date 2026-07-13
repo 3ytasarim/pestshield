@@ -1,0 +1,310 @@
+"use client";
+
+import { useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AnimatePresence, motion } from "framer-motion";
+import { PackagePlus, ShieldCheck } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { newProductFormSchema, type NewProductFormValues } from "@/lib/validations/inventory";
+import { CATEGORY_OPTIONS, UNIT_OPTIONS } from "@/components/inventory/inventory-labels";
+import { warehouses, type ProductCategory, type ProductUnit } from "@/lib/mock/inventory";
+
+const EMPTY: NewProductFormValues = {
+  name: "",
+  category: "malzeme",
+  unit: "adet",
+  warehouseId: warehouses[0]?.id ?? "",
+  manufacturer: "",
+  startingStock: 0,
+  criticalLevel: 0,
+  isBiosidal: false,
+  licenseNumber: "",
+  activeIngredient: "",
+  defaultDose: "",
+  targetOrganisms: "",
+};
+
+interface NewProductFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (values: NewProductFormValues) => void;
+  defaultValues?: NewProductFormValues;
+}
+
+function PillGroup<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+            value === option.value
+              ? "border-primary/20 bg-primary text-primary-foreground"
+              : "border-border bg-background text-muted-foreground hover:bg-muted",
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues }: NewProductFormProps) {
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<NewProductFormValues>({
+    resolver: zodResolver(newProductFormSchema),
+    defaultValues: defaultValues ?? EMPTY,
+  });
+
+  useEffect(() => {
+    if (open) reset(defaultValues ?? EMPTY);
+  }, [open, defaultValues, reset]);
+
+  const isBiosidal = watch("isBiosidal");
+
+  function submit(values: NewProductFormValues) {
+    onSubmit(values);
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PackagePlus className="size-4.5 text-primary" />
+            {defaultValues ? "Ürünü Düzenle" : "Yeni Ürün Ekle"}
+          </DialogTitle>
+          <DialogDescription>
+            {defaultValues
+              ? "Ürün bilgilerini güncelleyin."
+              : "Envantere yeni bir ürün, malzeme veya ekipman ekleyin."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
+          <div>
+            <Label className="mb-1.5">
+              Ürün Adı <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              placeholder="Temizlik solüsyonu…"
+              className="h-11 rounded-xl px-3.5"
+              {...register("name")}
+            />
+            {errors.name && <p className="mt-1.5 text-xs text-destructive">{errors.name.message}</p>}
+          </div>
+
+          {!isBiosidal && (
+            <div>
+              <Label className="mb-1.5">Üretici</Label>
+              <Input placeholder="Marka / üretici" className="h-11 rounded-xl px-3.5" {...register("manufacturer")} />
+            </div>
+          )}
+
+          <div>
+            <Label className="mb-1.5">Kategori</Label>
+            <Controller
+              control={control}
+              name="category"
+              render={({ field }) => (
+                <PillGroup<ProductCategory> value={field.value} options={CATEGORY_OPTIONS} onChange={field.onChange} />
+              )}
+            />
+          </div>
+
+          <div>
+            <Label className="mb-1.5">Birim</Label>
+            <Controller
+              control={control}
+              name="unit"
+              render={({ field }) => (
+                <PillGroup<ProductUnit> value={field.value} options={UNIT_OPTIONS} onChange={field.onChange} />
+              )}
+            />
+          </div>
+
+          <div>
+            <Label className="mb-1.5">
+              Depo <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              control={control}
+              name="warehouseId"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                    <SelectValue placeholder="Depo seçin…">
+                      {(value: unknown) => warehouses.find((w) => w.id === value)?.name ?? "Depo seçin…"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.warehouseId && <p className="mt-1.5 text-xs text-destructive">{errors.warehouseId.message}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div>
+              <Label className="mb-1.5">
+                {defaultValues ? "Mevcut Miktar" : "Başlangıç Miktarı"} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0"
+                className="h-11 rounded-xl px-3.5"
+                {...register("startingStock", { valueAsNumber: true })}
+              />
+              {errors.startingStock && (
+                <p className="mt-1.5 text-xs text-destructive">{errors.startingStock.message}</p>
+              )}
+            </div>
+            <div>
+              <Label className="mb-1.5">
+                Kritik Seviye <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="min."
+                className="h-11 rounded-xl px-3.5"
+                {...register("criticalLevel", { valueAsNumber: true })}
+              />
+              {errors.criticalLevel && (
+                <p className="mt-1.5 text-xs text-destructive">{errors.criticalLevel.message}</p>
+              )}
+            </div>
+          </div>
+
+          <Controller
+            control={control}
+            name="isBiosidal"
+            render={({ field }) => (
+              <label className="flex items-center justify-between gap-3 rounded-xl border border-success/20 bg-success/[0.06] px-3.5 py-3">
+                <span className="flex items-start gap-2.5">
+                  <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">Biyosidal Ürün mü?</span>
+                    <span className="text-xs text-muted-foreground">Ruhsat, aktif madde ve doz bilgileri</span>
+                  </span>
+                </span>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </label>
+            )}
+          />
+
+          <AnimatePresence initial={false}>
+            {isBiosidal && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-col gap-3.5 border-l-2 border-success/30 pl-4">
+                  <div>
+                    <Label className="mb-1.5">Ruhsat No</Label>
+                    <Input
+                      placeholder="2009/12-789"
+                      className="h-11 rounded-xl px-3.5"
+                      {...register("licenseNumber")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Aktif Madde</Label>
+                    <Input
+                      placeholder="Deltamethrin %25"
+                      className="h-11 rounded-xl px-3.5"
+                      {...register("activeIngredient")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Varsayılan Doz</Label>
+                    <Input
+                      placeholder="25 g / 5 lt su"
+                      className="h-11 rounded-xl px-3.5"
+                      {...register("defaultDose")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Hedef Organizmalar</Label>
+                    <Input
+                      placeholder="Hamamböceği, karasinek…"
+                      className="h-11 rounded-xl px-3.5"
+                      {...register("targetOrganisms")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Üretici</Label>
+                    <Input
+                      placeholder="Bayer, Syngenta…"
+                      className="h-11 rounded-xl px-3.5"
+                      {...register("manufacturer")}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Vazgeç
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              <PackagePlus className="size-4" />
+              {defaultValues ? "Değişiklikleri Kaydet" : "Ürünü Kaydet"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,0 +1,392 @@
+.auth-switch-scope .page {
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background: linear-gradient(135deg, #0877b2 0%, #0d4d8f 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.auth-switch-scope .container {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  height: 550px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.auth-switch-scope .forms-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+.auth-switch-scope .signin-signup {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  left: 75%;
+  width: 50%;
+  transition: 1s 0.7s ease-in-out;
+  display: grid;
+  grid-template-columns: 1fr;
+  z-index: 5;
+}
+
+.auth-switch-scope .form-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 0 5rem;
+  transition: all 0.2s 0.7s;
+  overflow: hidden;
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+
+.auth-switch-scope .sign-up-form {
+  opacity: 0;
+  z-index: 1;
+}
+
+.auth-switch-scope .sign-in-form {
+  z-index: 2;
+}
+
+.auth-switch-scope .title {
+  font-size: 2.2rem;
+  color: #444;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.auth-switch-scope .input-field {
+  max-width: 380px;
+  width: 100%;
+  background-color: #f0f0f0;
+  margin: 10px 0;
+  height: 55px;
+  border-radius: 55px;
+  display: grid;
+  grid-template-columns: 15% 85%;
+  padding: 0 0.4rem;
+  position: relative;
+  overflow: hidden;
+  transition: 0.3s;
+}
+
+.auth-switch-scope .input-field:focus-within {
+  background-color: #e8e8e8;
+  box-shadow: 0 0 0 2px #0877b2;
+}
+
+.auth-switch-scope .input-field svg {
+  margin: auto;
+  color: #666;
+}
+
+.auth-switch-scope .input-field input {
+  background: none;
+  outline: none;
+  border: none;
+  border-radius: inherit;
+  line-height: 1;
+  font-weight: 500;
+  font-size: 1rem;
+  color: #333;
+  width: 100%;
+}
+
+.auth-switch-scope .input-field input:-webkit-autofill,
+.auth-switch-scope .input-field input:-webkit-autofill:hover,
+.auth-switch-scope .input-field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #333;
+  -webkit-box-shadow: 0 0 0 1000px #f0f0f0 inset;
+  box-shadow: 0 0 0 1000px #f0f0f0 inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.auth-switch-scope .input-field input::placeholder {
+  color: #aaa;
+  font-weight: 400;
+}
+
+.auth-switch-scope .field-error {
+  width: 100%;
+  max-width: 380px;
+  margin-top: -6px;
+  font-size: 0.75rem;
+  color: #e11d48;
+}
+
+.auth-switch-scope .btn {
+  width: 150px;
+  background-color: #0877b2;
+  border: none;
+  outline: none;
+  height: 49px;
+  border-radius: 49px;
+  color: #fff;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin: 10px 0;
+  cursor: pointer;
+  transition: 0.5s;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.auth-switch-scope .btn:hover {
+  background-color: #066998;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(8, 119, 178, 0.4);
+}
+
+.auth-switch-scope .btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-switch-scope .btn .spin {
+  animation: authSwitchSpin 0.8s linear infinite;
+}
+
+@keyframes authSwitchSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-switch-scope .panels-container {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.auth-switch-scope .panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-around;
+  text-align: center;
+  z-index: 6;
+}
+
+.auth-switch-scope .left-panel {
+  pointer-events: all;
+  padding: 3rem 17% 2rem 12%;
+}
+
+.auth-switch-scope .right-panel {
+  pointer-events: none;
+  padding: 3rem 12% 2rem 17%;
+}
+
+.auth-switch-scope .panel .content {
+  color: #fff;
+  transition: transform 0.9s ease-in-out;
+  transition-delay: 0.6s;
+}
+
+.auth-switch-scope .panel h3 {
+  font-weight: 600;
+  line-height: 1;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.auth-switch-scope .panel p {
+  font-size: 0.95rem;
+  padding: 0.7rem 0;
+}
+
+.auth-switch-scope .btn.transparent {
+  margin: 0 auto;
+  background: none;
+  border: 2px solid #fff;
+  width: 130px;
+  height: 41px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.auth-switch-scope .btn.transparent:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.auth-switch-scope .right-panel .content {
+  transform: translateX(800px);
+}
+
+.auth-switch-scope .container.sign-up-mode .container-before {
+  transform: translate(100%, -50%);
+  right: 52%;
+}
+
+.auth-switch-scope .container.sign-up-mode .left-panel .content {
+  transform: translateX(-800px);
+}
+
+.auth-switch-scope .container.sign-up-mode .signin-signup {
+  left: 25%;
+}
+
+.auth-switch-scope .container.sign-up-mode .sign-up-form {
+  opacity: 1;
+  z-index: 2;
+}
+
+.auth-switch-scope .container.sign-up-mode .sign-in-form {
+  opacity: 0;
+  z-index: 1;
+}
+
+.auth-switch-scope .container.sign-up-mode .right-panel .content {
+  transform: translateX(0%);
+}
+
+.auth-switch-scope .container.sign-up-mode .left-panel {
+  pointer-events: none;
+}
+
+.auth-switch-scope .container.sign-up-mode .right-panel {
+  pointer-events: all;
+}
+
+.auth-switch-scope .container-before {
+  content: "";
+  position: absolute;
+  height: 2000px;
+  width: 2000px;
+  top: -10%;
+  right: 48%;
+  transform: translateY(-50%);
+  background: linear-gradient(-45deg, #0877b2 0%, #0d4d8f 100%);
+  transition: 1.8s ease-in-out;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.auth-switch-scope .panel-logo {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto 20px;
+}
+
+@media (max-width: 870px) {
+  .auth-switch-scope .container {
+    min-height: 800px;
+    height: 100vh;
+  }
+  .auth-switch-scope .signin-signup {
+    width: 100%;
+    top: 95%;
+    transform: translate(-50%, -100%);
+    transition: 1s 0.8s ease-in-out;
+  }
+  .auth-switch-scope .signin-signup,
+  .auth-switch-scope .container.sign-up-mode .signin-signup {
+    left: 50%;
+  }
+  .auth-switch-scope .panels-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 2fr 1fr;
+  }
+  .auth-switch-scope .panel {
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 2.5rem 8%;
+    grid-column: 1 / 2;
+  }
+  .auth-switch-scope .right-panel {
+    grid-row: 3 / 4;
+  }
+  .auth-switch-scope .left-panel {
+    grid-row: 1 / 2;
+  }
+  .auth-switch-scope .panel .content {
+    padding-right: 15%;
+    transition: transform 0.9s ease-in-out;
+    transition-delay: 0.8s;
+  }
+  .auth-switch-scope .panel h3 {
+    font-size: 1.2rem;
+  }
+  .auth-switch-scope .panel p {
+    font-size: 0.7rem;
+    padding: 0.5rem 0;
+  }
+  .auth-switch-scope .panel-logo {
+    max-width: 190px;
+    margin: 0 auto 8px;
+  }
+  .auth-switch-scope .btn.transparent {
+    width: 110px;
+    height: 35px;
+    font-size: 0.7rem;
+  }
+  .auth-switch-scope .container-before {
+    width: 1500px;
+    height: 1500px;
+    transform: translateX(-50%);
+    left: 30%;
+    bottom: 68%;
+    right: initial;
+    top: initial;
+    transition: 2s ease-in-out;
+  }
+  .auth-switch-scope .container.sign-up-mode .container-before {
+    transform: translate(-50%, 100%);
+    bottom: 32%;
+    right: initial;
+  }
+  .auth-switch-scope .container.sign-up-mode .left-panel .content {
+    transform: translateY(-300px);
+  }
+  .auth-switch-scope .container.sign-up-mode .right-panel .content {
+    transform: translateY(0px);
+  }
+  .auth-switch-scope .right-panel .content {
+    transform: translateY(300px);
+  }
+  .auth-switch-scope .container.sign-up-mode .signin-signup {
+    top: 5%;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 570px) {
+  .auth-switch-scope .form-slot {
+    padding: 0 1.5rem;
+  }
+  .auth-switch-scope .panel .content {
+    padding: 0.5rem 1rem;
+  }
+}

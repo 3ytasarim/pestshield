@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TECH
+  CLIENT
+}
+
+enum LicenseType {
+  DEMO
+  MONTHLY
+  YEARLY
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  /// Credentials provider için bcrypt hash'i - OAuth ile giren kullanıcılarda null olabilir
+  password      String?
+  role          Role      @default(CLIENT)
+  isActive      Boolean   @default(true)
+
+  /// Firma kaydı akışıyla oluşturulan müşteri hesapları için serbest metin
+  /// firma adı. Tam ilişkisel Company modeli sonraki bir sprintte eklenecek.
+  companyName String?
+
+  /// Firma kaydı sırasında otomatik atanır (bkz. /api/company-register).
+  /// Ödeme/yükseltme akışı henüz bağlanmadı - sadece kayıt anındaki durumu tutar.
+  licenseType      LicenseType?
+  licenseExpiresAt DateTime?
+
+  /// 2FA (TOTP)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+/// NextAuth'un e-posta doğrulama/magic-link mekanizması için standart
+/// tablo; e-posta doğrulama akışımızda da bu tabloyu kullanıyoruz.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+/// PestShield tarafından üretilip yeni müşteri firmalara iletilen katılım kodu.
+/// Tam Company/tenant modeli sonraki bir sprintte eklenecek.
+model CompanyCode {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  companyName String
+  maxUses     Int       @default(1)
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("company_codes")
+}
