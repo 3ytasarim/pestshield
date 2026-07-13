@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, ChartNoAxesCombined, Clock, FlaskConical, ReceiptText } from "lucide-react";
+import { ArrowRight, TrendingUp, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -18,31 +18,17 @@ interface ReportCardDef {
 
 const REPORTS: ReportCardDef[] = [
   {
-    href: "/dashboard/client/reports/tahakkuk",
-    icon: ReceiptText,
-    title: "Tahakkuk Raporları",
-    description: "Tüm müşteriler genelinde periyot ziyaretlerinin tahakkuk durumu — tamamlanan ve bekleyen EK-1 kayıtları tek tabloda.",
-    accent: "blue",
-  },
-  {
-    href: "/dashboard/client/reports/trend-analysis",
-    icon: ChartNoAxesCombined,
-    title: "Trend Analiz Raporları",
-    description: "Müşteri, kroki ve ay seçerek istasyon aktivitesi trend analizi ve önceki periyot kıyası oluşturun.",
+    href: "/dashboard/client/reports/finance/tahsilat",
+    icon: Wallet,
+    title: "Tahsilat Raporu",
+    description: "Seçilen tarih aralığında ve müşteride gerçekleşen tüm tahsilatların (nakit/kart/havale) dökümü.",
     accent: "emerald",
   },
   {
-    href: "/dashboard/client/reports/pdks",
-    icon: Clock,
-    title: "PDKS Personel Çalışma Saatleri",
-    description: "Teknisyenlerin günlük mesai başlangıç/bitiş saatleri, çalışma süresi ve saha rotası özeti.",
-    accent: "blue",
-  },
-  {
-    href: "/dashboard/client/reports/chemical-usage",
-    icon: FlaskConical,
-    title: "Biyosidal Ürün Kullanım Raporu",
-    description: "Müşteri bazında periyot ziyaretlerinde kullanılan biyosidal ürünlerin tarih sıralı kaydı (BRC/HACCP uygulama günlüğü).",
+    href: "/dashboard/client/reports/finance/alacak",
+    icon: TrendingUp,
+    title: "Alacak / Vade Raporu",
+    description: "Borçlu müşterilerin güncel bakiyeleri ve vade durumu — gecikmiş alacakları tek bakışta gösterir.",
     accent: "amber",
   },
 ];
@@ -53,7 +39,7 @@ const ACCENT_CLASSES: Record<ReportCardDef["accent"], string> = {
   amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
 
-export function ReportsHubPage() {
+export function FinanceReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <motion.div
@@ -62,19 +48,16 @@ export function ReportsHubPage() {
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="flex flex-col gap-1.5"
       >
-        <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Raporlar</h1>
+        <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Finans Raporları</h1>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Denetim ve saha verilerinizden hazır rapor türlerini seçin, filtreleyin ve PDF olarak dışa aktarın.
+          Tahsilat ve alacak durumuna dair hazır finans raporları — filtreleyin, inceleyin ve PDF olarak dışa aktarın.
         </p>
       </motion.div>
 
-      <div>
-        <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">Hazır Rapor Türleri</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {REPORTS.map((report, index) => (
-            <ReportCard key={report.href} report={report} delay={index * 0.05} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {REPORTS.map((report, index) => (
+          <ReportCard key={report.href} report={report} delay={index * 0.05} />
+        ))}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
-import { ReportsHubPage } from "@/components/reports/reports-hub-page";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ReportsHubPage />;
+  redirect("/dashboard/client/reports/operations");
 }

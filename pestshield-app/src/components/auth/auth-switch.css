@@ -83,6 +83,7 @@
   grid-template-columns: 15% 85%;
   padding: 0 0.4rem;
   position: relative;
+  overflow: hidden;
   transition: 0.3s;
 }
 
@@ -100,11 +101,21 @@
   background: none;
   outline: none;
   border: none;
+  border-radius: inherit;
   line-height: 1;
   font-weight: 500;
   font-size: 1rem;
   color: #333;
   width: 100%;
+}
+
+.auth-switch-scope .input-field input:-webkit-autofill,
+.auth-switch-scope .input-field input:-webkit-autofill:hover,
+.auth-switch-scope .input-field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #333;
+  -webkit-box-shadow: 0 0 0 1000px #f0f0f0 inset;
+  box-shadow: 0 0 0 1000px #f0f0f0 inset;
+  transition: background-color 9999s ease-in-out 0s;
 }
 
 .auth-switch-scope .input-field input::placeholder {

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, ChartNoAxesCombined, Clock, FlaskConical, ReceiptText } from "lucide-react";
+import { ArrowRight, ClipboardList, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -18,32 +18,18 @@ interface ReportCardDef {
 
 const REPORTS: ReportCardDef[] = [
   {
-    href: "/dashboard/client/reports/tahakkuk",
-    icon: ReceiptText,
-    title: "Tahakkuk Raporları",
-    description: "Tüm müşteriler genelinde periyot ziyaretlerinin tahakkuk durumu — tamamlanan ve bekleyen EK-1 kayıtları tek tabloda.",
-    accent: "blue",
-  },
-  {
-    href: "/dashboard/client/reports/pdks",
-    icon: Clock,
-    title: "PDKS Personel Çalışma Saatleri",
-    description: "Teknisyenlerin günlük mesai başlangıç/bitiş saatleri, çalışma süresi ve saha rotası özeti.",
+    href: "/dashboard/client/reports/audit/uygunluk",
+    icon: ShieldCheck,
+    title: "Uygunluk Durum Raporu",
+    description: "HACCP, BRCGS, ISO 22000 ve FSSC 22000 checklist maddelerinin standart bazında uygunluk durumu.",
     accent: "emerald",
   },
   {
-    href: "/dashboard/client/reports/trend-analysis",
-    icon: ChartNoAxesCombined,
-    title: "Trend Analiz Raporları",
-    description: "Müşteri ve hizmet seçerek o hizmete ait tüm krokilerin genel trend analizini görüntüleyin.",
+    href: "/dashboard/client/reports/audit/capa",
+    icon: ClipboardList,
+    title: "CAPA Durum Raporu",
+    description: "Düzeltici/Önleyici Faaliyetlerin durumu, önceliği ve vade takibi.",
     accent: "amber",
-  },
-  {
-    href: "/dashboard/client/reports/chemical-usage",
-    icon: FlaskConical,
-    title: "Biyosidal Ürün Kullanım Raporu",
-    description: "EK-1 formuyla aynı alan yapısında, doldurup anında yazdırabileceğiniz bağımsız biyosidal ürün uygulama raporu.",
-    accent: "blue",
   },
 ];
 
@@ -53,7 +39,7 @@ const ACCENT_CLASSES: Record<ReportCardDef["accent"], string> = {
   amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
 
-export function OperationsReportsPage() {
+export function AuditReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <motion.div
@@ -62,18 +48,16 @@ export function OperationsReportsPage() {
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="flex flex-col gap-1.5"
       >
-        <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Operasyon Raporları</h1>
+        <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Audit Raporları</h1>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Saha operasyonuna ait tüm hazır raporlar tek yerde — tahakkuk, mesai, trend analizi ve biyosidal ürün kullanımı.
+          Denetim ve uyumluluk verilerine dair hazır raporlar — filtreleyin, inceleyin ve PDF olarak dışa aktarın.
         </p>
       </motion.div>
 
-      <div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {REPORTS.map((report, index) => (
-            <ReportCard key={report.href} report={report} delay={index * 0.05} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {REPORTS.map((report, index) => (
+          <ReportCard key={report.href} report={report} delay={index * 0.05} />
+        ))}
       </div>
     </div>
   );

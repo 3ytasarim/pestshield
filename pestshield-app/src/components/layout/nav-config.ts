@@ -206,10 +206,9 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Raporlar",
       icon: BarChart3,
       items: [
-        { label: "Dashboard", href: "/dashboard/client/reports", icon: BarChart3 },
         { label: "Operasyon", href: "/dashboard/client/reports/operations", icon: Activity },
-        { label: "Finans", href: "/dashboard/client/reports/finance", icon: PieChart, comingSoon: true },
-        { label: "Audit", href: "/dashboard/client/reports/audit", icon: ShieldCheck, comingSoon: true },
+        { label: "Finans", href: "/dashboard/client/reports/finance", icon: PieChart },
+        { label: "Audit", href: "/dashboard/client/reports/audit", icon: ShieldCheck },
         { label: "AI Analizleri", href: "/dashboard/client/reports/ai", icon: Sparkles, comingSoon: true },
       ],
     },
