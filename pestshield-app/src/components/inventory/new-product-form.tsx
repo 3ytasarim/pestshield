@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
@@ -27,28 +27,14 @@ import {
 import { cn } from "@/lib/utils";
 import { newProductFormSchema, type NewProductFormValues } from "@/lib/validations/inventory";
 import { CATEGORY_OPTIONS, UNIT_OPTIONS } from "@/components/inventory/inventory-labels";
-import { warehouses, type ProductCategory, type ProductUnit } from "@/lib/mock/inventory";
-
-const EMPTY: NewProductFormValues = {
-  name: "",
-  category: "malzeme",
-  unit: "adet",
-  warehouseId: warehouses[0]?.id ?? "",
-  manufacturer: "",
-  startingStock: 0,
-  criticalLevel: 0,
-  isBiosidal: false,
-  licenseNumber: "",
-  activeIngredient: "",
-  defaultDose: "",
-  targetOrganisms: "",
-};
+import type { ProductCategory, ProductUnit, Warehouse } from "@/lib/mock/inventory";
 
 interface NewProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: NewProductFormValues) => void;
   defaultValues?: NewProductFormValues;
+  warehouses: Warehouse[];
 }
 
 function PillGroup<T extends string>({
@@ -81,7 +67,24 @@ function PillGroup<T extends string>({
   );
 }
 
-export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues }: NewProductFormProps) {
+export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, warehouses }: NewProductFormProps) {
+  const EMPTY: NewProductFormValues = useMemo(
+    () => ({
+      name: "",
+      category: "malzeme",
+      unit: "adet",
+      warehouseId: warehouses[0]?.id ?? "",
+      manufacturer: "",
+      startingStock: 0,
+      criticalLevel: 0,
+      isBiosidal: false,
+      licenseNumber: "",
+      activeIngredient: "",
+      defaultDose: "",
+      targetOrganisms: "",
+    }),
+    [warehouses],
+  );
   const {
     register,
     control,
@@ -96,7 +99,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues }: 
 
   useEffect(() => {
     if (open) reset(defaultValues ?? EMPTY);
-  }, [open, defaultValues, reset]);
+  }, [open, defaultValues, reset, EMPTY]);
 
   const isBiosidal = watch("isBiosidal");
 

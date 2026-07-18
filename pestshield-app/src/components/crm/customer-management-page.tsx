@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -33,19 +33,22 @@ import { CustomerForm } from "@/components/crm/customer-form";
 import { HizmetForm, type ContractFileValue } from "@/components/crm/detail/hizmet-form";
 import { matchesFilter, matchesSearch, type CustomerFilterKey } from "@/components/crm/crm-filter-logic";
 import { formatCurrency } from "@/components/crm/crm-format";
-import { customers as initialCustomers, type Customer } from "@/lib/mock/crm";
-import { loadCustomers, saveCustomers } from "@/lib/customer-store";
-import { addServiceOrder, buildServiceOrder } from "@/lib/service-order-store";
+import type { Customer, ContractStatus } from "@/lib/mock/crm";
 import type { CustomerFormValues, HizmetFormValues } from "@/lib/validations/crm";
 
-export function CustomerManagementPage() {
+export function CustomerManagementPage({
+  initialCustomers,
+  contractStatusByCustomer,
+  pendingOfferCustomerIds,
+}: {
+  initialCustomers: Customer[];
+  contractStatusByCustomer: Record<string, ContractStatus>;
+  pendingOfferCustomerIds: string[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [customers, setCustomers] = useState<Customer[]>(() => loadCustomers(initialCustomers));
-
-  useEffect(() => {
-    saveCustomers(customers);
-  }, [customers]);
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const pendingOfferIdSet = useMemo(() => new Set(pendingOfferCustomerIds), [pendingOfferCustomerIds]);
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [activeFilters, setActiveFilters] = useState<Set<CustomerFilterKey>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -55,15 +58,17 @@ export function CustomerManagementPage() {
   const [serviceCustomer, setServiceCustomer] = useState<Customer | null>(null);
   const [serviceFormOpen, setServiceFormOpen] = useState(false);
 
+  const filterContext = useMemo(() => ({ pendingOfferCustomerIds: pendingOfferIdSet }), [pendingOfferIdSet]);
+
   const filtered = useMemo(() => {
     return customers.filter((customer) => {
       if (!matchesSearch(customer, search)) return false;
       for (const key of activeFilters) {
-        if (!matchesFilter(customer, key)) return false;
+        if (!matchesFilter(customer, key, filterContext)) return false;
       }
       return true;
     });
-  }, [customers, search, activeFilters]);
+  }, [customers, search, activeFilters, filterContext]);
 
   const selectedCustomer = customers.find((c) => c.id === selectedId) ?? null;
 
@@ -72,10 +77,10 @@ export function CustomerManagementPage() {
     const active = customers.filter((c) => c.status === "active").length;
     const passive = customers.filter((c) => c.status === "passive").length;
     const contractEnding = customers.filter((c) => matchesFilter(c, "contract_expiring")).length;
-    const pendingOffers = customers.filter((c) => matchesFilter(c, "pending_offer")).length;
+    const pendingOffers = customers.filter((c) => matchesFilter(c, "pending_offer", filterContext)).length;
     const pendingCollectionTotal = customers.reduce((sum, c) => sum + c.pendingCollection, 0);
     return { total, active, passive, contractEnding, pendingOffers, pendingCollectionTotal };
-  }, [customers]);
+  }, [customers, filterContext]);
 
   function toggleFilter(key: CustomerFilterKey) {
     setActiveFilters((prev) => {
@@ -86,42 +91,35 @@ export function CustomerManagementPage() {
     });
   }
 
-  function handleCreateCustomer(values: CustomerFormValues) {
-    const optionalDefaults = {
-      taxNumber: values.taxNumber ?? "",
-      taxOffice: values.taxOffice ?? "",
-      logo: values.logo ?? null,
-      iban: values.iban ?? "",
-      portalPassword: values.portalPassword ?? "",
-    };
+  async function handleCreateCustomer(values: CustomerFormValues) {
     if (editingCustomer) {
-      setCustomers((prev) =>
-        prev.map((c) => (c.id === editingCustomer.id ? { ...c, ...values, ...optionalDefaults } : c)),
-      );
+      const res = await fetch(`/api/crm/customers/${editingCustomer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Müşteri güncellenemedi");
+        return;
+      }
+      setCustomers((prev) => prev.map((c) => (c.id === editingCustomer.id ? data.customer : c)));
       setEditingCustomer(null);
       return;
     }
-    const newCustomer: Customer = {
-      ...values,
-      ...optionalDefaults,
-      id: `cust-${Date.now()}`,
-      // Servis türü, periyot ve sorumlu ekip ataması ilk müşteri kaydında değil,
-      // ilk iş emri/sözleşme oluşturulurken belirlenir.
-      serviceType: "",
-      servicePeriod: "",
-      operationsManager: "",
-      salesRep: "",
-      riskLevel: "low",
-      riskScore: 15,
-      auditReadinessScore: 70,
-      lastServiceDate: new Date().toISOString().slice(0, 10),
-      nextServiceDate: new Date().toISOString().slice(0, 10),
-      pendingCollection: 0,
-      contractEndDate: null,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    setCustomers((prev) => [newCustomer, ...prev]);
-    setSelectedId(newCustomer.id);
+
+    const res = await fetch("/api/crm/customers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Müşteri oluşturulamadı");
+      return;
+    }
+    setCustomers((prev) => [data.customer, ...prev]);
+    setSelectedId(data.customer.id);
   }
 
   function handleEdit(customer: Customer) {
@@ -129,8 +127,13 @@ export function CustomerManagementPage() {
     setFormOpen(true);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deletingCustomer) return;
+    const res = await fetch(`/api/crm/customers/${deletingCustomer.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Müşteri silinemedi");
+      return;
+    }
     setCustomers((prev) => prev.filter((c) => c.id !== deletingCustomer.id));
     if (selectedId === deletingCustomer.id) setSelectedId(null);
     setDeletingCustomer(null);
@@ -140,9 +143,17 @@ export function CustomerManagementPage() {
     router.push(`/dashboard/client/customers/${customer.id}?tab=${tab}`);
   }
 
-  function handleCreateService(values: HizmetFormValues, contract: ContractFileValue) {
+  async function handleCreateService(values: HizmetFormValues, contract: ContractFileValue) {
     if (!serviceCustomer) return;
-    addServiceOrder({ ...buildServiceOrder(serviceCustomer.id, values), contractFileDataUrl: contract.fileDataUrl, contractFileName: contract.fileName });
+    const res = await fetch("/api/crm/service-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId: serviceCustomer.id, contractFileDataUrl: contract.fileDataUrl, contractFileName: contract.fileName }),
+    });
+    if (!res.ok) {
+      toast.error("Hizmet kaydedilemedi");
+      return;
+    }
     toast.success(`${serviceCustomer.companyName} için hizmet kaydedildi`);
     setServiceCustomer(null);
   }
@@ -235,6 +246,7 @@ export function CustomerManagementPage() {
       <div className="flex min-w-0 flex-col gap-4">
         <CustomerFilters
           customers={customers}
+          filterContext={filterContext}
           search={search}
           onSearchChange={setSearch}
           activeFilters={activeFilters}
@@ -242,6 +254,7 @@ export function CustomerManagementPage() {
         />
         <CustomerTable
           customers={filtered}
+          contractStatusByCustomer={contractStatusByCustomer}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onEdit={handleEdit}

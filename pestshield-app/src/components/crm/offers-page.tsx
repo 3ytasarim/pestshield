@@ -18,11 +18,14 @@ import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { OfferStatusBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { getAllOffers, getCustomerById } from "@/lib/mock/crm";
-import type { OfferStatus } from "@/lib/mock/crm";
+import type { Offer, OfferStatus } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | OfferStatus;
+
+export interface OfferWithCustomer extends Offer {
+  customer: { id: string; companyName: string } | null;
+}
 
 const STATUS_OPTIONS: { value: OfferStatus; label: string }[] = [
   { value: "draft", label: "Taslak" },
@@ -32,11 +35,11 @@ const STATUS_OPTIONS: { value: OfferStatus; label: string }[] = [
   { value: "expired", label: "Süresi Doldu" },
 ];
 
-export function OffersPage() {
+export function OffersPage({ initialOffers }: { initialOffers: OfferWithCustomer[] }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const offers = useMemo(() => getAllOffers().map((o) => ({ ...o, customer: getCustomerById(o.customerId) })), []);
+  const offers = initialOffers;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

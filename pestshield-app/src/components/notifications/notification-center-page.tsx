@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Bell, CheckCheck, Inbox } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
@@ -12,6 +13,7 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { useNotifications } from "@/components/notifications/notifications-context";
 import { NOTIFICATION_PRIORITY_STYLES, NOTIFICATION_TYPE_ICONS, NOTIFICATION_TYPE_LABELS } from "@/components/notifications/notification-labels";
+import { AlertPanel } from "@/components/alerts/alert-panel";
 import type { NotificationType } from "@/lib/mock/notifications";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +22,7 @@ type ReadFilter = "all" | "unread";
 
 export function NotificationCenterPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { data: session } = useSession();
   const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [readFilter, setReadFilter] = useState<ReadFilter>("all");
@@ -59,6 +62,16 @@ export function NotificationCenterPage() {
           </Button>
         )}
       </motion.div>
+
+      <Card className={cn(GLASS_CARD)}>
+        <CardHeader>
+          <CardTitle className="text-base">Proaktif Uyarılar</CardTitle>
+          <p className="text-xs text-muted-foreground">Deterministik kurallardan (gecikmiş servis, gecikmiş tahsilat, kritik risk vb.) üretilen, onaylanabilir/ertelenebilir uyarılar.</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <AlertPanel userId={session?.user?.id} role={session?.user?.role} />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <CrmKpiCard label="Toplam Bildirim" value={notifications.length} description="Tüm modüllerden toplanan sinyal" changePercent={5} icon={Bell} accent="blue" delay={0.05} />

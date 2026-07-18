@@ -25,6 +25,20 @@ async function main() {
   }
 
   console.log("Seed tamamlandı. Şifre (hepsi için): Sprint0!23");
+
+  /** 3Y süper admin hesabı — kayıtlı firmaları görür, lisans üretir. */
+  const superAdminPasswordHash = await bcrypt.hash("Onur2805Y!!!", 10);
+  await prisma.user.upsert({
+    where: { email: "superadmin@pestshield.app" },
+    update: {},
+    create: {
+      email: "superadmin@pestshield.app",
+      name: "3Y Süper Admin",
+      role: "ADMIN",
+      password: superAdminPasswordHash,
+    },
+  });
+  console.log("Süper admin hesabı hazır: superadmin@pestshield.app");
 }
 
 main()

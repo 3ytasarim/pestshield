@@ -24,6 +24,18 @@ export const companyRegisterSchema = z
 
 export type CompanyRegisterFormValues = z.infer<typeof companyRegisterSchema>;
 
+/** Süper admin tarafından yeni bir Pest Control firma hesabı oluşturulurken kullanılır. */
+export const adminCreateCompanySchema = z.object({
+  companyName: z.string().min(2, "Firma adı en az 2 karakter olmalıdır"),
+  email: z.string().min(1, "E-posta zorunludur").email("Geçerli bir e-posta adresi girin"),
+  password: z.string().min(8, "Şifre en az 8 karakter olmalıdır"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  logoUrl: z.string().optional(),
+});
+
+export type AdminCreateCompanyFormValues = z.infer<typeof adminCreateCompanySchema>;
+
 export const forgotPasswordSchema = z.object({
   email: z.string().min(1, "E-posta zorunludur").email("Geçerli bir e-posta adresi girin"),
 });

@@ -6,6 +6,8 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { CommandPaletteProvider } from "@/components/layout/command-palette-context";
 import { NotificationsProvider } from "@/components/notifications/notifications-context";
+import { AiCommandCenter } from "@/components/ai-assistant/ai-command-center";
+import { AiPanelProvider } from "@/components/ai-assistant/ai-panel-context";
 import type { Role } from "@/generated/prisma/enums";
 
 interface DashboardShellProps {
@@ -17,17 +19,20 @@ interface DashboardShellProps {
 
 export function DashboardShell({ role, userName, userEmail, children }: DashboardShellProps) {
   return (
-    <NotificationsProvider>
-      <CommandPaletteProvider>
-        <SidebarProvider style={{ "--sidebar-width": "18.75rem" } as React.CSSProperties}>
-          <AppSidebar role={role} userName={userName} userEmail={userEmail} />
-          <SidebarInset>
-            <DashboardHeader />
-            <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</main>
-          </SidebarInset>
-        </SidebarProvider>
-        <CommandPalette role={role} />
-      </CommandPaletteProvider>
+    <NotificationsProvider role={role}>
+      <AiPanelProvider>
+        <CommandPaletteProvider>
+          <SidebarProvider style={{ "--sidebar-width": "18.75rem" } as React.CSSProperties}>
+            <AppSidebar role={role} userName={userName} userEmail={userEmail} />
+            <SidebarInset>
+              <DashboardHeader />
+              <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+          <CommandPalette role={role} />
+        </CommandPaletteProvider>
+        <AiCommandCenter />
+      </AiPanelProvider>
     </NotificationsProvider>
   );
 }

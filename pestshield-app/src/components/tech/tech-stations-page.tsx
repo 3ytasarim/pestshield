@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, MapPin, QrCode, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -8,20 +8,39 @@ import { Card, CardContent } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { StationStatusBadge } from "@/components/operations/operations-badges";
 import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
-import { getCustomerById, customers } from "@/lib/mock/crm";
-import { stations, isStationOverdue, type Station, type StationStatus } from "@/lib/mock/operations";
+import { isStationOverdue, type Station, type StationStatus } from "@/lib/mock/operations";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | StationStatus;
 
+interface StationWithCustomer extends Station {
+  customer: { id: string; companyName: string } | null;
+}
+
 export function TechStationsPage() {
+  const [stations, setStations] = useState<StationWithCustomer[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
 
-  const activeCount = useMemo(() => stations.filter((s) => s.status === "active").length, []);
-  const needsAttentionCount = useMemo(() => stations.filter((s) => s.status === "needs_attention").length, []);
-  const overdueCount = useMemo(() => stations.filter(isStationOverdue).length, []);
+  useEffect(() => {
+    fetch("/api/crm/stations")
+      .then((res) => res.json())
+      .then((data) => setStations(data.stations))
+      .catch(() => {});
+  }, []);
+
+  const customers = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of stations) {
+      if (s.customer) map.set(s.customer.id, s.customer.companyName);
+    }
+    return Array.from(map, ([id, companyName]) => ({ id, companyName }));
+  }, [stations]);
+
+  const activeCount = useMemo(() => stations.filter((s) => s.status === "active").length, [stations]);
+  const needsAttentionCount = useMemo(() => stations.filter((s) => s.status === "needs_attention").length, [stations]);
+  const overdueCount = useMemo(() => stations.filter(isStationOverdue).length, [stations]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -29,13 +48,12 @@ export function TechStationsPage() {
       if (statusFilter !== "all" && s.status !== statusFilter) return false;
       if (customerFilter !== "all" && s.customerId !== customerFilter) return false;
       if (q) {
-        const customer = getCustomerById(s.customerId);
-        const haystack = `${s.label} ${s.qrCode} ${customer?.companyName ?? ""}`.toLowerCase();
+        const haystack = `${s.label} ${s.qrCode} ${s.customer?.companyName ?? ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [search, statusFilter, customerFilter]);
+  }, [stations, search, statusFilter, customerFilter]);
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -126,8 +144,8 @@ export function TechStationsPage() {
             İstasyon bulunamadı
           </div>
         ) : (
-          filtered.map((station: Station) => {
-            const customer = getCustomerById(station.customerId);
+          filtered.map((station) => {
+            const customer = station.customer;
             const overdue = isStationOverdue(station);
             return (
               <Link key={station.id} href={`/dashboard/tech/scan?code=${station.qrCode}`}>

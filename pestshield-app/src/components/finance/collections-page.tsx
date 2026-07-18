@@ -19,21 +19,27 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { PaymentMethodBadge } from "@/components/finance/finance-badges";
 import { PAYMENT_METHOD_OPTIONS } from "@/components/finance/finance-labels";
-import { getCustomerById } from "@/lib/mock/crm";
-import { getAllCollections, getDebtorCustomers } from "@/lib/mock/finance";
 import type { PaymentMethod } from "@/lib/mock/finance";
+import type { SerializedCollection } from "@/lib/finance/serialize";
 import { cn } from "@/lib/utils";
 
 type MethodFilter = "all" | PaymentMethod;
 
-export function CollectionsPage() {
+interface CollectionWithCustomer extends SerializedCollection {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function CollectionsPage({
+  initialCollections,
+  pendingTotal,
+}: {
+  initialCollections: CollectionWithCustomer[];
+  pendingTotal: number;
+}) {
   const [search, setSearch] = useState("");
   const [methodFilter, setMethodFilter] = useState<MethodFilter>("all");
 
-  const collections = useMemo(
-    () => getAllCollections().map((entry) => ({ ...entry, customer: getCustomerById(entry.customerId) })),
-    [],
-  );
+  const collections = initialCollections;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -51,8 +57,6 @@ export function CollectionsPage() {
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     return collections.filter((c) => c.date.startsWith(ym)).reduce((sum, c) => sum + c.amount, 0);
   }, [collections]);
-
-  const pendingTotal = useMemo(() => getDebtorCustomers().reduce((sum, c) => sum + c.pendingCollection, 0), []);
 
   return (
     <div className="flex flex-col gap-6">

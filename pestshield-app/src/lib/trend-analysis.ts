@@ -47,6 +47,13 @@ export interface TrendRiskRow {
   sayim: number;
 }
 
+export interface RiskyStationRow {
+  krokiName: string;
+  istasyonNo: number;
+  oncekiTarih: string;
+  sonTarih: string;
+}
+
 export interface TrendAnalysis {
   sketches: KrokiSketch[];
   months: TrendMonthEntry[];
@@ -56,6 +63,16 @@ export interface TrendAnalysis {
   activeStationRatioLatest: number;
   activeStationRatioPrevious: number | null;
   previousComparisonText: string;
+  /** Sadece zehirsiz istasyonlar için aktiflik oranı (Hareket Var / toplam zehirsiz). */
+  activeZehirsizRatioLatest: number | null;
+  zehirsizComparisonText: string;
+  /** Sadece zehirli istasyonlar için aktiflik oranı (Yem Tüketimi Var / toplam zehirli). */
+  activeZehirliRatioLatest: number | null;
+  zehirliComparisonText: string;
+  /** Son 2 periyotta art arda aktif (Yem Tüketimi Var) olan zehirli istasyonlar. */
+  zehirliRiskyStations: RiskyStationRow[];
+  /** Son 2 periyotta art arda aktif (Hareket Var) olan zehirsiz istasyonlar. */
+  zehirsizRiskyStations: RiskyStationRow[];
   topGroupLabel: string;
   dominantTur: string | null;
   activityRateSeries: { monthLabel: string; "Aktif Zehirsiz (%)": number; "Aktif Zehirli (%)": number }[];
@@ -155,6 +172,34 @@ export function computeTrendAnalysis(serviceOrderId: string, asOfMonthKey?: stri
     else if (diff < 0) previousComparisonText = `Önceki ay ortalamasına göre aktiflik oranı ${Math.abs(diff)} puan azaldı.`;
     else previousComparisonText = "Önceki ay ortalamasına göre aktiflik oranı değişmedi.";
   }
+
+  function typeComparisonText(label: string, latestVal: number | null, previousVal: number | null | undefined): string {
+    if (latestVal === null) return `${label} istasyon bulunmuyor.`;
+    if (previousVal === null || previousVal === undefined) return "Kıyaslama için en az 2 periyot verisi gerekir.";
+    const diff = latestVal - previousVal;
+    if (diff > 0) return `Son periyottaki aktif ${label.toLocaleLowerCase("tr")} istasyon oranı önceki periyoda göre %${diff} puan artmıştır.`;
+    if (diff < 0) return `Son periyottaki aktif ${label.toLocaleLowerCase("tr")} istasyon oranı önceki periyoda göre %${Math.abs(diff)} puan azalmıştır.`;
+    return `Son periyottaki aktif ${label.toLocaleLowerCase("tr")} istasyon oranı önceki periyoda göre değişmemiştir.`;
+  }
+  const zehirsizComparisonText = typeComparisonText("Zehirsiz", latestRatio.zehirsiz, previousRatio?.zehirsiz);
+  const zehirliComparisonText = typeComparisonText("Zehirli", latestRatio.zehirli, previousRatio?.zehirli);
+
+  // Son 2 periyotta art arda aktif olan istasyonlar (riskli noktalar).
+  function riskyStationsFor(type: KrokiStationType, isActive: (insp: StationInspection | undefined) => boolean): RiskyStationRow[] {
+    if (months.length < 2) return [];
+    const last = months.at(-1)!;
+    const secondLast = months.at(-2)!;
+    return stationsByType(type)
+      .filter(({ station }) => isActive(last.inspections[station.id]) && isActive(secondLast.inspections[station.id]))
+      .map(({ station, sketchName, numbering }) => ({
+        krokiName: sketchName,
+        istasyonNo: numbering.get(station.id) ?? 0,
+        oncekiTarih: secondLast.occurrenceDate,
+        sonTarih: last.occurrenceDate,
+      }));
+  }
+  const zehirliRiskyStations = riskyStationsFor("zehirli", (insp) => insp?.tuketim === "Yem Tüketimi Var");
+  const zehirsizRiskyStations = riskyStationsFor("zehirsiz", (insp) => insp?.hareket === "Hareket Var");
 
   // En sık görülen grup + baskın tür (son ay verisine göre, tüm krokiler dahil)
   const activityByType: Record<string, number> = {};
@@ -327,6 +372,12 @@ export function computeTrendAnalysis(serviceOrderId: string, asOfMonthKey?: stri
     activeStationRatioLatest: latestRatio.overall,
     activeStationRatioPrevious: previousRatio?.overall ?? null,
     previousComparisonText,
+    activeZehirsizRatioLatest: latestRatio.zehirsiz,
+    zehirsizComparisonText,
+    activeZehirliRatioLatest: latestRatio.zehirli,
+    zehirliComparisonText,
+    zehirliRiskyStations,
+    zehirsizRiskyStations,
     topGroupLabel,
     dominantTur,
     activityRateSeries,

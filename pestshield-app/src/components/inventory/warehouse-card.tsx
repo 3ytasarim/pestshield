@@ -6,16 +6,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { WarehouseTypeBadge } from "@/components/inventory/inventory-badges";
 import { UNIT_LABELS } from "@/components/inventory/inventory-labels";
-import { getProductsForWarehouse, type Warehouse } from "@/lib/mock/inventory";
+import type { Product, Warehouse } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
 
 interface WarehouseCardProps {
   warehouse: Warehouse;
+  products: Product[];
   delay?: number;
 }
 
-export function WarehouseCard({ warehouse, delay = 0 }: WarehouseCardProps) {
-  const items = getProductsForWarehouse(warehouse.id);
+export function WarehouseCard({ warehouse, products: items, delay = 0 }: WarehouseCardProps) {
   const criticalCount = items.filter((p) => p.currentStock <= p.criticalLevel).length;
 
   return (

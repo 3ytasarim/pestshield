@@ -191,7 +191,7 @@ export function TrendAnalizDialog({ open, onOpenChange, serviceOrderId, customer
         <div className="max-h-[70vh] min-w-0 overflow-y-auto pr-1">
           {!analysis || analysis.sketches.length === 0 ? (
             <div className="rounded-xl bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
-              Bu hizmete ait tanımlı kroki bulunamadı. Önce Kroki Tanımlama'dan bir kroki ekleyin.
+              Bu hizmete ait tanımlı kroki bulunamadı. Önce Kroki Tanımlama&apos;dan bir kroki ekleyin.
             </div>
           ) : analysis.months.length === 0 ? (
             <div className="rounded-xl bg-destructive/10 px-4 py-6 text-center text-sm font-medium text-destructive">

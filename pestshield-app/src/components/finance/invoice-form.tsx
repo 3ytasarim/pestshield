@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField, CurrencyField } from "@/components/crm/form-fields";
-import { customers } from "@/lib/mock/crm";
 import { invoiceFormSchema, type InvoiceFormValues } from "@/lib/validations/finance";
 
 const EMPTY: InvoiceFormValues = {
@@ -25,15 +24,15 @@ const EMPTY: InvoiceFormValues = {
   dueDate: new Date().toISOString().slice(0, 10),
 };
 
-const CUSTOMER_OPTIONS = customers.map((c) => ({ value: c.id, label: c.companyName }));
-
 interface InvoiceFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: InvoiceFormValues) => void;
+  customers: { id: string; companyName: string }[];
 }
 
-export function InvoiceForm({ open, onOpenChange, onSubmit }: InvoiceFormProps) {
+export function InvoiceForm({ open, onOpenChange, onSubmit, customers }: InvoiceFormProps) {
+  const CUSTOMER_OPTIONS = customers.map((c) => ({ value: c.id, label: c.companyName }));
   const {
     register,
     control,

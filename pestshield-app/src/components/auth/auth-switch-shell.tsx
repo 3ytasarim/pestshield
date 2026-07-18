@@ -41,7 +41,40 @@ import "@/components/auth/auth-switch.css";
  * ile değiştirildi. Renk paleti PestShield logosundan örneklenen lacivert/mavi
  * tonlarına (#0877b2/#0d4d8f) uyarlandı - orijinal demonun moru değil.
  */
+/** Tek firmalı (self-hosted, müşteriye özel sunucuya kurulan) dağıtımlarda
+ * `NEXT_PUBLIC_ENABLE_SELF_REGISTRATION=false` ile "Firma Kaydı" tamamen
+ * kapatılır — o kurulumda zaten tek firma olacağı için kayıt ekranı anlamsız,
+ * doğrudan giriş formu gösterilir. Varsayılan (env ayarlanmazsa) açıktır —
+ * çok-kiracılı ana SaaS dağıtımı hiçbir değişiklik gerektirmez. */
+const SELF_REGISTRATION_ENABLED = process.env.NEXT_PUBLIC_ENABLE_SELF_REGISTRATION !== "false";
+
 export function AuthSwitchShell() {
+  if (!SELF_REGISTRATION_ENABLED) {
+    return <LoginOnlyShell />;
+  }
+  return <AuthSwitchTabs />;
+}
+
+function LoginOnlyShell() {
+  return (
+    <div className="auth-switch-scope">
+      <div className="page">
+        <div className="login-only-card">
+          <Image
+            src="/logo-wordmark.png"
+            alt="PestShield"
+            width={1113}
+            height={208}
+            className="login-only-logo"
+          />
+          <LoginFormContent />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthSwitchTabs() {
   const [isRegister, setIsRegister] = useState(false);
 
   return (

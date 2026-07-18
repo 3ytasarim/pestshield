@@ -18,12 +18,19 @@ import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { BankAccountCard } from "@/components/finance/bank-account-card";
 import { BankAccountForm } from "@/components/finance/bank-account-form";
-import { bankAccounts as initialAccounts, bankTransactions, type BankAccount } from "@/lib/mock/finance";
+import type { BankAccount, BankTransaction } from "@/lib/mock/finance";
 import type { BankAccountFormValues } from "@/lib/validations/finance";
 import { cn } from "@/lib/utils";
 
-export function BankAccountsPage() {
+export function BankAccountsPage({
+  initialAccounts,
+  initialTransactions,
+}: {
+  initialAccounts: BankAccount[];
+  initialTransactions: BankTransaction[];
+}) {
   const [accounts, setAccounts] = useState<BankAccount[]>(initialAccounts);
+  const bankTransactions = initialTransactions;
   const [formOpen, setFormOpen] = useState(false);
 
   const totalBalance = useMemo(() => accounts.reduce((sum, a) => sum + a.balance, 0), [accounts]);
@@ -32,19 +39,28 @@ export function BankAccountsPage() {
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     return bankTransactions.filter((t) => t.type === "in" && t.date.startsWith(ym)).reduce((sum, t) => sum + t.amount, 0);
-  }, []);
+  }, [bankTransactions]);
 
   const thisMonthOutflow = useMemo(() => {
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     return bankTransactions.filter((t) => t.type === "out" && t.date.startsWith(ym)).reduce((sum, t) => sum + t.amount, 0);
-  }, []);
+  }, [bankTransactions]);
 
-  const recentTransactions = useMemo(() => bankTransactions.slice(0, 10), []);
+  const recentTransactions = useMemo(() => bankTransactions.slice(0, 10), [bankTransactions]);
 
-  function handleCreate(values: BankAccountFormValues) {
-    const newAccount: BankAccount = { id: `bank-${Date.now()}`, ...values };
-    setAccounts((prev) => [...prev, newAccount]);
+  async function handleCreate(values: BankAccountFormValues) {
+    const res = await fetch("/api/finance/bank-accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Banka hesabı eklenemedi");
+      return;
+    }
+    const { bankAccount } = (await res.json()) as { bankAccount: BankAccount };
+    setAccounts((prev) => [...prev, bankAccount]);
     toast.success("Banka hesabı eklendi");
   }
 
@@ -101,7 +117,12 @@ export function BankAccountsPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {accounts.map((account, index) => (
-          <BankAccountCard key={account.id} account={account} delay={Math.min(index, 9) * 0.04} />
+          <BankAccountCard
+            key={account.id}
+            account={account}
+            transactions={bankTransactions.filter((t) => t.bankAccountId === account.id).slice(0, 3)}
+            delay={Math.min(index, 9) * 0.04}
+          />
         ))}
       </div>
 

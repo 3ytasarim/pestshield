@@ -15,37 +15,47 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { StationStatusBadge } from "@/components/operations/operations-badges";
 import { QrCodeImage } from "@/components/operations/qr-code-image";
 import { StationQrModal, stationQrValue } from "@/components/operations/station-qr-modal";
-import { getCustomerById, customers } from "@/lib/mock/crm";
-import { stations, getOverdueStations, isStationOverdue, type Station } from "@/lib/mock/operations";
+import { isStationOverdue, type Station } from "@/lib/mock/operations";
 import { cn } from "@/lib/utils";
 
-export function QrCheckPage() {
+interface StationWithCustomer extends Station {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function QrCheckPage({
+  initialStations,
+  customers,
+}: {
+  initialStations: StationWithCustomer[];
+  customers: { id: string; companyName: string }[];
+}) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [customerFilter, setCustomerFilter] = useState("all");
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [selectedStation, setSelectedStation] = useState<StationWithCustomer | null>(null);
   const [printing, setPrinting] = useState(false);
 
-  const enriched = useMemo(() => stations.map((s) => ({ ...s, customer: getCustomerById(s.customerId) })), []);
+  const stations = initialStations;
 
   useEffect(() => {
     const stationId = searchParams.get("station");
     if (stationId) {
-      const found = enriched.find((s) => s.id === stationId);
+      const found = stations.find((s) => s.id === stationId);
       if (found) setSelectedStation(found);
     }
-  }, [searchParams, enriched]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return enriched.filter((s) => {
+    return stations.filter((s) => {
       if (customerFilter !== "all" && s.customerId !== customerFilter) return false;
       if (q && !s.label.toLowerCase().includes(q) && !s.qrCode.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [enriched, search, customerFilter]);
+  }, [stations, search, customerFilter]);
 
-  const overdueCount = useMemo(() => getOverdueStations().length, []);
+  const overdueCount = useMemo(() => stations.filter(isStationOverdue).length, [stations]);
 
   async function printAll() {
     if (filtered.length === 0) return;

@@ -12,29 +12,41 @@ import { formatDate } from "@/components/crm/crm-format";
 import { StandardSummaryCard } from "@/components/audit/standard-summary-card";
 import { CapaSeverityBadge, CapaStatusBadge } from "@/components/audit/audit-badges";
 import { AUDIT_TYPE_LABELS } from "@/components/audit/audit-labels";
-import { getCustomerById } from "@/lib/mock/crm";
 import {
   STANDARD_LABELS,
-  correctiveActions,
-  getOpenCorrectiveActions,
   getStandardReadiness,
-  getUpcomingAudits,
+  type AuditRecord,
+  type ChecklistItem,
   type ComplianceStandard,
+  type CorrectiveAction,
 } from "@/lib/mock/audit";
 import { cn } from "@/lib/utils";
 
 const STANDARDS: ComplianceStandard[] = ["haccp", "brcgs", "iso22000", "fssc"];
 
-export function AuditCenterPage() {
+interface AuditCenterPageProps {
+  checklistItems: ChecklistItem[];
+  correctiveActions: CorrectiveAction[];
+  auditRecords: AuditRecord[];
+  customers: { id: string; companyName: string }[];
+}
+
+export function AuditCenterPage({ checklistItems, correctiveActions, auditRecords, customers }: AuditCenterPageProps) {
   const overallReadiness = useMemo(
-    () => Math.round(STANDARDS.reduce((sum, s) => sum + getStandardReadiness(s), 0) / STANDARDS.length),
-    [],
+    () => Math.round(STANDARDS.reduce((sum, s) => sum + getStandardReadiness(s, checklistItems), 0) / STANDARDS.length),
+    [checklistItems],
   );
-  const openCapaCount = useMemo(() => getOpenCorrectiveActions().length, []);
-  const upcomingAudits = useMemo(() => getUpcomingAudits(), []);
+  const openCapaCount = useMemo(
+    () => correctiveActions.filter((c) => c.status === "open" || c.status === "in_progress").length,
+    [correctiveActions],
+  );
+  const upcomingAudits = useMemo(
+    () => auditRecords.filter((a) => a.result === "scheduled").sort((a, b) => (a.scheduledDate < b.scheduledDate ? -1 : 1)),
+    [auditRecords],
+  );
   const recentCapas = useMemo(
     () => [...correctiveActions].sort((a, b) => (a.createdDate < b.createdDate ? 1 : -1)).slice(0, 5),
-    [],
+    [correctiveActions],
   );
 
   function daysUntil(date: string) {
@@ -90,7 +102,7 @@ export function AuditCenterPage() {
         <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">Standartlar</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {STANDARDS.map((standard, index) => (
-            <StandardSummaryCard key={standard} standard={standard} delay={index * 0.05} />
+            <StandardSummaryCard key={standard} standard={standard} items={checklistItems} delay={index * 0.05} />
           ))}
         </div>
       </div>
@@ -103,7 +115,7 @@ export function AuditCenterPage() {
           ) : (
             <Card className={cn(GLASS_CARD, "gap-0 divide-y divide-border/60 rounded-2xl p-0")}>
               {upcomingAudits.map((audit) => {
-                const customer = getCustomerById(audit.customerId);
+                const customer = customers.find((c) => c.id === audit.customerId);
                 const days = daysUntil(audit.scheduledDate);
                 return (
                   <div key={audit.id} className="flex items-center justify-between gap-3 px-4 py-3.5">

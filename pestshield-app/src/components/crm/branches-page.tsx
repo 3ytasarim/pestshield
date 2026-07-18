@@ -18,20 +18,20 @@ import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { RiskBadge, CustomerStatusBadge } from "@/components/crm/crm-badges";
 import { formatDate } from "@/components/crm/crm-format";
-import { getAllBranches, getCustomerById } from "@/lib/mock/crm";
-import type { RiskLevel } from "@/lib/mock/crm";
+import type { Branch, RiskLevel } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 type RiskFilter = "all" | RiskLevel;
 
-export function BranchesPage() {
+export interface BranchWithCustomer extends Branch {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function BranchesPage({ initialBranches }: { initialBranches: BranchWithCustomer[] }) {
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
 
-  const branches = useMemo(
-    () => getAllBranches().map((b) => ({ ...b, customer: getCustomerById(b.customerId) })),
-    [],
-  );
+  const branches = initialBranches;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

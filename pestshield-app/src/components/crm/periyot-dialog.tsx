@@ -53,19 +53,7 @@ import { Ek1Dialog, Section, Field, FieldArea, buildDefaultEk1Form, summarizeBio
 import { TechnicianMultiSelect } from "@/components/crm/technician-multiselect";
 import { MALZEME_TYPES, summarizeMalzemeler } from "@/components/crm/ek1-constants";
 import { formatDateLong } from "@/components/crm/crm-format";
-import { technicians } from "@/lib/mock/operations";
-import { products as inventoryProducts } from "@/lib/mock/inventory";
-import {
-  getBatchesFor,
-  getOccurrencesFor,
-  addOccurrence,
-  updateOccurrence,
-  deleteOccurrence,
-  deleteBatch,
-  generateBatch,
-  toLocalIso,
-  DONEM_LABELS,
-} from "@/lib/periyot-store";
+import { DONEM_LABELS } from "@/lib/periyot/generate";
 import { getEk1FormFor, saveEk1Form } from "@/lib/ek1-form-store";
 import { printEk1Form } from "@/lib/pdf/ek1-report";
 import { loadTemplates, saveTemplate, deleteTemplate, type PeriyotTemplate } from "@/lib/periyot-template-store";
@@ -74,9 +62,16 @@ import { getPeriyotCapaNotesFor, addPeriyotCapaNote, deletePeriyotCapaNote, type
 import { Textarea } from "@/components/ui/textarea";
 import { getCustomerById } from "@/lib/mock/crm";
 import type { BiocidalProductUsage, Ek1Form, MalzemeKullanimi, PeriyotBatch, PeriyotDonem, PeriyotOccurrence, ServiceDocument } from "@/lib/mock/crm";
+import type { Product } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
 
-const BIOCIDAL_PRODUCTS = inventoryProducts.filter((p) => p.type === "biosidal");
+function toLocalIso(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 const MESKEN_ISYERI_OPTIONS = ["İşyeri", "Mesken", "Diğer"];
 const ALAN_BIRIMLERI = ["m2", "m3", "ha"];
 const MIKTAR_BIRIMLERI = ["gr", "kg", "ml", "litre", "adet"];
@@ -92,7 +87,6 @@ function comingSoon(feature: string) {
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 type SortKey = "personnelName" | "periodDate" | "time";
 
-const TECHNICIAN_OPTIONS = technicians.filter((t) => t.status === "active").map((t) => t.name);
 const DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 function todayIso() {
@@ -174,11 +168,31 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   const [genDonem, setGenDonem] = useState<PeriyotDonem | "">("");
   const [generating, setGenerating] = useState(false);
 
+  const [technicianOptions, setTechnicianOptions] = useState<string[]>([]);
+  const [biocidalProductOptions, setBiocidalProductOptions] = useState<Product[]>([]);
+
+  async function refreshBatchesAsync(selectId?: string) {
+    if (!serviceOrderId) return;
+    const res = await fetch(`/api/crm/periyot/batches?serviceOrderId=${serviceOrderId}`);
+    const data = await res.json();
+    const list: PeriyotBatch[] = data.batches ?? [];
+    setBatches(list);
+    setSelectedBatchId(selectId ?? list[0]?.id ?? null);
+  }
+
+  async function refreshOccurrencesAsync() {
+    if (!selectedBatchId) {
+      setOccurrences([]);
+      return;
+    }
+    const res = await fetch(`/api/crm/periyot/occurrences?batchId=${selectedBatchId}`);
+    const data = await res.json();
+    setOccurrences(data.occurrences ?? []);
+  }
+
   useEffect(() => {
     if (open && serviceOrderId) {
-      const list = getBatchesFor(serviceOrderId);
-      setBatches(list);
-      setSelectedBatchId(list[0]?.id ?? null);
+      refreshBatchesAsync();
       setTab("listele");
       setEditingOccurrence(null);
     }
@@ -186,10 +200,21 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   }, [open, serviceOrderId]);
 
   useEffect(() => {
-    setOccurrences(selectedBatchId ? getOccurrencesFor(selectedBatchId) : []);
+    if (!open) return;
+    fetch("/api/operations/technicians")
+      .then((r) => r.json())
+      .then((data) => setTechnicianOptions((data.technicians ?? []).filter((t: { status: string }) => t.status === "active").map((t: { name: string }) => t.name)));
+    fetch("/api/inventory/products")
+      .then((r) => r.json())
+      .then((data) => setBiocidalProductOptions((data.products ?? []).filter((p: Product) => p.type === "biosidal")));
+  }, [open]);
+
+  useEffect(() => {
+    refreshOccurrencesAsync();
     setSearch("");
     setCurrentPage(1);
     setSelectedIds(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBatchId]);
 
   const ek1FilledIds = useMemo(
@@ -254,42 +279,47 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     });
   }
 
-  function handleBulkDelete() {
-    selectedIds.forEach((id) => deleteOccurrence(id));
+  async function handleBulkDelete() {
+    await Promise.all([...selectedIds].map((id) => fetch(`/api/crm/periyot/occurrences/${id}`, { method: "DELETE" })));
     setSelectedIds(new Set());
-    refreshOccurrences();
+    await refreshOccurrencesAsync();
     toast.success("Seçili periyotlar silindi");
   }
 
-  function handleDuplicateOccurrence(o: PeriyotOccurrence) {
-    addOccurrence({
-      ...o,
-      id: `periyot-occ-${Date.now()}`,
-      documentCount: 0,
-      createdAt: new Date().toISOString(),
+  async function handleDuplicateOccurrence(o: PeriyotOccurrence) {
+    if (!customerId) return;
+    const res = await fetch("/api/crm/periyot/occurrences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        batchId: o.batchId,
+        serviceOrderId: o.serviceOrderId,
+        customerId,
+        personnelName: o.personnelName,
+        periodDate: o.periodDate,
+        startTime: o.startTime,
+        endTime: o.endTime,
+      }),
     });
-    refreshOccurrences();
+    if (!res.ok) {
+      toast.error("Periyot kopyalanamadı");
+      return;
+    }
+    await refreshOccurrencesAsync();
     toast.success("Periyot kopyalandı");
   }
 
-  function handleOccurrenceDocCountChange(occurrenceId: string, count: number) {
-    updateOccurrence(occurrenceId, { documentCount: count });
-    refreshOccurrences();
+  async function handleOccurrenceDocCountChange(occurrenceId: string, count: number) {
+    await fetch(`/api/crm/periyot/occurrences/${occurrenceId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentCount: count }),
+    });
+    await refreshOccurrencesAsync();
   }
 
-  function refreshBatches(selectId?: string) {
-    if (!serviceOrderId) return;
-    const list = getBatchesFor(serviceOrderId);
-    setBatches(list);
-    if (selectId) setSelectedBatchId(selectId);
-  }
-
-  function refreshOccurrences() {
-    if (selectedBatchId) setOccurrences(getOccurrencesFor(selectedBatchId));
-  }
-
-  function handleAddSave() {
-    if (!selectedBatchId || !serviceOrderId) {
+  async function handleAddSave() {
+    if (!selectedBatchId || !serviceOrderId || !customerId) {
       toast.error("Önce OLUŞTUR sekmesinden bir periyot grubu oluşturun");
       return;
     }
@@ -297,20 +327,24 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
       toast.error("Periyot tarihi ve personel seçin");
       return;
     }
-    addOccurrence({
-      id: `periyot-occ-${Date.now()}`,
-      batchId: selectedBatchId,
-      serviceOrderId,
-      personnelName: addPersonnel,
-      periodDate: addDate,
-      startTime: addStart,
-      endTime: addEnd,
-      documentCount: 0,
-      biocidalProducts: "",
-      biocidalProductUsages: [],
-      createdAt: new Date().toISOString(),
+    const res = await fetch("/api/crm/periyot/occurrences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        batchId: selectedBatchId,
+        serviceOrderId,
+        customerId,
+        personnelName: addPersonnel,
+        periodDate: addDate,
+        startTime: addStart,
+        endTime: addEnd,
+      }),
     });
-    refreshOccurrences();
+    if (!res.ok) {
+      toast.error("Periyot kaydedilemedi");
+      return;
+    }
+    await refreshOccurrencesAsync();
     setAddDate("");
     setAddStart("");
     setAddEnd("");
@@ -319,41 +353,50 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     toast.success("Periyot kaydedildi");
   }
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (!serviceOrderId) return;
     if (!genPersonnel || !genDonem) {
       toast.error("Personel ve dönem seçin");
       return;
     }
     setGenerating(true);
-    const batch = generateBatch({
-      serviceOrderId,
-      namePrefix,
-      personnelName: genPersonnel,
-      startDate: genStartDate,
-      endDate: genEndDate,
-      startTime: genStart,
-      endTime: genEnd,
-      dayOfMonth: genDay,
-      donem: genDonem,
+    const res = await fetch("/api/crm/periyot/batches/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        serviceOrderId,
+        namePrefix,
+        personnelName: genPersonnel,
+        startDate: genStartDate,
+        endDate: genEndDate,
+        startTime: genStart,
+        endTime: genEnd,
+        dayOfMonth: genDay,
+        donem: genDonem,
+      }),
     });
-    refreshBatches(batch.id);
+    const data = await res.json();
     setGenerating(false);
+    if (!res.ok) {
+      toast.error(data.message ?? "Periyot grubu oluşturulamadı");
+      return;
+    }
+    await refreshBatchesAsync(data.batch.id);
     setTab("listele");
-    toast.success(`${batch.name} oluşturuldu`);
+    toast.success(`${data.batch.name} oluşturuldu`);
   }
 
-  function handleDeleteOccurrence(id: string) {
-    deleteOccurrence(id);
-    refreshOccurrences();
+  async function handleDeleteOccurrence(id: string) {
+    await fetch(`/api/crm/periyot/occurrences/${id}`, { method: "DELETE" });
+    await refreshOccurrencesAsync();
     toast.success("Periyot silindi");
   }
 
-  function handleDeleteBatch() {
+  async function handleDeleteBatch() {
     if (!selectedBatchId) return;
-    deleteBatch(selectedBatchId);
-    refreshBatches();
+    await fetch(`/api/crm/periyot/batches/${selectedBatchId}`, { method: "DELETE" });
     setSelectedBatchId(null);
+    await refreshBatchesAsync();
     toast.success("Periyot grubu silindi");
   }
 
@@ -405,12 +448,16 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     }
   }
 
-  function refreshEditorDocuments() {
+  async function refreshEditorDocuments() {
     if (!editingOccurrence) return;
     const docs = getServiceDocumentsFor(editingOccurrence.id);
     setEditorDocuments(docs);
-    updateOccurrence(editingOccurrence.id, { documentCount: docs.length });
-    refreshOccurrences();
+    await fetch(`/api/crm/periyot/occurrences/${editingOccurrence.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentCount: docs.length }),
+    });
+    await refreshOccurrencesAsync();
   }
 
   async function handleBelgeFileSelect(file: File | undefined) {
@@ -503,14 +550,29 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     toast.success("Rapor silindi");
   }
 
-  function handleEditSave() {
+  async function handleEditSave() {
     if (!editingOccurrence || !editingEk1) return;
     if (!kvkkApproved) {
       toast.error("Devam etmek için KVKK Aydınlatma Metni'ni onaylayın");
       return;
     }
     const biocidalProducts = summarizeBiocidalUsages(editingOccurrence);
-    updateOccurrence(editingOccurrence.id, { ...editingOccurrence, biocidalProducts });
+    const res = await fetch(`/api/crm/periyot/occurrences/${editingOccurrence.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personnelName: editingOccurrence.personnelName,
+        periodDate: editingOccurrence.periodDate,
+        startTime: editingOccurrence.startTime,
+        endTime: editingOccurrence.endTime,
+        biocidalProducts,
+        biocidalProductUsages: editingOccurrence.biocidalProductUsages,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Periyot güncellenemedi");
+      return;
+    }
 
     const kullanilanMalzemeler = summarizeMalzemeler(editingEk1.malzemeKullanimlari);
     saveEk1Form({ ...editingEk1, kullanilanMalzemeler, updatedAt: new Date().toISOString() });
@@ -530,7 +592,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
       });
     }
 
-    refreshOccurrences();
+    await refreshOccurrencesAsync();
     closeEditor();
     toast.success("Periyot güncellendi");
   }
@@ -581,7 +643,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   }
 
   function selectProduct(rowId: string, productId: string) {
-    const product = BIOCIDAL_PRODUCTS.find((p) => p.id === productId);
+    const product = biocidalProductOptions.find((p) => p.id === productId);
     if (!product) return;
     updateProductRow(rowId, { productId, productName: product.name, unit: product.unit });
     if (editingEk1 && !editingEk1.urunAktifMaddesi && product.activeIngredient) {
@@ -828,7 +890,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                       <SelectValue placeholder="Personel seçin">{() => addPersonnel || "Personel seçin"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {TECHNICIAN_OPTIONS.map((name) => (
+                      {technicianOptions.map((name) => (
                         <SelectItem key={name} value={name}>
                           {name}
                         </SelectItem>
@@ -873,7 +935,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                     <SelectValue placeholder="Personel seçin">{() => genPersonnel || "Personel seçin"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {TECHNICIAN_OPTIONS.map((name) => (
+                    {technicianOptions.map((name) => (
                       <SelectItem key={name} value={name}>
                         {name}
                       </SelectItem>
@@ -978,7 +1040,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                       <SelectValue>{() => editingOccurrence.personnelName}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {TECHNICIAN_OPTIONS.map((name) => (
+                      {technicianOptions.map((name) => (
                         <SelectItem key={name} value={name}>
                           {name}
                         </SelectItem>
@@ -1058,7 +1120,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                                     <SelectValue placeholder="Ürün Seçiniz…">{() => usage.productName || "Ürün Seçiniz…"}</SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {BIOCIDAL_PRODUCTS.map((p) => (
+                                    {biocidalProductOptions.map((p) => (
                                       <SelectItem key={p.id} value={p.id}>
                                         {p.name}
                                       </SelectItem>
@@ -1129,7 +1191,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                 </div>
                 <Field label="Uygulama Ekip Sorumlusu" value={editingEk1.ekipSorumlusu} onChange={(v) => setEditingEk1({ ...editingEk1, ekipSorumlusu: v })} />
                 <Field label="Uygulama Yapılan Yerin Sorumlusu" value={editingEk1.yeriSorumlusuImza} onChange={(v) => setEditingEk1({ ...editingEk1, yeriSorumlusuImza: v })} />
-                <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={editingEk1.uygulayicilar} onChange={(v) => setEditingEk1({ ...editingEk1, uygulayicilar: v })} options={TECHNICIAN_OPTIONS} />
+                <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={editingEk1.uygulayicilar} onChange={(v) => setEditingEk1({ ...editingEk1, uygulayicilar: v })} options={technicianOptions} />
                 <Field label="Ürünün Uygulama Şekli" value={editingEk1.urunUygulamaSekli} onChange={(v) => setEditingEk1({ ...editingEk1, urunUygulamaSekli: v })} />
                 <div>
                   <Label className="mb-1.5">Mesken/İşyeri vb.</Label>

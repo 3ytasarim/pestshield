@@ -7,7 +7,7 @@
 // rehberi ve saha uygulama bilgisi sağlayan bir "domain referans" katmanıdır.
 
 import type { RiskLevel } from "@/lib/mock/crm";
-import { products, type Product } from "@/lib/mock/inventory";
+import type { Product } from "@/lib/mock/inventory";
 
 export type PestCategory = "kemirgen" | "surunen_hasere" | "ucan_hasere" | "depo_zararlisi";
 export type PestIconKey = "rodent" | "roach" | "ant" | "fly" | "mosquito" | "spider" | "wasp" | "beetle";
@@ -209,15 +209,15 @@ export function getEquipmentByCategory(category: EquipmentCategory): EquipmentGu
   return equipmentGuides.filter((g) => g.category === category);
 }
 
-export function getRelatedProducts(guide: EquipmentGuide): Product[] {
+export function getRelatedProducts(guide: EquipmentGuide, products: Product[]): Product[] {
   if (guide.relatedProductNameContains.length === 0) return [];
   return products.filter((p) => guide.relatedProductNameContains.some((needle) => p.name.includes(needle)));
 }
 
 /** Bir ekipman kategorisine bağlı tüm Envanter ürünlerinin canlı stok özetini döndürür (gerçek veri, tekrar üretilmez). */
-export function getEquipmentCategoryStockSummary(category: EquipmentCategory) {
+export function getEquipmentCategoryStockSummary(category: EquipmentCategory, products: Product[]) {
   const guides = getEquipmentByCategory(category);
-  const relatedProducts = guides.flatMap((g) => getRelatedProducts(g));
+  const relatedProducts = guides.flatMap((g) => getRelatedProducts(g, products));
   const uniqueProducts = Array.from(new Map(relatedProducts.map((p) => [p.id, p])).values());
   const totalStock = uniqueProducts.reduce((sum, p) => sum + p.currentStock, 0);
   const criticalCount = uniqueProducts.filter((p) => p.currentStock <= p.criticalLevel).length;

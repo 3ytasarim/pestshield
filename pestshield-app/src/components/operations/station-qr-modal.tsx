@@ -9,7 +9,7 @@ import type { Station } from "@/lib/mock/operations";
 import type { Customer } from "@/lib/mock/crm";
 
 interface StationQrModalProps {
-  station: (Station & { customer?: Customer }) | null;
+  station: (Station & { customer?: Pick<Customer, "companyName"> | null }) | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

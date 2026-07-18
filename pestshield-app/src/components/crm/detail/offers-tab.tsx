@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Check,
@@ -32,33 +32,47 @@ import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { OfferForm } from "@/components/crm/detail/offer-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { printOffer } from "@/components/crm/detail/print-offer";
-import { getCustomerById, getOffers, type Offer } from "@/lib/mock/crm";
+import { getCustomerById, type Offer } from "@/lib/mock/crm";
 import type { OfferFormValues } from "@/lib/validations/crm";
 
 export function OffersTab({ customerId }: { customerId: string }) {
-  const [offers, setOffers] = useState<Offer[]>(() => getOffers(customerId));
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const customer = getCustomerById(customerId);
 
-  function handleSubmit(values: OfferFormValues) {
-    const amount = values.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * (1 + values.vatRate / 100);
-    const newOffer: Offer = {
-      id: `${customerId}-offer-${Date.now()}`,
-      customerId,
-      offerNo: `TKL-2026-${String(offers.length + 1).padStart(2, "0")}`,
-      title: values.title,
-      amount,
-      currency: "TRY",
-      validUntil: values.validUntil,
-      status: "draft",
-      createdAt: new Date().toISOString().slice(0, 10),
-      items: values.items.map((item, i) => ({ id: `item-${i}`, ...item })),
-    };
-    setOffers((prev) => [newOffer, ...prev]);
+  useEffect(() => {
+    fetch(`/api/crm/offers?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setOffers(data.offers))
+      .catch(() => toast.error("Teklifler yüklenemedi"));
+  }, [customerId]);
+
+  async function handleSubmit(values: OfferFormValues) {
+    const res = await fetch("/api/crm/offers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId }),
+    });
+    if (!res.ok) {
+      toast.error("Teklif oluşturulamadı");
+      return;
+    }
+    const data = await res.json();
+    setOffers((prev) => [data.offer, ...prev]);
   }
 
-  function updateStatus(offer: Offer, status: Offer["status"], message: string) {
-    setOffers((prev) => prev.map((o) => (o.id === offer.id ? { ...o, status } : o)));
+  async function updateStatus(offer: Offer, status: Offer["status"], message: string) {
+    const res = await fetch(`/api/crm/offers/${offer.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      toast.error("Durum güncellenemedi");
+      return;
+    }
+    const data = await res.json();
+    setOffers((prev) => prev.map((o) => (o.id === offer.id ? data.offer : o)));
     toast.success(message);
   }
 

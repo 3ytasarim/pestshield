@@ -11,38 +11,36 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { VehicleStatusBadge } from "@/components/operations/operations-badges";
 import { VehicleForm } from "@/components/operations/vehicle-form";
-import {
-  vehicles as initialVehicles,
-  technicians,
-  getWarehouseForVehicle,
-  isVehicleDueSoon,
-  type Vehicle,
-} from "@/lib/mock/operations";
+import { isVehicleDueSoon, type Vehicle, type Technician } from "@/lib/mock/operations";
 import type { VehicleFormValues } from "@/lib/validations/operations";
 import { cn } from "@/lib/utils";
 
-export function VehiclesPage() {
+export function VehiclesPage({
+  initialVehicles,
+  initialTechnicians,
+}: {
+  initialVehicles: Vehicle[];
+  initialTechnicians: Technician[];
+}) {
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
+  const [technicians] = useState<Technician[]>(initialTechnicians);
   const [formOpen, setFormOpen] = useState(false);
 
   const activeCount = useMemo(() => vehicles.filter((v) => v.status === "active").length, [vehicles]);
   const dueSoonCount = useMemo(() => vehicles.filter(isVehicleDueSoon).length, [vehicles]);
 
-  function handleCreate(values: VehicleFormValues) {
-    const newVehicle: Vehicle = {
-      id: `veh-${Date.now()}`,
-      plate: values.plate,
-      brand: values.brand,
-      model: values.model,
-      assignedTechnicianId: values.assignedTechnicianId === "none" ? null : values.assignedTechnicianId,
-      warehouseId: null,
-      registrationNumber: values.registrationNumber,
-      registrationExpiry: values.registrationExpiry,
-      inspectionDue: values.inspectionDue,
-      insuranceDue: values.insuranceDue,
-      status: values.status,
-    };
-    setVehicles((prev) => [newVehicle, ...prev]);
+  async function handleCreate(values: VehicleFormValues) {
+    const res = await fetch("/api/operations/vehicles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Araç eklenemedi");
+      return;
+    }
+    setVehicles((prev) => [data.vehicle, ...prev]);
     toast.success("Araç eklendi");
   }
 
@@ -73,7 +71,6 @@ export function VehiclesPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {vehicles.map((vehicle, index) => {
           const technician = technicians.find((t) => t.id === vehicle.assignedTechnicianId);
-          const warehouse = getWarehouseForVehicle(vehicle);
           const dueSoon = isVehicleDueSoon(vehicle);
           return (
             <motion.div
@@ -104,10 +101,10 @@ export function VehiclesPage() {
                       <User className="size-3.5" />
                       {technician ? technician.name : "Atanmadı"}
                     </span>
-                    {warehouse && (
+                    {vehicle.warehouseName && (
                       <span className="flex items-center gap-1.5">
                         <WarehouseIcon className="size-3.5" />
-                        {warehouse.name}
+                        {vehicle.warehouseName}
                       </span>
                     )}
                   </div>

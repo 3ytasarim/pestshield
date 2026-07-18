@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, ChartNoAxesCombined, Clock, FlaskConical, ReceiptText } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, Clock, FlaskConical, ReceiptText, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -44,6 +44,13 @@ const REPORTS: ReportCardDef[] = [
     title: "Biyosidal Ürün Kullanım Raporu",
     description: "EK-1 formuyla aynı alan yapısında, doldurup anında yazdırabileceğiniz bağımsız biyosidal ürün uygulama raporu.",
     accent: "blue",
+  },
+  {
+    href: "/dashboard/client/reports/ai",
+    icon: Sparkles,
+    title: "AI Analizleri",
+    description: "AI Command Center'ın operasyonel, risk, teknisyen ve denetim zekası — sohbet etmeden, tek sayfada.",
+    accent: "amber",
   },
 ];
 

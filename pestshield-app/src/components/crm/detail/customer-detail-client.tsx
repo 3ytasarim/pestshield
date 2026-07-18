@@ -6,8 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CustomerDetailPage } from "@/components/crm/detail/customer-detail-page";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import { loadCustomers } from "@/lib/customer-store";
-import { customers as seedCustomers, type Customer } from "@/lib/mock/crm";
+import type { Customer } from "@/lib/mock/crm";
 
 interface CustomerDetailClientProps {
   id: string;
@@ -16,16 +15,18 @@ interface CustomerDetailClientProps {
 
 /**
  * Sunucu tarafında (statik tohum veride) bulunamayan müşteriler için son çare —
- * gerçek bir backend olmadığından yeni oluşturulan müşteriler yalnızca
- * tarayıcının localStorage'ında yaşar. Bu bileşen istemci tarafında oradan
- * tekrar arar; yine bulunamazsa gerçekten var olmayan bir kayıt demektir.
+ * gerçekten firmanın kendi oluşturduğu (veritabanında yaşayan) bir müşteri
+ * olabilir; istemci tarafında API'den tekrar dener, yine bulunamazsa
+ * gerçekten var olmayan bir kayıt demektir.
  */
 export function CustomerDetailClient({ id, initialTab }: CustomerDetailClientProps) {
   const [customer, setCustomer] = useState<Customer | null | undefined>(undefined);
 
   useEffect(() => {
-    const found = loadCustomers(seedCustomers).find((c) => c.id === id) ?? null;
-    setCustomer(found);
+    fetch(`/api/crm/customers/${id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customer: Customer } | null) => setCustomer(data?.customer ?? null))
+      .catch(() => setCustomer(null));
   }, [id]);
 
   if (customer === undefined) return null;

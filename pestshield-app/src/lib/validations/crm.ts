@@ -18,6 +18,7 @@ export const customerFormSchema = z
     contactPhone: z.string().min(7, "Geçerli bir telefon numarası girin"),
     contactEmail: z.string().email("Geçerli bir e-posta adresi girin"),
     contactTitle: z.string().min(1, "Görev/ünvan zorunludur"),
+    fax: z.string().optional(),
 
     // Adres Bilgileri
     country: z.string().min(1, "Ülke zorunludur"),
@@ -132,6 +133,11 @@ export const contractFormSchema = z
 
 export type ContractFormValues = z.infer<typeof contractFormSchema>;
 
+export const contractStatusUpdateSchema = z.object({
+  status: z.enum(["active", "expiring", "expired", "cancelled"]),
+  remainingDays: z.number().optional(),
+});
+
 export const offerItemSchema = z.object({
   description: z.string().min(1, "Kalem açıklaması zorunludur"),
   unitPrice: z.number().min(0, "Birim fiyat 0 veya üzeri olmalıdır"),
@@ -149,6 +155,10 @@ export const offerFormSchema = z.object({
 });
 
 export type OfferFormValues = z.infer<typeof offerFormSchema>;
+
+export const offerStatusUpdateSchema = z.object({
+  status: z.enum(["draft", "sent", "accepted", "rejected", "expired"]),
+});
 
 export const hizmetItemSchema = z.object({
   description: z.string().min(1, "Hizmet/Ürün adı zorunludur"),
@@ -169,6 +179,28 @@ export const hizmetFormSchema = z.object({
 
 export type HizmetFormValues = z.infer<typeof hizmetFormSchema>;
 
+export const serviceOrderCreateSchema = hizmetFormSchema.extend({
+  customerId: z.string().min(1),
+  contractFileDataUrl: z.string().nullable().optional(),
+  contractFileName: z.string().nullable().optional(),
+});
+
+export const serviceOrderPatchSchema = z.object({
+  description: z.string().optional(),
+  contractStartDate: z.string().optional(),
+  contractEndDate: z.string().optional(),
+  assignedPersonnel: z.string().optional(),
+  periodDays: z.number().min(1).optional(),
+  withholdingTax: z.string().optional(),
+  items: z.array(hizmetItemSchema).optional(),
+  approved: z.boolean().optional(),
+  approvedAt: z.string().nullable().optional(),
+  documentCount: z.number().optional(),
+  sketchCount: z.number().optional(),
+  contractFileDataUrl: z.string().nullable().optional(),
+  contractFileName: z.string().nullable().optional(),
+});
+
 export const noteFormSchema = z.object({
   title: z.string().min(2, "Başlık zorunludur"),
   content: z.string().min(2, "Not içeriği zorunludur"),
@@ -181,8 +213,13 @@ export type NoteFormValues = z.infer<typeof noteFormSchema>;
 
 export const workOrderFormSchema = z.object({
   serviceType: z.string().min(1, "Hizmet türü seçiniz"),
-  technician: z.string().min(1, "Teknisyen seçiniz"),
+  technicianId: z.string().min(1, "Teknisyen seçiniz"),
   plannedDate: z.string().min(1, "Planlanan tarih zorunludur"),
 });
 
 export type WorkOrderFormValues = z.infer<typeof workOrderFormSchema>;
+
+export const workOrderPatchSchema = z.object({
+  status: z.enum(["planned", "in_progress", "completed", "delayed", "cancelled"]).optional(),
+  plannedDate: z.string().optional(),
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MapPinned } from "lucide-react";
@@ -14,11 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SelectField, TextField } from "@/components/crm/form-fields";
-import { customers, getLocations } from "@/lib/mock/crm";
 import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
 import { stationFormSchema, type StationFormValues } from "@/lib/validations/operations";
 
-const CUSTOMER_OPTIONS = customers.map((c) => ({ value: c.id, label: c.companyName }));
 const TYPE_OPTIONS = Object.entries(STATION_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 
 const EMPTY: StationFormValues = {
@@ -32,10 +30,11 @@ interface StationFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: StationFormValues) => void;
+  customers: { id: string; companyName: string }[];
   defaultCustomerId?: string;
 }
 
-export function StationForm({ open, onOpenChange, onSubmit, defaultCustomerId }: StationFormProps) {
+export function StationForm({ open, onOpenChange, onSubmit, customers, defaultCustomerId }: StationFormProps) {
   const {
     register,
     control,
@@ -47,14 +46,24 @@ export function StationForm({ open, onOpenChange, onSubmit, defaultCustomerId }:
     defaultValues: { ...EMPTY, customerId: defaultCustomerId ?? "" },
   });
 
+  const customerOptions = customers.map((c) => ({ value: c.id, label: c.companyName }));
+
   useEffect(() => {
     if (open) reset({ ...EMPTY, customerId: defaultCustomerId ?? "" });
   }, [open, defaultCustomerId, reset]);
 
   const selectedCustomerId = useWatch({ control, name: "customerId" });
-  const locationOptions = useMemo(() => {
-    if (!selectedCustomerId) return [];
-    return getLocations(selectedCustomerId).map((l) => ({ value: l.id, label: l.name }));
+  const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (!selectedCustomerId) {
+      setLocationOptions([]);
+      return;
+    }
+    fetch(`/api/crm/locations?customerId=${selectedCustomerId}`)
+      .then((res) => res.json())
+      .then((data) => setLocationOptions(data.locations.map((l: { id: string; name: string }) => ({ value: l.id, label: l.name }))))
+      .catch(() => setLocationOptions([]));
   }, [selectedCustomerId]);
 
   function submit(values: StationFormValues) {
@@ -74,7 +83,7 @@ export function StationForm({ open, onOpenChange, onSubmit, defaultCustomerId }:
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3.5">
-          <SelectField label="Müşteri" name="customerId" control={control} options={CUSTOMER_OPTIONS} required error={errors.customerId?.message} />
+          <SelectField label="Müşteri" name="customerId" control={control} options={customerOptions} required error={errors.customerId?.message} />
           <SelectField
             label="Lokasyon"
             name="locationId"

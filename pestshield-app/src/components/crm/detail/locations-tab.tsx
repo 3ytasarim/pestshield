@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { MapIcon, MoreHorizontal, Plus } from "lucide-react";
 import {
@@ -33,7 +33,7 @@ import { formatDate } from "@/components/crm/crm-format";
 import { LocationForm } from "@/components/crm/detail/location-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { LOCATION_TYPE_LABELS } from "@/components/crm/crm-labels";
-import { getBranches, getLocations, type Location } from "@/lib/mock/crm";
+import type { Branch, Location } from "@/lib/mock/crm";
 import type { LocationFormValues } from "@/lib/validations/crm";
 
 function comingSoon(feature: string) {
@@ -41,28 +41,51 @@ function comingSoon(feature: string) {
 }
 
 export function LocationsTab({ customerId }: { customerId: string }) {
-  const [locations, setLocations] = useState<Location[]>(() => getLocations(customerId));
-  const branchOptions = getBranches(customerId).map((b) => b.name);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [branchOptions, setBranchOptions] = useState<string[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Location | null>(null);
   const [deleting, setDeleting] = useState<Location | null>(null);
 
-  function handleSubmit(values: LocationFormValues) {
+  useEffect(() => {
+    fetch(`/api/crm/locations?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { locations: Location[] } | null) => setLocations(data?.locations ?? []))
+      .catch(() => setLocations([]));
+    fetch(`/api/crm/branches?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { branches: Branch[] } | null) => setBranchOptions((data?.branches ?? []).map((b) => b.name)))
+      .catch(() => setBranchOptions([]));
+  }, [customerId]);
+
+  async function handleSubmit(values: LocationFormValues) {
     if (editing) {
-      setLocations((prev) => prev.map((l) => (l.id === editing.id ? { ...l, ...values } : l)));
+      const res = await fetch(`/api/crm/locations/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Lokasyon güncellenemedi");
+        return;
+      }
+      setLocations((prev) => prev.map((l) => (l.id === editing.id ? data.location : l)));
       setEditing(null);
       return;
     }
-    setLocations((prev) => [
-      {
-        ...values,
-        id: `${customerId}-location-${Date.now()}`,
-        customerId,
-        stationCount: 0,
-        lastCheckDate: new Date().toISOString().slice(0, 10),
-      },
-      ...prev,
-    ]);
+
+    const res = await fetch("/api/crm/locations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Lokasyon oluşturulamadı");
+      return;
+    }
+    setLocations((prev) => [data.location, ...prev]);
   }
 
   return (
@@ -159,8 +182,14 @@ export function LocationsTab({ customerId }: { customerId: string }) {
             <AlertDialogCancel>Vazgeç</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => {
-                setLocations((prev) => prev.filter((l) => l.id !== deleting?.id));
+              onClick={async () => {
+                if (!deleting) return;
+                const res = await fetch(`/api/crm/locations/${deleting.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                  toast.error("Lokasyon silinemedi");
+                  return;
+                }
+                setLocations((prev) => prev.filter((l) => l.id !== deleting.id));
                 setDeleting(null);
               }}
             >

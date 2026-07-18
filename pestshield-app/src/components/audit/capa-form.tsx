@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, TextareaField, SelectField } from "@/components/crm/form-fields";
 import { CAPA_SEVERITY_OPTIONS, CAPA_SOURCE_OPTIONS } from "@/components/audit/audit-labels";
-import { customers } from "@/lib/mock/crm";
 import { STANDARD_LABELS, type CapaSeverity } from "@/lib/mock/audit";
 import { capaFormSchema, type CapaFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
@@ -40,15 +39,19 @@ const STANDARD_OPTIONS = [
   { value: "fssc", label: STANDARD_LABELS.fssc },
 ];
 
-const CUSTOMER_OPTIONS = [{ value: "none", label: "Genel (müşteriye bağlı değil)" }, ...customers.map((c) => ({ value: c.id, label: c.companyName }))];
-
 interface CapaFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: CapaFormValues) => void;
+  customers: { id: string; companyName: string }[];
 }
 
-export function CapaForm({ open, onOpenChange, onSubmit }: CapaFormProps) {
+export function CapaForm({ open, onOpenChange, onSubmit, customers }: CapaFormProps) {
+  const CUSTOMER_OPTIONS = [
+    { value: "none", label: "Genel (müşteriye bağlı değil)" },
+    ...customers.map((c) => ({ value: c.id, label: c.companyName })),
+  ];
+
   const {
     register,
     control,

@@ -15,25 +15,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
 import { SERVICE_TYPE_OPTIONS } from "@/components/crm/crm-labels";
-import { technicians } from "@/lib/mock/operations";
+import type { Technician } from "@/lib/mock/operations";
 import { workOrderFormSchema, type WorkOrderFormValues } from "@/lib/validations/crm";
 
 const EMPTY: WorkOrderFormValues = {
   serviceType: SERVICE_TYPE_OPTIONS[0],
-  technician: "",
+  technicianId: "",
   plannedDate: new Date().toISOString().slice(0, 10),
 };
 
 const SERVICE_TYPE_SELECT_OPTIONS = SERVICE_TYPE_OPTIONS.map((v) => ({ value: v, label: v }));
-const TECHNICIAN_OPTIONS = technicians.filter((t) => t.status === "active").map((t) => ({ value: t.name, label: t.name }));
 
 interface WorkOrderFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: WorkOrderFormValues) => void;
+  technicians: Technician[];
 }
 
-export function WorkOrderForm({ open, onOpenChange, onSubmit }: WorkOrderFormProps) {
+export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians }: WorkOrderFormProps) {
+  const technicianOptions = technicians.filter((t) => t.status === "active").map((t) => ({ value: t.id, label: t.name }));
   const {
     register,
     control,
@@ -64,7 +65,7 @@ export function WorkOrderForm({ open, onOpenChange, onSubmit }: WorkOrderFormPro
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3.5">
           <SelectField label="Hizmet Türü" name="serviceType" control={control} options={SERVICE_TYPE_SELECT_OPTIONS} required error={errors.serviceType?.message} />
-          <SelectField label="Teknisyen" name="technician" control={control} options={TECHNICIAN_OPTIONS} required placeholder="Teknisyen seçiniz" error={errors.technician?.message} />
+          <SelectField label="Teknisyen" name="technicianId" control={control} options={technicianOptions} required placeholder="Teknisyen seçiniz" error={errors.technicianId?.message} />
           <TextField label="Planlanan Tarih" type="date" required registration={register("plannedDate")} error={errors.plannedDate?.message} />
 
           <DialogFooter>

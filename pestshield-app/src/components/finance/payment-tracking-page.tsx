@@ -29,12 +29,19 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { CollectPaymentForm } from "@/components/finance/collect-payment-form";
-import { customers, getCustomerById, type Customer } from "@/lib/mock/crm";
-import { getCustomerBalance, invoices, isOverdue, overdueDays } from "@/lib/mock/finance";
+import type { Customer } from "@/lib/mock/crm";
 import { buildPaymentReminderMessage, getWhatsAppLink } from "@/lib/integrations/whatsapp";
 import { buildPaymentReminderEmail, getMailtoLink, getTelLink } from "@/lib/contact-actions";
 import type { CollectPaymentFormValues } from "@/lib/validations/finance";
 import { cn } from "@/lib/utils";
+
+interface DebtorRow {
+  customer: Customer;
+  balance: number;
+  overdue: boolean;
+  days: number;
+  dueDate: string | null;
+}
 
 function sendPaymentReminderWhatsApp(customer: Customer, balance: number, overdueDaysCount: number) {
   const message = buildPaymentReminderMessage({
@@ -56,30 +63,10 @@ function sendPaymentReminderEmail(customer: Customer, balance: number, overdueDa
   window.open(getMailtoLink(customer.invoiceEmail || customer.contactEmail, subject, body), "_blank");
 }
 
-function openInvoiceDueDate(customerId: string): string | null {
-  return invoices.find((i) => i.customerId === customerId && i.status !== "paid")?.dueDate ?? null;
-}
-
-export function PaymentTrackingPage() {
-  const [customerBalances, setCustomerBalances] = useState<Record<string, number>>(() =>
-    Object.fromEntries(customers.map((c) => [c.id, getCustomerBalance(c.id)])),
-  );
+export function PaymentTrackingPage({ initialDebtors }: { initialDebtors: DebtorRow[] }) {
+  const [debtors, setDebtors] = useState<DebtorRow[]>(initialDebtors);
   const [collectTarget, setCollectTarget] = useState<Customer | null>(null);
   const [collectOpen, setCollectOpen] = useState(false);
-
-  const debtors = useMemo(
-    () =>
-      customers
-        .filter((c) => (customerBalances[c.id] ?? 0) > 0)
-        .map((c) => ({
-          customer: c,
-          balance: customerBalances[c.id] ?? 0,
-          overdue: isOverdue(c.id),
-          days: overdueDays(c.id),
-          dueDate: openInvoiceDueDate(c.id),
-        })),
-    [customerBalances],
-  );
 
   const overdueRows = useMemo(
     () => debtors.filter((d) => d.overdue).sort((a, b) => b.days - a.days),
@@ -99,12 +86,24 @@ export function PaymentTrackingPage() {
     return Math.round(overdueRows.reduce((sum, d) => sum + d.days, 0) / overdueRows.length);
   }, [overdueRows]);
 
-  function handleCollectPayment(values: CollectPaymentFormValues) {
-    setCustomerBalances((prev) => ({
-      ...prev,
-      [values.customerId]: Math.max(0, (prev[values.customerId] ?? 0) - values.amount),
-    }));
-    toast.success(`${getCustomerById(values.customerId)?.companyName ?? "Müşteri"} için tahsilat kaydedildi`);
+  async function handleCollectPayment(values: CollectPaymentFormValues) {
+    const res = await fetch("/api/finance/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Tahsilat kaydedilemedi");
+      return;
+    }
+    setDebtors((prev) =>
+      prev
+        .map((d) =>
+          d.customer.id === values.customerId ? { ...d, balance: Math.max(0, d.balance - values.amount) } : d,
+        )
+        .filter((d) => d.balance > 0),
+    );
+    toast.success(`${values.customerId === collectTarget?.id ? collectTarget?.companyName : "Müşteri"} için tahsilat kaydedildi`);
   }
 
   return (
@@ -362,7 +361,7 @@ export function PaymentTrackingPage() {
         open={collectOpen}
         onOpenChange={setCollectOpen}
         customer={collectTarget}
-        currentBalance={collectTarget ? (customerBalances[collectTarget.id] ?? 0) : 0}
+        currentBalance={collectTarget ? (debtors.find((d) => d.customer.id === collectTarget.id)?.balance ?? 0) : 0}
         onSubmit={handleCollectPayment}
       />
     </div>

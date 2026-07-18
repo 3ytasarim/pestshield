@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Download, FileText, Plus, Wallet } from "lucide-react";
 import {
@@ -17,17 +17,62 @@ import { CurrentAccountSummary } from "@/components/crm/detail/current-account-s
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { TRANSACTION_TYPE_LABELS } from "@/components/crm/crm-labels";
 import { printCurrentAccountStatement } from "@/components/finance/print-statement";
-import { getCustomerById, getTransactions } from "@/lib/mock/crm";
-import { getCustomerBalance, getLedgerEntries } from "@/lib/mock/finance";
+import { computeLedger, type SerializedCollection } from "@/lib/finance/serialize";
+import type { Invoice } from "@/lib/mock/finance";
+import type { Customer } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
+interface AccountRow {
+  id: string;
+  date: string;
+  type: "invoice" | "collection";
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  status: "completed" | "pending";
+}
+
 export function CurrentAccountTab({ customerId }: { customerId: string }) {
-  const [transactions] = useState(() => getTransactions(customerId));
-  const customer = getCustomerById(customerId);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [collections, setCollections] = useState<SerializedCollection[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/crm/customers/${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setCustomer(data.customer))
+      .catch(() => setCustomer(null));
+    fetch(`/api/finance/invoices?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setInvoices(data.invoices))
+      .catch(() => setInvoices([]));
+    fetch(`/api/finance/collections?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setCollections(data.collections))
+      .catch(() => setCollections([]));
+  }, [customerId]);
+
+  const invoiceStatusById = useMemo(() => new Map(invoices.map((i) => [i.id, i.status])), [invoices]);
+
+  const transactions: AccountRow[] = useMemo(
+    () =>
+      computeLedger(invoices, collections).map((e) => ({
+        id: e.id,
+        date: e.date,
+        type: e.type === "debt" ? "invoice" : "collection",
+        description: e.description,
+        debit: e.type === "debt" ? e.amount : 0,
+        credit: e.type === "collection" ? e.amount : 0,
+        balance: e.balanceAfter,
+        status: e.type === "debt" && invoiceStatusById.get(e.id) !== "paid" ? "pending" : "completed",
+      })),
+    [invoices, collections, invoiceStatusById],
+  );
 
   function handlePrint() {
     if (!customer) return;
-    printCurrentAccountStatement(customer, getLedgerEntries(customerId), getCustomerBalance(customerId));
+    printCurrentAccountStatement(customer, computeLedger(invoices, collections), customer.pendingCollection);
   }
 
   const summary = useMemo(() => {

@@ -18,6 +18,7 @@ import {
   getSpeciesById,
   type EquipmentCategory,
 } from "@/lib/mock/pest-management";
+import type { Product } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_DESCRIPTIONS: Record<EquipmentCategory, string> = {
@@ -29,11 +30,12 @@ const CATEGORY_DESCRIPTIONS: Record<EquipmentCategory, string> = {
 
 interface EquipmentCategoryPageProps {
   category: EquipmentCategory;
+  products: Product[];
 }
 
-export function EquipmentCategoryPage({ category }: EquipmentCategoryPageProps) {
+export function EquipmentCategoryPage({ category, products }: EquipmentCategoryPageProps) {
   const guides = useMemo(() => getEquipmentByCategory(category), [category]);
-  const summary = useMemo(() => getEquipmentCategoryStockSummary(category), [category]);
+  const summary = useMemo(() => getEquipmentCategoryStockSummary(category, products), [category, products]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,7 +60,7 @@ export function EquipmentCategoryPage({ category }: EquipmentCategoryPageProps) 
       ) : (
         <div className="flex flex-col gap-4">
           {guides.map((guide, index) => {
-            const relatedProducts = getRelatedProducts(guide);
+            const relatedProducts = getRelatedProducts(guide, products);
             const targetSpecies = guide.targetSpeciesIds.map((id) => getSpeciesById(id)).filter((s) => !!s);
             return (
               <motion.div

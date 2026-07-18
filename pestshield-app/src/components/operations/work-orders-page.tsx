@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
-import { getAllWorkOrders, getCustomerById, type WorkOrder, type WorkOrderStatus } from "@/lib/mock/crm";
+import type { WorkOrder, WorkOrderStatus } from "@/lib/mock/crm";
 import { buildWorkOrderMessage, getWhatsAppLink } from "@/lib/integrations/whatsapp";
 import { cn } from "@/lib/utils";
 
@@ -25,10 +25,14 @@ const COLUMNS: { status: WorkOrderStatus; label: string; accent: string }[] = [
   { status: "cancelled", label: "İptal", accent: "border-t-muted-foreground" },
 ];
 
-export function WorkOrdersPage() {
+interface WorkOrderWithCustomer extends WorkOrder {
+  customer: { id: string; companyName: string; contactName: string; contactPhone: string } | null;
+}
+
+export function WorkOrdersPage({ initialOrders }: { initialOrders: WorkOrderWithCustomer[] }) {
   const [search, setSearch] = useState("");
 
-  const orders = useMemo(() => getAllWorkOrders().map((o) => ({ ...o, customer: getCustomerById(o.customerId) })), []);
+  const orders = initialOrders;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

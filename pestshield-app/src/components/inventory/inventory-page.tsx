@@ -21,13 +21,7 @@ import { NewProductForm } from "@/components/inventory/new-product-form";
 import { ProductCard } from "@/components/inventory/product-card";
 import { UsageHistoryTab } from "@/components/inventory/usage-history-tab";
 import { CATEGORY_OPTIONS } from "@/components/inventory/inventory-labels";
-import {
-  products as initialProducts,
-  stockTransactions as initialTransactions,
-  getCriticalProducts,
-  type Product,
-  type ProductCategory,
-} from "@/lib/mock/inventory";
+import { getCriticalProducts, type Product, type ProductCategory, type StockTransaction, type Warehouse } from "@/lib/mock/inventory";
 import type { AddStockFormValues, NewProductFormValues } from "@/lib/validations/inventory";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +40,15 @@ function downloadCsvTemplate() {
   URL.revokeObjectURL(url);
 }
 
-export function InventoryPage() {
+export function InventoryPage({
+  initialProducts,
+  initialTransactions,
+  warehouses,
+}: {
+  initialProducts: Product[];
+  initialTransactions: StockTransaction[];
+  warehouses: Warehouse[];
+}) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [transactions, setTransactions] = useState(initialTransactions);
   const [activeTab, setActiveTab] = useState("products");
@@ -81,69 +83,52 @@ export function InventoryPage() {
     return products.filter((p) => p.type === type).length;
   }
 
-  function handleAddStock(values: AddStockFormValues) {
+  async function handleAddStock(values: AddStockFormValues) {
+    const res = await fetch("/api/inventory/stock-transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Stok güncellenemedi");
+      return;
+    }
+    const { stockTransaction } = (await res.json()) as { stockTransaction: StockTransaction };
     setProducts((prev) =>
       prev.map((p) => (p.id === values.productId ? { ...p, currentStock: p.currentStock + values.quantity } : p)),
     );
-    setTransactions((prev) => [
-      {
-        id: `txn-${Date.now()}`,
-        productId: values.productId,
-        type: "add",
-        quantity: values.quantity,
-        description: values.description,
-        performedBy: "Siz",
-        date: new Date().toISOString().slice(0, 10),
-      },
-      ...prev,
-    ]);
+    setTransactions((prev) => [stockTransaction, ...prev]);
     toast.success("Stok güncellendi");
   }
 
-  function handleNewProduct(values: NewProductFormValues) {
+  async function handleNewProduct(values: NewProductFormValues) {
     if (editingProduct) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === editingProduct.id
-            ? {
-                ...p,
-                name: values.name,
-                category: values.category,
-                unit: values.unit,
-                warehouseId: values.warehouseId,
-                manufacturer: values.manufacturer,
-                currentStock: values.startingStock,
-                criticalLevel: values.criticalLevel,
-                type: values.isBiosidal ? "biosidal" : "diger",
-                licenseNumber: values.isBiosidal ? values.licenseNumber : undefined,
-                activeIngredient: values.isBiosidal ? values.activeIngredient : undefined,
-                defaultDose: values.isBiosidal ? values.defaultDose : undefined,
-                targetOrganisms: values.isBiosidal ? values.targetOrganisms : undefined,
-              }
-            : p,
-        ),
-      );
+      const res = await fetch(`/api/inventory/products/${editingProduct.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (!res.ok) {
+        toast.error("Ürün güncellenemedi");
+        return;
+      }
+      const { product } = (await res.json()) as { product: Product };
+      setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? product : p)));
       setEditingProduct(null);
       toast.success("Ürün güncellendi");
       return;
     }
-    const newProduct: Product = {
-      id: `prod-${Date.now()}`,
-      name: values.name,
-      category: values.category,
-      unit: values.unit,
-      warehouseId: values.warehouseId,
-      manufacturer: values.manufacturer,
-      currentStock: values.startingStock,
-      criticalLevel: values.criticalLevel,
-      type: values.isBiosidal ? "biosidal" : "diger",
-      createdAt: new Date().toISOString().slice(0, 10),
-      licenseNumber: values.isBiosidal ? values.licenseNumber : undefined,
-      activeIngredient: values.isBiosidal ? values.activeIngredient : undefined,
-      defaultDose: values.isBiosidal ? values.defaultDose : undefined,
-      targetOrganisms: values.isBiosidal ? values.targetOrganisms : undefined,
-    };
-    setProducts((prev) => [newProduct, ...prev]);
+    const res = await fetch("/api/inventory/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Ürün eklenemedi");
+      return;
+    }
+    const { product } = (await res.json()) as { product: Product };
+    setProducts((prev) => [product, ...prev]);
     toast.success("Ürün eklendi");
   }
 
@@ -332,7 +317,7 @@ export function InventoryPage() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
-          <UsageHistoryTab />
+          <UsageHistoryTab transactions={transactions} products={products} />
         </TabsContent>
       </Tabs>
 
@@ -351,6 +336,7 @@ export function InventoryPage() {
           if (!open) setEditingProduct(null);
         }}
         onSubmit={handleNewProduct}
+        warehouses={warehouses}
         defaultValues={
           editingProduct
             ? {

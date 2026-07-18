@@ -11,18 +11,20 @@ import {
   STANDARD_LABELS,
   getOpenFindingsCount,
   getStandardReadiness,
+  type ChecklistItem,
   type ComplianceStandard,
 } from "@/lib/mock/audit";
 import { cn } from "@/lib/utils";
 
 interface StandardSummaryCardProps {
   standard: ComplianceStandard;
+  items: ChecklistItem[];
   delay?: number;
 }
 
-export function StandardSummaryCard({ standard, delay = 0 }: StandardSummaryCardProps) {
-  const readiness = getStandardReadiness(standard);
-  const openFindings = getOpenFindingsCount(standard);
+export function StandardSummaryCard({ standard, items, delay = 0 }: StandardSummaryCardProps) {
+  const readiness = getStandardReadiness(standard, items);
+  const openFindings = getOpenFindingsCount(standard, items);
   const isReady = readiness >= 90;
 
   return (

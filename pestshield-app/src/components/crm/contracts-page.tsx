@@ -18,11 +18,14 @@ import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { ContractStatusBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { getAllContracts, getCustomerById } from "@/lib/mock/crm";
-import type { ContractStatus } from "@/lib/mock/crm";
+import type { Contract, ContractStatus } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | ContractStatus;
+
+export interface ContractWithCustomer extends Contract {
+  customer: { id: string; companyName: string } | null;
+}
 
 const STATUS_OPTIONS: { value: ContractStatus; label: string }[] = [
   { value: "active", label: "Aktif" },
@@ -31,11 +34,11 @@ const STATUS_OPTIONS: { value: ContractStatus; label: string }[] = [
   { value: "cancelled", label: "İptal Edildi" },
 ];
 
-export function ContractsPage() {
+export function ContractsPage({ initialContracts }: { initialContracts: ContractWithCustomer[] }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const contracts = useMemo(() => getAllContracts().map((c) => ({ ...c, customer: getCustomerById(c.customerId) })), []);
+  const contracts = initialContracts;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

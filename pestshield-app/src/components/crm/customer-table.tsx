@@ -34,8 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RiskBadge, CustomerStatusBadge, ContractStatusBadge, CustomerTypeBadge, PotentialBadge } from "@/components/crm/crm-badges";
 import { formatDate } from "@/components/crm/crm-format";
-import type { Customer } from "@/lib/mock/crm";
-import { getContracts } from "@/lib/mock/crm";
+import type { Customer, ContractStatus } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 declare module "@tanstack/react-table" {
@@ -46,6 +45,7 @@ declare module "@tanstack/react-table" {
 
 interface CustomerTableProps {
   customers: Customer[];
+  contractStatusByCustomer: Record<string, ContractStatus>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onEdit: (customer: Customer) => void;
@@ -55,10 +55,6 @@ interface CustomerTableProps {
   onCreateWorkOrder: (customer: Customer) => void;
   onCreateService: (customer: Customer) => void;
   onViewAccount: (customer: Customer) => void;
-}
-
-function contractStatusFor(customer: Customer) {
-  return getContracts(customer.id)[0]?.status ?? "active";
 }
 
 const ROW_VARIANTS = {
@@ -85,6 +81,7 @@ const COLUMN_LABELS: Record<string, string> = {
 
 export function CustomerTable({
   customers,
+  contractStatusByCustomer,
   selectedId,
   onSelect,
   onEdit,
@@ -163,7 +160,7 @@ export function CustomerTable({
       {
         id: "contractStatus",
         header: "Sözleşme Durumu",
-        cell: ({ row }) => <ContractStatusBadge status={contractStatusFor(row.original)} />,
+        cell: ({ row }) => <ContractStatusBadge status={contractStatusByCustomer[row.original.id] ?? "active"} />,
         meta: { className: "hidden lg:table-cell" },
       },
       {
@@ -216,7 +213,7 @@ export function CustomerTable({
         },
       },
     ],
-    [onSelect, onEdit, onDelete, onCreateOffer, onCreateContract, onCreateWorkOrder, onCreateService, onViewAccount],
+    [onSelect, onEdit, onDelete, onCreateOffer, onCreateContract, onCreateWorkOrder, onCreateService, onViewAccount, contractStatusByCustomer],
   );
 
   const table = useReactTable({
@@ -264,7 +261,7 @@ export function CustomerTable({
       </CardHeader>
       <CardContent className="px-0">
         <Table>
-          <TableHeader className="sticky top-16 z-10 bg-card">
+          <TableHeader className="bg-card">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers.map((header) => (

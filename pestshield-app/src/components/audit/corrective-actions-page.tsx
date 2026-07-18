@@ -15,10 +15,8 @@ import { formatDate } from "@/components/crm/crm-format";
 import { CapaSeverityBadge, CapaStatusBadge } from "@/components/audit/audit-badges";
 import { CAPA_SEVERITY_OPTIONS, CAPA_SOURCE_LABELS } from "@/components/audit/audit-labels";
 import { CapaForm } from "@/components/audit/capa-form";
-import { getCustomerById } from "@/lib/mock/crm";
 import {
   STANDARD_LABELS,
-  correctiveActions as initialCapas,
   isCapaOverdue,
   type CapaSeverity,
   type CapaStatus,
@@ -30,7 +28,6 @@ import { cn } from "@/lib/utils";
 type StatusFilter = "all" | CapaStatus;
 type SeverityFilter = "all" | CapaSeverity;
 
-const STATUS_FLOW: CapaStatus[] = ["open", "in_progress", "resolved", "verified"];
 const STATUS_OPTIONS: { value: CapaStatus; label: string }[] = [
   { value: "open", label: "Açık" },
   { value: "in_progress", label: "Devam Ediyor" },
@@ -38,7 +35,12 @@ const STATUS_OPTIONS: { value: CapaStatus; label: string }[] = [
   { value: "verified", label: "Doğrulandı" },
 ];
 
-export function CorrectiveActionsPage() {
+interface CorrectiveActionsPageProps {
+  initialCapas: CorrectiveAction[];
+  customers: { id: string; companyName: string }[];
+}
+
+export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveActionsPageProps) {
   const [capas, setCapas] = useState<CorrectiveAction[]>(initialCapas);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -62,36 +64,29 @@ export function CorrectiveActionsPage() {
   const overdueCount = useMemo(() => capas.filter(isCapaOverdue).length, [capas]);
   const closedCount = useMemo(() => capas.filter((c) => c.status === "resolved" || c.status === "verified").length, [capas]);
 
-  function advanceStatus(id: string) {
-    setCapas((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        const idx = STATUS_FLOW.indexOf(c.status);
-        const next = STATUS_FLOW[Math.min(idx + 1, STATUS_FLOW.length - 1)];
-        const resolvedDate = next === "resolved" || next === "verified" ? new Date().toISOString().slice(0, 10) : c.resolvedDate;
-        return { ...c, status: next, resolvedDate };
-      }),
-    );
+  async function advanceStatus(id: string) {
+    const res = await fetch(`/api/audit/corrective-actions/${id}/advance`, { method: "POST" });
+    if (!res.ok) {
+      toast.error("Durum güncellenemedi");
+      return;
+    }
+    const { capa } = (await res.json()) as { capa: CorrectiveAction };
+    setCapas((prev) => prev.map((c) => (c.id === id ? capa : c)));
     toast.success("Durum güncellendi");
   }
 
-  function handleCreate(values: CapaFormValues) {
-    const newCapa: CorrectiveAction = {
-      id: `capa-${Date.now()}`,
-      title: values.title,
-      standard: values.standard === "none" ? null : values.standard,
-      customerId: values.customerId === "none" ? null : values.customerId,
-      source: values.source,
-      severity: values.severity,
-      rootCause: values.rootCause,
-      actionPlan: values.actionPlan,
-      responsible: values.responsible,
-      createdDate: new Date().toISOString().slice(0, 10),
-      dueDate: values.dueDate,
-      resolvedDate: null,
-      status: "open",
-    };
-    setCapas((prev) => [newCapa, ...prev]);
+  async function handleCreate(values: CapaFormValues) {
+    const res = await fetch("/api/audit/corrective-actions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Düzeltici faaliyet oluşturulamadı");
+      return;
+    }
+    setCapas((prev) => [data.capa, ...prev]);
     toast.success("Düzeltici faaliyet oluşturuldu");
   }
 
@@ -186,7 +181,7 @@ export function CorrectiveActionsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map((capa, index) => {
-            const customer = capa.customerId ? getCustomerById(capa.customerId) : null;
+            const customer = capa.customerId ? customers.find((c) => c.id === capa.customerId) : null;
             const overdue = isCapaOverdue(capa);
             const isDone = capa.status === "resolved" || capa.status === "verified";
             return (
@@ -258,7 +253,7 @@ export function CorrectiveActionsPage() {
         </div>
       )}
 
-      <CapaForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <CapaForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
     </div>
   );
 }

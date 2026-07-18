@@ -18,11 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FILTER_LABELS, matchesFilter, type CustomerFilterKey } from "@/components/crm/crm-filter-logic";
+import { FILTER_LABELS, matchesFilter, type CustomerFilterContext, type CustomerFilterKey } from "@/components/crm/crm-filter-logic";
 import type { Customer } from "@/lib/mock/crm";
 
 interface CustomerFiltersProps {
   customers: Customer[];
+  filterContext?: CustomerFilterContext;
   search: string;
   onSearchChange: (value: string) => void;
   activeFilters: Set<CustomerFilterKey>;
@@ -44,6 +45,7 @@ const FILTER_ICONS: Record<CustomerFilterKey, LucideIcon> = {
 
 export function CustomerFilters({
   customers,
+  filterContext,
   search,
   onSearchChange,
   activeFilters,
@@ -52,10 +54,10 @@ export function CustomerFilters({
   const counts = useMemo(() => {
     const result: Partial<Record<CustomerFilterKey, number>> = {};
     for (const key of FILTER_KEYS) {
-      result[key] = customers.filter((c) => matchesFilter(c, key)).length;
+      result[key] = customers.filter((c) => matchesFilter(c, key, filterContext)).length;
     }
     return result;
-  }, [customers]);
+  }, [customers, filterContext]);
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-3.5 shadow-sm">

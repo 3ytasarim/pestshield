@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { MoreHorizontal, Plus, Star, Users } from "lucide-react";
 import {
   Table,
@@ -29,22 +30,50 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ContactForm } from "@/components/crm/detail/contact-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import { getContacts, type Contact } from "@/lib/mock/crm";
+import type { Contact } from "@/lib/mock/crm";
 import type { ContactFormValues } from "@/lib/validations/crm";
 
 export function ContactsTab({ customerId }: { customerId: string }) {
-  const [contacts, setContacts] = useState<Contact[]>(() => getContacts(customerId));
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState<Contact | null>(null);
 
-  function handleSubmit(values: ContactFormValues) {
+  useEffect(() => {
+    fetch(`/api/crm/contacts?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { contacts: Contact[] } | null) => setContacts(data?.contacts ?? []))
+      .catch(() => setContacts([]));
+  }, [customerId]);
+
+  async function handleSubmit(values: ContactFormValues) {
     if (editing) {
-      setContacts((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...values } : c)));
+      const res = await fetch(`/api/crm/contacts/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Kişi güncellenemedi");
+        return;
+      }
+      setContacts((prev) => prev.map((c) => (c.id === editing.id ? data.contact : c)));
       setEditing(null);
       return;
     }
-    setContacts((prev) => [{ ...values, id: `${customerId}-contact-${Date.now()}`, customerId }, ...prev]);
+
+    const res = await fetch("/api/crm/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Kişi oluşturulamadı");
+      return;
+    }
+    setContacts((prev) => [data.contact, ...prev]);
   }
 
   return (
@@ -137,8 +166,14 @@ export function ContactsTab({ customerId }: { customerId: string }) {
             <AlertDialogCancel>Vazgeç</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => {
-                setContacts((prev) => prev.filter((c) => c.id !== deleting?.id));
+              onClick={async () => {
+                if (!deleting) return;
+                const res = await fetch(`/api/crm/contacts/${deleting.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                  toast.error("Kişi silinemedi");
+                  return;
+                }
+                setContacts((prev) => prev.filter((c) => c.id !== deleting.id));
                 setDeleting(null);
               }}
             >

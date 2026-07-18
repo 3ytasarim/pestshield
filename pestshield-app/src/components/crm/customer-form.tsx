@@ -62,6 +62,7 @@ const EMPTY_DEFAULTS: CustomerFormValues = {
   contactPhone: "",
   contactEmail: "",
   contactTitle: "",
+  fax: "",
   country: "Türkiye",
   city: "",
   district: "",
@@ -315,6 +316,12 @@ export function CustomerForm({ open, onOpenChange, onSubmit, defaultValues, cust
                   className="sm:col-span-2"
                   registration={register("contactTitle")}
                   error={errors.contactTitle?.message}
+                />
+                <TextField
+                  label="Faks"
+                  placeholder="0212 000 00 00"
+                  registration={register("fax")}
+                  error={errors.fax?.message}
                 />
               </FormSectionCard>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { MapPinned, Plus, QrCode } from "lucide-react";
@@ -18,30 +18,44 @@ import { formatDate } from "@/components/crm/crm-format";
 import { StationStatusBadge } from "@/components/operations/operations-badges";
 import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
 import { StationForm } from "@/components/operations/station-form";
-import { getLocations } from "@/lib/mock/crm";
-import { getStationsForCustomer, isStationOverdue, type Station } from "@/lib/mock/operations";
+import type { Location, Customer } from "@/lib/mock/crm";
+import { isStationOverdue, type Station } from "@/lib/mock/operations";
 import type { StationFormValues } from "@/lib/validations/operations";
 import { cn } from "@/lib/utils";
 
 export function StationsTab({ customerId }: { customerId: string }) {
-  const [stations, setStations] = useState<Station[]>(() => getStationsForCustomer(customerId));
+  const [stations, setStations] = useState<Station[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const locations = getLocations(customerId);
 
-  function handleSubmit(values: StationFormValues) {
-    const newStation: Station = {
-      id: `stn-${Date.now()}`,
-      qrCode: `PS-STN-${Date.now().toString().slice(-6)}`,
-      customerId,
-      locationId: values.locationId,
-      label: values.label,
-      type: values.type,
-      status: "active",
-      installedDate: new Date().toISOString().slice(0, 10),
-      lastCheckDate: null,
-      nextCheckDue: new Date().toISOString().slice(0, 10),
-    };
-    setStations((prev) => [newStation, ...prev]);
+  useEffect(() => {
+    fetch(`/api/crm/stations?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setStations(data.stations))
+      .catch(() => toast.error("İstasyonlar yüklenemedi"));
+    fetch(`/api/crm/locations?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setLocations(data.locations))
+      .catch(() => toast.error("Lokasyonlar yüklenemedi"));
+    fetch(`/api/crm/customers/${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setCustomer(data.customer))
+      .catch(() => toast.error("Müşteri bilgisi yüklenemedi"));
+  }, [customerId]);
+
+  async function handleSubmit(values: StationFormValues) {
+    const res = await fetch("/api/crm/stations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "İstasyon eklenemedi");
+      return;
+    }
+    setStations((prev) => [data.station, ...prev]);
     toast.success("İstasyon eklendi");
   }
 
@@ -100,7 +114,13 @@ export function StationsTab({ customerId }: { customerId: string }) {
         </div>
       )}
 
-      <StationForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleSubmit} defaultCustomerId={customerId} />
+      <StationForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={handleSubmit}
+        customers={customer ? [{ id: customer.id, companyName: customer.companyName }] : []}
+        defaultCustomerId={customerId}
+      />
     </div>
   );
 }

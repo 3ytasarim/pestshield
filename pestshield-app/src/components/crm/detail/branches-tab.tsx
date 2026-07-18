@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Building2, MoreHorizontal, Plus } from "lucide-react";
 import {
   Table,
@@ -31,25 +32,50 @@ import { RiskBadge, CustomerStatusBadge } from "@/components/crm/crm-badges";
 import { formatDate } from "@/components/crm/crm-format";
 import { BranchForm } from "@/components/crm/detail/branch-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import { getBranches, type Branch } from "@/lib/mock/crm";
+import type { Branch } from "@/lib/mock/crm";
 import type { BranchFormValues } from "@/lib/validations/crm";
 
 export function BranchesTab({ customerId }: { customerId: string }) {
-  const [branches, setBranches] = useState<Branch[]>(() => getBranches(customerId));
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Branch | null>(null);
   const [deleting, setDeleting] = useState<Branch | null>(null);
 
-  function handleSubmit(values: BranchFormValues) {
+  useEffect(() => {
+    fetch(`/api/crm/branches?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { branches: Branch[] } | null) => setBranches(data?.branches ?? []))
+      .catch(() => setBranches([]));
+  }, [customerId]);
+
+  async function handleSubmit(values: BranchFormValues) {
     if (editing) {
-      setBranches((prev) => prev.map((b) => (b.id === editing.id ? { ...b, ...values } : b)));
+      const res = await fetch(`/api/crm/branches/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Şube güncellenemedi");
+        return;
+      }
+      setBranches((prev) => prev.map((b) => (b.id === editing.id ? data.branch : b)));
       setEditing(null);
       return;
     }
-    setBranches((prev) => [
-      { ...values, id: `${customerId}-branch-${Date.now()}`, customerId, lastServiceDate: new Date().toISOString().slice(0, 10) },
-      ...prev,
-    ]);
+
+    const res = await fetch("/api/crm/branches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Şube oluşturulamadı");
+      return;
+    }
+    setBranches((prev) => [data.branch, ...prev]);
   }
 
   return (
@@ -154,8 +180,14 @@ export function BranchesTab({ customerId }: { customerId: string }) {
             <AlertDialogCancel>Vazgeç</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => {
-                setBranches((prev) => prev.filter((b) => b.id !== deleting?.id));
+              onClick={async () => {
+                if (!deleting) return;
+                const res = await fetch(`/api/crm/branches/${deleting.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                  toast.error("Şube silinemedi");
+                  return;
+                }
+                setBranches((prev) => prev.filter((b) => b.id !== deleting.id));
                 setDeleting(null);
               }}
             >

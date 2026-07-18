@@ -19,20 +19,20 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { RiskBadge } from "@/components/crm/crm-badges";
 import { formatDate } from "@/components/crm/crm-format";
 import { LOCATION_TYPE_LABELS } from "@/components/crm/crm-labels";
-import { getAllLocations, getCustomerById } from "@/lib/mock/crm";
-import type { RiskLevel } from "@/lib/mock/crm";
+import type { Location, RiskLevel } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 type RiskFilter = "all" | RiskLevel;
 
-export function LocationsPage() {
+export interface LocationWithCustomer extends Location {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function LocationsPage({ initialLocations }: { initialLocations: LocationWithCustomer[] }) {
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
 
-  const locations = useMemo(
-    () => getAllLocations().map((l) => ({ ...l, customer: getCustomerById(l.customerId) })),
-    [],
-  );
+  const locations = initialLocations;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

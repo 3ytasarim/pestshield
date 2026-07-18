@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, TextareaField, SelectField } from "@/components/crm/form-fields";
 import { RISK_CATEGORY_OPTIONS } from "@/components/audit/audit-labels";
-import { customers } from "@/lib/mock/crm";
 import { riskFormSchema, type RiskFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
@@ -30,17 +29,21 @@ const EMPTY: RiskFormValues = {
   customerId: "none",
 };
 
-const CUSTOMER_OPTIONS = [{ value: "none", label: "Genel (müşteriye bağlı değil)" }, ...customers.map((c) => ({ value: c.id, label: c.companyName }))];
-
 const SCALE = [1, 2, 3, 4, 5];
 
 interface RiskFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: RiskFormValues) => void;
+  customers: { id: string; companyName: string }[];
 }
 
-export function RiskForm({ open, onOpenChange, onSubmit }: RiskFormProps) {
+export function RiskForm({ open, onOpenChange, onSubmit, customers }: RiskFormProps) {
+  const CUSTOMER_OPTIONS = [
+    { value: "none", label: "Genel (müşteriye bağlı değil)" },
+    ...customers.map((c) => ({ value: c.id, label: c.companyName })),
+  ];
+
   const {
     register,
     control,

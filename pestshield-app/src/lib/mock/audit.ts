@@ -234,7 +234,7 @@ const FSSC_SECTIONS: SectionSeed[] = [
   },
 ];
 
-const STANDARD_SECTIONS: Record<ComplianceStandard, SectionSeed[]> = {
+export const STANDARD_SECTIONS: Record<ComplianceStandard, SectionSeed[]> = {
   haccp: HACCP_SECTIONS,
   brcgs: BRCGS_SECTIONS,
   iso22000: ISO22000_SECTIONS,

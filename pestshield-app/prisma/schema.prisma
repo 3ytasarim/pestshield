@@ -20,6 +20,219 @@ enum LicenseType {
   YEARLY
 }
 
+enum CustomerStatus {
+  active
+  passive
+}
+
+enum CustomerType {
+  Bireysel
+  Kurumsal
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+  critical
+}
+
+enum AddressType {
+  billing
+  service
+  shipping
+  branch
+}
+
+enum LocationType {
+  production_area
+  warehouse
+  cafeteria
+  office
+  garden
+  waste_area
+  loading_area
+  raw_material_warehouse
+  finished_goods_warehouse
+}
+
+enum ContractStatus {
+  active
+  expiring
+  expired
+  cancelled
+}
+
+enum OfferStatus {
+  draft
+  sent
+  accepted
+  rejected
+  expired
+}
+
+enum TechnicianStatus {
+  active
+  on_leave
+  inactive
+}
+
+enum VehicleStatus {
+  active
+  maintenance
+  inactive
+}
+
+enum StationType {
+  rodent_bait
+  insect_trap
+  glue_trap
+  uv_trap
+  pheromone_trap
+}
+
+enum StationStatus {
+  active
+  needs_attention
+  inactive
+}
+
+enum ActivityLevel {
+  none
+  low
+  medium
+  high
+}
+
+enum WorkOrderStatus {
+  planned
+  in_progress
+  completed
+  delayed
+  cancelled
+}
+
+enum InvoiceStatus {
+  paid
+  pending
+  overdue
+}
+
+enum PaymentMethod {
+  nakit
+  kart
+  havale
+}
+
+enum FinanceCurrency {
+  TRY
+  USD
+  EUR
+}
+
+enum BankTransactionType {
+  inflow
+  outflow
+}
+
+enum ProductCategory {
+  ilac
+  malzeme
+  ekipman
+}
+
+enum ProductType {
+  biosidal
+  diger
+}
+
+enum ProductUnit {
+  adet
+  litre
+  ml
+  kg
+  gr
+}
+
+enum WarehouseType {
+  main
+  vehicle
+  branch
+}
+
+enum StockTransactionType {
+  add
+  use
+}
+
+enum ComplianceStandard {
+  haccp
+  brcgs
+  iso22000
+  fssc
+}
+
+enum ChecklistStatus {
+  compliant
+  non_compliant
+  pending
+  not_applicable
+}
+
+enum CapaSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum CapaStatus {
+  open
+  in_progress
+  resolved
+  verified
+}
+
+enum CapaSource {
+  internal_audit
+  external_audit
+  customer_complaint
+  routine_inspection
+}
+
+enum AuditRiskCategory {
+  biological
+  chemical
+  physical
+  operational
+  regulatory
+}
+
+enum AuditRiskStatus {
+  open
+  mitigating
+  closed
+}
+
+enum AuditType {
+  internal
+  external
+  certification
+}
+
+enum AuditResult {
+  passed
+  passed_with_findings
+  failed
+  scheduled
+}
+
+enum PeriyotDonem {
+  daily
+  weekly
+  monthly
+}
+
 model User {
   id            String    @id @default(uuid())
   name          String?
@@ -34,6 +247,10 @@ model User {
   /// Firma kaydı akışıyla oluşturulan müşteri hesapları için serbest metin
   /// firma adı. Tam ilişkisel Company modeli sonraki bir sprintte eklenecek.
   companyName String?
+  address     String?
+  phone       String?
+  /// Firma logosu — base64 data URL (bkz. src/lib/file-utils.ts readImageFile).
+  logoUrl     String?
 
   /// Firma kaydı sırasında otomatik atanır (bkz. /api/company-register).
   /// Ödeme/yükseltme akışı henüz bağlanmadı - sadece kayıt anındaki durumu tutar.
@@ -50,6 +267,43 @@ model User {
   accounts            Account[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+
+  licenseCodesCreated  LicenseCode[] @relation("LicenseCodeCreator")
+  licenseCodesTargeted LicenseCode[] @relation("LicenseCodeTarget")
+  licenseCodesRedeemed LicenseCode[] @relation("LicenseCodeRedeemer")
+
+  customers          Customer[]
+  branches           Branch[]
+  contacts           Contact[]
+  addresses          Address[]
+  locations          Location[]
+  contracts          Contract[]
+  offers             Offer[]
+  offerItems         OfferItem[]
+  serviceOrders      ServiceOrder[]
+  serviceOrderItems  ServiceOrderItem[]
+  techniciansOwned   Technician[]        @relation("TechnicianOwner")
+  technicianProfile  Technician?         @relation("TechnicianUser")
+  vehicles           Vehicle[]
+  checklistTemplates ChecklistTemplate[]
+  stations           Station[]
+  stationChecks      StationCheck[]
+  workOrders         WorkOrder[]
+  invoices           Invoice[]
+  collections        Collection[]
+  bankAccounts       BankAccount[]
+  bankTransactions   BankTransaction[]
+  warehouses         Warehouse[]
+  products           Product[]
+  stockTransactions  StockTransaction[]
+  checklistItems     ComplianceChecklistItem[]
+  auditRecords       AuditRecord[]
+  correctiveActions  CorrectiveAction[]
+  risks              Risk[]
+  periyotBatches      PeriyotBatch[]
+  periyotOccurrences  PeriyotOccurrence[]
+  biocidalUsages      PeriyotBiocidalProductUsage[]
+  parasutIntegration  ParasutIntegration?
 
   @@map("users")
 }
@@ -107,6 +361,794 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
+}
+
+/// Süper admin (ADMIN rolü) tarafından belirli bir müşteri firmasına
+/// üretilen, firmanın kendi panelinde ("Lisans" ekranı) tek seferlik
+/// uygulayabileceği lisans kodu. Uygulandığında hedef kullanıcının
+/// licenseType/licenseExpiresAt alanları güncellenir.
+model LicenseCode {
+  id           String      @id @default(uuid())
+  code         String      @unique
+  type         LicenseType
+  durationDays Int
+
+  /// Kod sadece bu firma hesabıyla kullanılabilir.
+  targetUserId String
+  targetUser   User        @relation("LicenseCodeTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+  createdBy       User   @relation("LicenseCodeCreator", fields: [createdByUserId], references: [id])
+
+  redeemedAt       DateTime?
+  redeemedByUserId String?
+  redeemedBy       User?     @relation("LicenseCodeRedeemer", fields: [redeemedByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("license_codes")
+}
+
+/// Bir CLIENT (zararlı kontrol) firmasının kendi müşterisi. `ownerId`,
+/// verinin hangi firma hesabına ait olduğunu belirler — tüm sorgular
+/// bununla filtrelenir, firmalar birbirinin müşterisini göremez.
+model Customer {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  companyName   String
+  taxNumber     String       @default("")
+  taxOffice     String       @default("")
+  sector        String       @default("")
+  customerType  CustomerType @default(Kurumsal)
+  isPotential   Boolean      @default(false)
+  status        CustomerStatus @default(active)
+  shortName     String       @default("")
+  logo          String?
+  contactName   String       @default("")
+  contactTitle  String       @default("")
+  contactPhone  String       @default("")
+  contactEmail  String       @default("")
+  country       String       @default("Türkiye")
+  city          String       @default("")
+  district      String       @default("")
+  addressLine   String       @default("")
+  postalCode    String       @default("")
+  iban          String       @default("")
+  portalEmail   String       @default("")
+  portalPassword String      @default("")
+
+  sendServiceReportEmail    Boolean @default(true)
+  sendTrendAnalysisEmail    Boolean @default(true)
+  sendCorrectiveActionEmail Boolean @default(true)
+
+  serviceType        String @default("")
+  servicePeriod      String @default("")
+  operationsManager  String @default("")
+  salesRep           String @default("")
+  riskLevel          RiskLevel @default(low)
+  accountCode        String @default("")
+  paymentTermDays    Int    @default(30)
+  invoiceEmail       String @default("")
+  currency           String @default("TRY")
+  riskScore          Int    @default(15)
+  auditReadinessScore Int   @default(70)
+
+  lastServiceDate String  @default("")
+  nextServiceDate String  @default("")
+  pendingCollection Decimal @default(0) @db.Decimal(12, 2)
+  contractEndDate String?
+
+  createdAt DateTime @default(now())
+
+  fax               String  @default("")
+  parasutContactId  String? @unique
+
+  branches      Branch[]
+  contacts      Contact[]
+  addresses     Address[]
+  locations     Location[]
+  contracts     Contract[]
+  offers        Offer[]
+  serviceOrders ServiceOrder[]
+  stations      Station[]
+  workOrders    WorkOrder[]
+  invoices      Invoice[]
+  collections   Collection[]
+  auditRecords      AuditRecord[]
+  correctiveActions CorrectiveAction[]
+  risks             Risk[]
+  periyotOccurrences PeriyotOccurrence[]
+
+  @@index([ownerId])
+  @@map("customers")
+}
+
+model Branch {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  name            String
+  code            String         @default("")
+  contactName     String         @default("")
+  phone           String         @default("")
+  email           String         @default("")
+  city            String         @default("")
+  district        String         @default("")
+  addressLine     String         @default("")
+  serviceStatus   CustomerStatus @default(active)
+  riskLevel       RiskLevel      @default(low)
+  lastServiceDate String         @default("")
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("branches")
+}
+
+model Contact {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  name       String
+  title      String  @default("")
+  department String  @default("")
+  phone      String  @default("")
+  email      String  @default("")
+  note       String  @default("")
+  isPrimary  Boolean @default(false)
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("contacts")
+}
+
+model Address {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  type         AddressType @default(service)
+  country      String      @default("Türkiye")
+  city         String      @default("")
+  district     String      @default("")
+  neighborhood String      @default("")
+  addressLine  String      @default("")
+  postalCode   String      @default("")
+  isDefault    Boolean     @default(false)
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("addresses")
+}
+
+model Location {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  branchName    String       @default("")
+  name          String
+  type          LocationType @default(office)
+  description   String       @default("")
+  riskLevel     RiskLevel    @default(low)
+  isIndoor      Boolean      @default(true)
+  stationCount  Int          @default(0)
+  lastCheckDate String       @default("")
+
+  stations Station[]
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("locations")
+}
+
+model Contract {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  contractNo    String
+  serviceType   String         @default("")
+  startDate     String
+  endDate       String
+  monthlyAmount Decimal        @default(0) @db.Decimal(12, 2)
+  currency      String         @default("TRY")
+  status        ContractStatus @default(active)
+  remainingDays Int            @default(0)
+  fileName      String?
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("contracts")
+}
+
+model Offer {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  offerNo     String
+  title       String
+  amount      Decimal     @default(0) @db.Decimal(12, 2)
+  currency    String      @default("TRY")
+  validUntil  String
+  status      OfferStatus @default(draft)
+  createdAt   String
+
+  items OfferItem[]
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("offers")
+}
+
+model OfferItem {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  description String
+  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
+  quantity    Int     @default(1)
+
+  @@index([ownerId])
+  @@index([offerId])
+  @@map("offer_items")
+}
+
+model ServiceOrder {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  serviceNo         String
+  description       String  @default("")
+  contractStartDate String  @default("")
+  contractEndDate   String  @default("")
+  assignedPersonnel String  @default("")
+  periodDays        Int     @default(1)
+  withholdingTax    String  @default("none")
+
+  subtotal          Decimal @default(0) @db.Decimal(12, 2)
+  vatTotal          Decimal @default(0) @db.Decimal(12, 2)
+  withholdingAmount Decimal @default(0) @db.Decimal(12, 2)
+  total             Decimal @default(0) @db.Decimal(12, 2)
+
+  approved   Boolean @default(false)
+  approvedAt String?
+
+  documentCount Int @default(0)
+  sketchCount   Int @default(0)
+
+  contractFileDataUrl String? @db.Text
+  contractFileName    String?
+
+  createdAt String
+
+  items              ServiceOrderItem[]
+  periyotBatches     PeriyotBatch[]
+  periyotOccurrences PeriyotOccurrence[]
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("service_orders")
+}
+
+model ServiceOrderItem {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  description String
+  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
+  quantity    Decimal @default(1) @db.Decimal(12, 2)
+  vatRate     Decimal @default(0) @db.Decimal(5, 2)
+
+  @@index([ownerId])
+  @@index([serviceOrderId])
+  @@map("service_order_items")
+}
+
+model Technician {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation("TechnicianOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  /// Bu teknisyenin mobil panele giriş yaptığı gerçek (role: TECH) kullanıcı hesabı.
+  userId String @unique
+  user   User   @relation("TechnicianUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  name          String
+  phone         String           @default("")
+  email         String           @default("")
+  licenseNumber String           @default("")
+  licenseExpiry String           @default("")
+  status        TechnicianStatus @default(active)
+
+  vehicles      Vehicle[]
+  stationChecks StationCheck[]
+  workOrders    WorkOrder[]
+
+  @@index([ownerId])
+  @@map("technicians")
+}
+
+model Vehicle {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  plate                 String
+  brand                 String        @default("")
+  model                 String        @default("")
+  assignedTechnicianId  String?
+  assignedTechnician    Technician?   @relation(fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  warehouseId           String?
+  warehouse             Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  registrationNumber    String        @default("")
+  registrationExpiry    String        @default("")
+  inspectionDue         String        @default("")
+  insuranceDue          String        @default("")
+  status                VehicleStatus @default(active)
+
+  @@index([ownerId])
+  @@index([assignedTechnicianId])
+  @@index([warehouseId])
+  @@map("vehicles")
+}
+
+model ChecklistTemplate {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  title       String
+  category    String @default("")
+  description String @default("")
+  frequency   String @default("")
+
+  @@index([ownerId])
+  @@map("checklist_templates")
+}
+
+model Station {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  qrCode        String        @unique
+  label         String
+  type          StationType
+  status        StationStatus @default(active)
+  installedDate String
+  lastCheckDate String?
+  nextCheckDue  String
+
+  checks StationCheck[]
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@index([locationId])
+  @@map("stations")
+}
+
+model StationCheck {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  technicianId String?
+  technician   Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+
+  checkedAt     String
+  activityFound Boolean       @default(false)
+  activityLevel ActivityLevel @default(none)
+  actionTaken   String        @default("")
+  note          String        @default("")
+
+  @@index([ownerId])
+  @@index([stationId])
+  @@map("station_checks")
+}
+
+model WorkOrder {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  technicianId String?
+  technician   Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+
+  orderNo         String
+  serviceType     String
+  plannedDate     String
+  completedDate   String?
+  status          WorkOrderStatus @default(planned)
+  riskFinding     String?
+  hasReport       Boolean         @default(false)
+  productsUsed    String[]        @default([])
+  stationsChecked Int             @default(0)
+  technicianNote  String          @default("")
+  customerSigned  Boolean         @default(false)
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("work_orders")
+}
+
+/// Alacak tarafı — Cari Hesap defteri Invoice (borç) + Collection (tahsilat)
+/// birleştirilerek hesaplanır, ayrı bir defter tablosu yok.
+model Invoice {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  invoiceNo   String
+  issueDate   String
+  dueDate     String
+  amount      Decimal       @default(0) @db.Decimal(12, 2)
+  status      InvoiceStatus @default(pending)
+  description String        @default("")
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+/// Tahsilat tarafı — bir Invoice'a bağlı olmak zorunda değil (mock'taki
+/// davranışla aynı: serbest tahsilat kaydı da mümkün).
+model Collection {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  date        String
+  amount      Decimal       @default(0) @db.Decimal(12, 2)
+  method      PaymentMethod @default(nakit)
+  description String        @default("")
+  performedBy String        @default("")
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("collections")
+}
+
+model BankAccount {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  bankName    String
+  accountName String
+  iban        String
+  currency    FinanceCurrency @default(TRY)
+  /// Hesap bakiyesi — her BankTransaction oluşturulduğunda senkron güncellenen cache (bkz. Location.stationCount örneği).
+  balance     Decimal         @default(0) @db.Decimal(14, 2)
+
+  transactions BankTransaction[]
+
+  @@index([ownerId])
+  @@map("bank_accounts")
+}
+
+model BankTransaction {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  bankAccountId String
+  bankAccount   BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  date        String
+  description String              @default("")
+  amount      Decimal             @default(0) @db.Decimal(14, 2)
+  type        BankTransactionType
+
+  @@index([ownerId])
+  @@index([bankAccountId])
+  @@map("bank_transactions")
+}
+
+model Warehouse {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name         String
+  type         WarehouseType @default(main)
+  address      String        @default("")
+  manager      String        @default("")
+  phone        String        @default("")
+  capacityNote String        @default("")
+
+  products Product[]
+  vehicles Vehicle[]
+
+  @@index([ownerId])
+  @@map("warehouses")
+}
+
+model Product {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  name          String
+  category      ProductCategory
+  type          ProductType     @default(diger)
+  manufacturer  String          @default("")
+  unit          ProductUnit     @default(adet)
+  currentStock  Decimal         @default(0) @db.Decimal(12, 2)
+  criticalLevel Decimal         @default(0) @db.Decimal(12, 2)
+  createdAt     String
+
+  licenseNumber    String?
+  activeIngredient String?
+  defaultDose      String?
+  targetOrganisms  String?
+
+  transactions StockTransaction[]
+  biocidalUsages PeriyotBiocidalProductUsage[]
+
+  @@index([ownerId])
+  @@index([warehouseId])
+  @@map("products")
+}
+
+model StockTransaction {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type        StockTransactionType
+  quantity    Decimal              @default(0) @db.Decimal(12, 2)
+  description String               @default("")
+  performedBy String               @default("")
+  date        String
+
+  @@index([ownerId])
+  @@index([productId])
+  @@map("stock_transactions")
+}
+
+model ComplianceChecklistItem {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  standard     ComplianceStandard
+  sectionCode  String
+  sectionTitle String
+  itemCode     String
+  title        String
+  description  String          @default("")
+  status       ChecklistStatus @default(pending)
+  evidenceNote String          @default("")
+  reviewedBy   String          @default("")
+  reviewDate   String
+
+  @@index([ownerId])
+  @@map("compliance_checklist_items")
+}
+
+model AuditRecord {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  standard      ComplianceStandard
+  type          AuditType
+  auditor       String
+  scheduledDate String
+  completedDate String?
+  result        AuditResult
+  score         Int?
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("audit_records")
+}
+
+model CorrectiveAction {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  title         String
+  standard      ComplianceStandard?
+  source        CapaSource
+  severity      CapaSeverity
+  rootCause     String
+  actionPlan    String
+  responsible   String
+  createdDate   String
+  dueDate       String
+  resolvedDate  String?
+  status        CapaStatus @default(open)
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("corrective_actions")
+}
+
+model Risk {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  title       String
+  category    AuditRiskCategory
+  description String
+  likelihood  Int
+  impact      Int
+  mitigation  String
+  ownerName   String @map("owner_name")
+  status      AuditRiskStatus @default(open)
+  reviewDate  String
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("risks")
+}
+
+model PeriyotBatch {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  name      String
+  donem     PeriyotDonem
+  createdAt String
+
+  occurrences PeriyotOccurrence[]
+
+  @@index([ownerId])
+  @@index([serviceOrderId])
+  @@map("periyot_batches")
+}
+
+model PeriyotOccurrence {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  batchId String
+  batch   PeriyotBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  personnelName String @default("")
+  periodDate    String
+  startTime     String @default("")
+  endTime       String @default("")
+
+  documentCount    Int    @default(0)
+  biocidalProducts String @default("")
+
+  createdAt String
+
+  biocidalProductUsages PeriyotBiocidalProductUsage[]
+
+  @@index([ownerId])
+  @@index([batchId])
+  @@index([serviceOrderId])
+  @@index([customerId])
+  @@map("periyot_occurrences")
+}
+
+model PeriyotBiocidalProductUsage {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  occurrenceId String
+  occurrence   PeriyotOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String   @default("")
+  amount      String   @default("")
+  unit        String   @default("")
+
+  @@index([ownerId])
+  @@index([occurrenceId])
+  @@map("periyot_biocidal_product_usages")
+}
+
+/// Firma başına tek Paraşüt (muhasebe SaaS) OAuth2 bağlantısı — clientSecret ve
+/// token'lar sunucu tarafında AES-256-GCM ile şifreli tutulur (bkz. src/lib/crypto.ts),
+/// tarayıcıya asla düz metin olarak gönderilmez.
+model ParasutIntegration {
+  id      String @id @default(uuid())
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  clientId        String
+  clientSecretEnc String
+
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  tokenExpiresAt  DateTime?
+
+  parasutCompanyId   String?
+  parasutCompanyName String?
+
+  connectedAt    DateTime?
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+  lastSyncCount  Int       @default(0)
+
+  @@map("parasut_integrations")
 }
 
 /// PestShield tarafından üretilip yeni müşteri firmalara iletilen katılım kodu.

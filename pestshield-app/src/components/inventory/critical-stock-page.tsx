@@ -10,14 +10,20 @@ import { AddStockForm } from "@/components/inventory/add-stock-form";
 import { ProductCard } from "@/components/inventory/product-card";
 import { NewProductForm } from "@/components/inventory/new-product-form";
 import {
-  products as initialProducts,
   getCriticalProducts,
   criticalSeverity,
   type Product,
+  type Warehouse,
 } from "@/lib/mock/inventory";
 import type { AddStockFormValues, NewProductFormValues } from "@/lib/validations/inventory";
 
-export function CriticalStockPage() {
+export function CriticalStockPage({
+  initialProducts,
+  warehouses,
+}: {
+  initialProducts: Product[];
+  warehouses: Warehouse[];
+}) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [addStockOpen, setAddStockOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -36,36 +42,35 @@ export function CriticalStockPage() {
     [criticalProducts],
   );
 
-  function handleAddStock(values: AddStockFormValues) {
+  async function handleAddStock(values: AddStockFormValues) {
+    const res = await fetch("/api/inventory/stock-transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Stok güncellenemedi");
+      return;
+    }
     setProducts((prev) =>
       prev.map((p) => (p.id === values.productId ? { ...p, currentStock: p.currentStock + values.quantity } : p)),
     );
     toast.success("Stok güncellendi");
   }
 
-  function handleEditProduct(values: NewProductFormValues) {
+  async function handleEditProduct(values: NewProductFormValues) {
     if (!editingProduct) return;
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === editingProduct.id
-          ? {
-              ...p,
-              name: values.name,
-              category: values.category,
-              unit: values.unit,
-              warehouseId: values.warehouseId,
-              manufacturer: values.manufacturer,
-              currentStock: values.startingStock,
-              criticalLevel: values.criticalLevel,
-              type: values.isBiosidal ? "biosidal" : "diger",
-              licenseNumber: values.isBiosidal ? values.licenseNumber : undefined,
-              activeIngredient: values.isBiosidal ? values.activeIngredient : undefined,
-              defaultDose: values.isBiosidal ? values.defaultDose : undefined,
-              targetOrganisms: values.isBiosidal ? values.targetOrganisms : undefined,
-            }
-          : p,
-      ),
-    );
+    const res = await fetch(`/api/inventory/products/${editingProduct.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Ürün güncellenemedi");
+      return;
+    }
+    const { product } = (await res.json()) as { product: Product };
+    setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? product : p)));
     setEditingProduct(null);
     toast.success("Ürün güncellendi");
   }
@@ -165,6 +170,7 @@ export function CriticalStockPage() {
           if (!open) setEditingProduct(null);
         }}
         onSubmit={handleEditProduct}
+        warehouses={warehouses}
         defaultValues={
           editingProduct
             ? {

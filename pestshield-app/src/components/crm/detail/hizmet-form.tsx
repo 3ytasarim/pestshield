@@ -71,7 +71,7 @@ interface HizmetFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: HizmetFormValues, contract: ContractFileValue) => void;
-  customer: Customer | null;
+  customer: Pick<Customer, "companyName"> | null;
   defaultValues?: HizmetFormValues;
   existingContract?: ContractFileValue;
 }

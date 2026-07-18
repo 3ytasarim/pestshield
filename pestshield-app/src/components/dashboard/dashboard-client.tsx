@@ -10,6 +10,7 @@ import { getCompanySettings } from "@/lib/company-settings";
 import { WeatherWidget } from "@/components/dashboard/weather-widget";
 import { WeatherForecastCard } from "@/components/dashboard/weather-forecast-card";
 import { ExchangeRateWidget } from "@/components/dashboard/exchange-rate-widget";
+import { LicenseWidget } from "@/components/dashboard/license-widget";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { RiskCard } from "@/components/dashboard/risk-card";
 import { CollectionSummaryCard } from "@/components/dashboard/collection-summary-card";
@@ -20,7 +21,43 @@ import { PestActivityChart } from "@/components/dashboard/pest-activity-chart";
 import { AuditReadinessCard } from "@/components/dashboard/audit-readiness-card";
 import { PestBackground } from "@/components/dashboard/pest-background";
 import { formatNumber, formatToday } from "@/components/dashboard/shared";
-import {
+import type {
+  TodayServicesSummary,
+  OpenJobsSummary,
+  PendingOffersSummary,
+  PendingCollectionsSummary,
+  CriticalRisksSummary,
+  AiRecommendation,
+  ActivityItem,
+  Appointment,
+  PestActivityPoint,
+  AuditReadiness,
+} from "@/lib/mock/dashboard";
+
+interface DashboardClientProps {
+  userName: string;
+  /** Kayıt sırasında girilip veritabanına yazılan gerçek firma adı/logosu —
+   * Şirket Ayarları'ndan (tarayıcı localStorage) özelleştirme yapılmadıysa
+   * bu değerler kullanılır, boş kalınmaz. */
+  registeredCompanyName: string | null;
+  registeredLogoUrl: string | null;
+  todayServices: TodayServicesSummary;
+  openJobs: OpenJobsSummary;
+  pendingOffers: PendingOffersSummary;
+  pendingCollections: PendingCollectionsSummary;
+  criticalRisks: CriticalRisksSummary;
+  aiRecommendations: AiRecommendation[];
+  recentActivity: ActivityItem[];
+  todayAppointments: Appointment[];
+  upcomingAppointments: Appointment[];
+  pestActivityTrend: PestActivityPoint[];
+  auditReadiness: AuditReadiness;
+}
+
+export function DashboardClient({
+  userName,
+  registeredCompanyName,
+  registeredLogoUrl,
   todayServices,
   openJobs,
   pendingOffers,
@@ -32,29 +69,29 @@ import {
   upcomingAppointments,
   pestActivityTrend,
   auditReadiness,
-} from "@/lib/mock/dashboard";
-
-interface DashboardClientProps {
-  userName: string;
-}
-
-export function DashboardClient({ userName }: DashboardClientProps) {
+}: DashboardClientProps) {
   const weatherState = useWeather();
   const exchangeRatesState = useExchangeRates();
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
 
   useEffect(() => {
-    function syncLogo() {
-      setCompanyLogo(getCompanySettings().logo);
+    function syncCompanySettings() {
+      const settings = getCompanySettings();
+      setCompanyName(settings.companyName || null);
+      setCompanyLogo(settings.logo);
     }
-    syncLogo();
-    window.addEventListener("pestshield:company-settings-updated", syncLogo);
-    window.addEventListener("storage", syncLogo);
+    syncCompanySettings();
+    window.addEventListener("pestshield:company-settings-updated", syncCompanySettings);
+    window.addEventListener("storage", syncCompanySettings);
     return () => {
-      window.removeEventListener("pestshield:company-settings-updated", syncLogo);
-      window.removeEventListener("storage", syncLogo);
+      window.removeEventListener("pestshield:company-settings-updated", syncCompanySettings);
+      window.removeEventListener("storage", syncCompanySettings);
     };
   }, []);
+
+  const displayName = companyName || registeredCompanyName || userName;
+  const effectiveLogo = companyLogo || registeredLogoUrl;
 
   const riskItems = [
     { label: "Yüksek Haşere Aktivitesi", value: criticalRisks.highPestActivity, severity: "high" as const },
@@ -75,20 +112,20 @@ export function DashboardClient({ userName }: DashboardClientProps) {
         className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-gradient-to-r from-primary/[0.07] via-card to-card p-4 shadow-sm backdrop-blur-sm lg:flex-row lg:items-center lg:justify-between sm:p-5"
       >
         <div className="flex min-w-0 items-center gap-3.5">
-          {companyLogo ? (
+          {effectiveLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={companyLogo}
+              src={effectiveLogo}
               alt="Firma logosu"
-              className="size-12 shrink-0 rounded-xl border border-border/60 bg-white object-contain p-1 shadow-sm"
+              className="size-16 shrink-0 rounded-xl border border-border/60 bg-white object-contain p-1.5 shadow-sm sm:size-20"
             />
           ) : (
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-border/60 bg-muted/30 text-[10px] font-medium text-muted-foreground">
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-border/60 bg-muted/30 text-xs font-medium text-muted-foreground sm:size-20">
               Logo
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">Hoş geldiniz, {userName}</h1>
+            <h1 className="truncate text-2xl font-semibold tracking-tight">Hoş geldiniz, {displayName}</h1>
             <p className="text-sm capitalize text-muted-foreground">{formatToday()}</p>
           </div>
         </div>
@@ -96,6 +133,8 @@ export function DashboardClient({ userName }: DashboardClientProps) {
           <WeatherWidget state={weatherState} />
           <Separator orientation="vertical" className="hidden h-10 sm:block" />
           <ExchangeRateWidget state={exchangeRatesState} />
+          <Separator orientation="vertical" className="hidden h-10 sm:block" />
+          <LicenseWidget />
         </div>
       </motion.div>
 

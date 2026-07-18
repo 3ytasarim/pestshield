@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Eye, FileSignature, MoreHorizontal, Plus, RefreshCw, XCircle } from "lucide-react";
 import {
@@ -22,38 +22,61 @@ import { ContractStatusBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { ContractForm } from "@/components/crm/detail/contract-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import { getContracts, type Contract } from "@/lib/mock/crm";
+import type { Contract } from "@/lib/mock/crm";
 import type { ContractFormValues } from "@/lib/validations/crm";
 
 export function ContractsTab({ customerId }: { customerId: string }) {
-  const [contracts, setContracts] = useState<Contract[]>(() => getContracts(customerId));
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [formOpen, setFormOpen] = useState(false);
 
-  function handleSubmit(values: ContractFormValues) {
-    const remainingDays = Math.round((new Date(values.endDate).getTime() - Date.now()) / 86_400_000);
-    const newContract: Contract = {
-      id: `${customerId}-contract-${Date.now()}`,
-      customerId,
-      contractNo: values.contractNo,
-      serviceType: values.serviceType,
-      startDate: values.startDate,
-      endDate: values.endDate,
-      monthlyAmount: values.monthlyAmount,
-      currency: values.currency,
-      status: remainingDays < 0 ? "expired" : remainingDays <= 30 ? "expiring" : "active",
-      remainingDays,
-      fileName: "Yeni Sözleşme.pdf",
-    };
-    setContracts((prev) => [newContract, ...prev]);
+  useEffect(() => {
+    fetch(`/api/crm/contracts?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setContracts(data.contracts))
+      .catch(() => toast.error("Sözleşmeler yüklenemedi"));
+  }, [customerId]);
+
+  async function handleSubmit(values: ContractFormValues) {
+    const res = await fetch("/api/crm/contracts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId }),
+    });
+    if (!res.ok) {
+      toast.error("Sözleşme oluşturulamadı");
+      return;
+    }
+    const data = await res.json();
+    setContracts((prev) => [data.contract, ...prev]);
   }
 
-  function cancelContract(contract: Contract) {
-    setContracts((prev) => prev.map((c) => (c.id === contract.id ? { ...c, status: "cancelled" } : c)));
+  async function cancelContract(contract: Contract) {
+    const res = await fetch(`/api/crm/contracts/${contract.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    if (!res.ok) {
+      toast.error("Sözleşme iptal edilemedi");
+      return;
+    }
+    const data = await res.json();
+    setContracts((prev) => prev.map((c) => (c.id === contract.id ? data.contract : c)));
     toast.success("Sözleşme iptal edildi");
   }
 
-  function renewContract(contract: Contract) {
-    setContracts((prev) => prev.map((c) => (c.id === contract.id ? { ...c, status: "active", remainingDays: 365 } : c)));
+  async function renewContract(contract: Contract) {
+    const res = await fetch(`/api/crm/contracts/${contract.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "active", remainingDays: 365 }),
+    });
+    if (!res.ok) {
+      toast.error("Sözleşme yenilenemedi");
+      return;
+    }
+    const data = await res.json();
+    setContracts((prev) => prev.map((c) => (c.id === contract.id ? data.contract : c)));
     toast.success("Sözleşme yenilendi");
   }
 

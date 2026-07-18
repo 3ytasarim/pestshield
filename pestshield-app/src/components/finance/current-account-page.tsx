@@ -24,14 +24,18 @@ import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { BalanceStatusBadge, PaymentMethodBadge } from "@/components/finance/finance-badges";
 import { CollectPaymentForm } from "@/components/finance/collect-payment-form";
 import { printCurrentAccountStatement } from "@/components/finance/print-statement";
-import { customers, type Customer } from "@/lib/mock/crm";
-import { getLedgerEntries, getCustomerBalance, isOverdue, overdueDays, type LedgerEntry } from "@/lib/mock/finance";
+import type { Customer } from "@/lib/mock/crm";
+import type { Invoice } from "@/lib/mock/finance";
+import { computeLedger, debtorStatus, type SerializedCollection } from "@/lib/finance/serialize";
 import { buildPaymentReminderMessage, getWhatsAppLink } from "@/lib/integrations/whatsapp";
 import type { CollectPaymentFormValues } from "@/lib/validations/finance";
+import { todayStr } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | "balance" | "overdue" | "zero";
 type SortBy = "balance" | "name" | "recent";
+
+const today = todayStr();
 
 const AVATAR_PALETTE = [
   "bg-primary/10 text-primary",
@@ -47,11 +51,20 @@ function initialsOf(name: string) {
   return (first + last).toUpperCase() || "U";
 }
 
-export function CurrentAccountPage() {
+export function CurrentAccountPage({
+  initialCustomers,
+  initialInvoices,
+  initialCollections,
+}: {
+  initialCustomers: Customer[];
+  initialInvoices: Invoice[];
+  initialCollections: SerializedCollection[];
+}) {
+  const customers = initialCustomers;
   const [customerBalances, setCustomerBalances] = useState<Record<string, number>>(() =>
-    Object.fromEntries(customers.map((c) => [c.id, getCustomerBalance(c.id)])),
+    Object.fromEntries(customers.map((c) => [c.id, c.pendingCollection])),
   );
-  const [extraEntries, setExtraEntries] = useState<LedgerEntry[]>([]);
+  const [collections, setCollections] = useState<SerializedCollection[]>(initialCollections);
   const [selectedId, setSelectedId] = useState<string | null>(customers[0]?.id ?? null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -62,11 +75,18 @@ export function CurrentAccountPage() {
     () =>
       customers.map((customer) => {
         const balance = customerBalances[customer.id] ?? 0;
-        const entries = [...getLedgerEntries(customer.id), ...extraEntries.filter((e) => e.customerId === customer.id)];
+        const customerInvoices = initialInvoices.filter((i) => i.customerId === customer.id);
+        const customerCollections = collections.filter((c) => c.customerId === customer.id);
+        const entries = computeLedger(customerInvoices, customerCollections);
         const lastActivity = entries.sort((a, b) => (a.date < b.date ? 1 : -1))[0]?.date ?? customer.createdAt;
-        return { customer, balance, overdue: balance > 0 && isOverdue(customer.id), lastActivity };
+        return {
+          customer,
+          balance,
+          overdue: balance > 0 && debtorStatus(customerInvoices, today).overdue,
+          lastActivity,
+        };
       }),
-    [customerBalances, extraEntries],
+    [customers, customerBalances, initialInvoices, collections],
   );
 
   const filteredRows = useMemo(() => {
@@ -94,15 +114,10 @@ export function CurrentAccountPage() {
 
   const mergedEntries = useMemo(() => {
     if (!selectedId) return [];
-    const base = getLedgerEntries(selectedId);
-    const extra = extraEntries.filter((e) => e.customerId === selectedId);
-    const all = [...base, ...extra].sort((a, b) => (a.date < b.date ? -1 : 1));
-    let running = 0;
-    return all.map((e) => {
-      running += e.type === "debt" ? e.amount : -e.amount;
-      return { ...e, balanceAfter: running };
-    });
-  }, [selectedId, extraEntries]);
+    const customerInvoices = initialInvoices.filter((i) => i.customerId === selectedId);
+    const customerCollections = collections.filter((c) => c.customerId === selectedId);
+    return computeLedger(customerInvoices, customerCollections);
+  }, [selectedId, initialInvoices, collections]);
 
   const summary = useMemo(() => {
     const totalDebt = mergedEntries.filter((e) => e.type === "debt").reduce((sum, e) => sum + e.amount, 0);
@@ -110,25 +125,27 @@ export function CurrentAccountPage() {
     return { totalDebt, totalCollection };
   }, [mergedEntries]);
 
-  function handleCollectPayment(values: CollectPaymentFormValues) {
+  const selectedDebtor = useMemo(
+    () => debtorStatus(initialInvoices.filter((i) => i.customerId === selectedId), today),
+    [selectedId, initialInvoices],
+  );
+
+  async function handleCollectPayment(values: CollectPaymentFormValues) {
+    const res = await fetch("/api/finance/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Tahsilat kaydedilemedi");
+      return;
+    }
+    const { collection } = (await res.json()) as { collection: SerializedCollection };
     setCustomerBalances((prev) => ({
       ...prev,
       [values.customerId]: Math.max(0, (prev[values.customerId] ?? 0) - values.amount),
     }));
-    setExtraEntries((prev) => [
-      ...prev,
-      {
-        id: `extra-${Date.now()}`,
-        customerId: values.customerId,
-        date: values.date,
-        type: "collection",
-        description: values.description || "Tahsilat",
-        amount: values.amount,
-        balanceAfter: 0,
-        method: values.method,
-        performedBy: "Siz",
-      },
-    ]);
+    setCollections((prev) => [collection, ...prev]);
     toast.success("Tahsilat kaydedildi");
   }
 
@@ -293,9 +310,9 @@ export function CurrentAccountPage() {
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                           {selectedCustomer.customerType}
                         </span>
-                        {selectedBalance > 0 && isOverdue(selectedCustomer.id) && (
+                        {selectedBalance > 0 && selectedDebtor.overdue && (
                           <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
-                            {overdueDays(selectedCustomer.id)} gün gecikti
+                            {selectedDebtor.days} gün gecikti
                           </span>
                         )}
                       </div>
@@ -329,7 +346,7 @@ export function CurrentAccountPage() {
                                     contactName: selectedCustomer.contactName,
                                     companyName: selectedCustomer.companyName,
                                     amount: formatCurrency(selectedBalance),
-                                    overdueDays: isOverdue(selectedCustomer.id) ? overdueDays(selectedCustomer.id) : undefined,
+                                    overdueDays: selectedDebtor.overdue ? selectedDebtor.days : undefined,
                                   }),
                                 ),
                                 "_blank",

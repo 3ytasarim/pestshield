@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import jsQR from "jsqr";
 import { toast } from "sonner";
-import { AlertTriangle, Camera, CameraOff, CheckCircle2, MapPinned, QrCode, Search } from "lucide-react";
+import { AlertTriangle, Camera, CameraOff, CheckCircle2, QrCode, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,16 +14,12 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { StationStatusBadge, ActivityLevelBadge } from "@/components/operations/operations-badges";
 import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
-import { getCustomerById } from "@/lib/mock/crm";
-import {
-  stations,
-  getStationByQrCode,
-  getChecksForStation,
-  type Station,
-  type ActivityLevel,
-  type StationCheck,
-} from "@/lib/mock/operations";
+import type { Station, ActivityLevel, StationCheck } from "@/lib/mock/operations";
 import { cn } from "@/lib/utils";
+
+interface StationWithCustomer extends Station {
+  customer: { id: string; companyName: string } | null;
+}
 
 type CameraState = "idle" | "starting" | "running" | "denied" | "unsupported";
 
@@ -43,7 +39,7 @@ export function StationScanPage() {
   const searchParams = useSearchParams();
   const [cameraState, setCameraState] = useState<CameraState>("idle");
   const [manualCode, setManualCode] = useState("");
-  const [activeStation, setActiveStation] = useState<Station | null>(null);
+  const [activeStation, setActiveStation] = useState<StationWithCustomer | null>(null);
   const [localChecks, setLocalChecks] = useState<StationCheck[]>([]);
   const [activityFound, setActivityFound] = useState(false);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>("none");
@@ -62,14 +58,18 @@ export function StationScanPage() {
     streamRef.current = null;
   }, []);
 
-  const selectStation = useCallback((code: string) => {
-    const station = getStationByQrCode(code);
+  const selectStation = useCallback(async (code: string) => {
+    const res = await fetch(`/api/crm/stations?qrCode=${encodeURIComponent(code)}`);
+    const data = await res.json();
+    const station = data.stations?.[0] as StationWithCustomer | undefined;
     if (!station) {
       toast.error(`"${code}" için istasyon bulunamadı`);
       return;
     }
     setActiveStation(station);
-    setLocalChecks(getChecksForStation(station.id));
+    const checksRes = await fetch(`/api/crm/stations/${station.id}/checks`);
+    const checksData = await checksRes.json();
+    setLocalChecks(checksData.checks ?? []);
     setActivityFound(false);
     setActivityLevel("none");
     setActionTaken("");
@@ -135,31 +135,31 @@ export function StationScanPage() {
   }
 
   const stationChecksList = useMemo(() => localChecks, [localChecks]);
-  const customer = activeStation ? getCustomerById(activeStation.customerId) : null;
+  const customer = activeStation?.customer ?? null;
 
-  function submitCheck() {
+  async function submitCheck() {
     if (!activeStation) return;
     if (!actionTaken.trim()) {
       toast.error("Yapılan işlemi girin");
       return;
     }
     setSubmitting(true);
-    const newCheck: StationCheck = {
-      id: `chk-${Date.now()}`,
-      stationId: activeStation.id,
-      technicianName: "Siz",
-      checkedAt: new Date().toISOString(),
-      activityFound,
-      activityLevel,
-      actionTaken,
-      note,
-    };
-    setLocalChecks((prev) => [newCheck, ...prev]);
-    const index = stations.findIndex((s) => s.id === activeStation.id);
-    if (index !== -1) {
-      stations[index] = { ...stations[index], lastCheckDate: newCheck.checkedAt.slice(0, 10), status: activityFound ? "needs_attention" : "active" };
-      setActiveStation(stations[index]);
+    const res = await fetch(`/api/crm/stations/${activeStation.id}/checks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activityFound, activityLevel, actionTaken, note }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.message ?? "Kontrol kaydedilemedi");
+      setSubmitting(false);
+      return;
     }
+    const data = await res.json();
+    setLocalChecks((prev) => [data.check, ...prev]);
+    setActiveStation((prev) =>
+      prev ? { ...prev, lastCheckDate: data.check.checkedAt.slice(0, 10), status: activityFound ? "needs_attention" : "active" } : prev,
+    );
     toast.success("Kontrol kaydedildi");
     setActivityFound(false);
     setActivityLevel("none");
@@ -363,10 +363,6 @@ export function StationScanPage() {
         </CardContent>
       </Card>
 
-      <div className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5 text-xs text-muted-foreground">
-        <MapPinned className="mt-0.5 size-3.5 shrink-0" />
-        Gerçek bir istasyon kodu denemek için: <span className="font-mono">{stations[0]?.qrCode}</span>
-      </div>
     </div>
   );
 }

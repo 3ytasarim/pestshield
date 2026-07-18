@@ -6,7 +6,6 @@
 // üretilen istasyon kayıtları asla çelişmez (tek doğruluk kaynağı: Location.stationCount).
 
 import { customers, getLocations, type Customer, type Location } from "@/lib/mock/crm";
-import { warehouses } from "@/lib/mock/inventory";
 
 export type StationType = "rodent_bait" | "insect_trap" | "glue_trap" | "uv_trap" | "pheromone_trap";
 export type StationStatus = "active" | "needs_attention" | "inactive";
@@ -58,6 +57,7 @@ export interface Vehicle {
   model: string;
   assignedTechnicianId: string | null;
   warehouseId: string | null;
+  warehouseName?: string | null;
   registrationNumber: string;
   registrationExpiry: string;
   inspectionDue: string;
@@ -320,10 +320,6 @@ export const vehicles: Vehicle[] = [
 
 export function getVehicleById(id: string): Vehicle | undefined {
   return vehicles.find((v) => v.id === id);
-}
-
-export function getWarehouseForVehicle(vehicle: Vehicle) {
-  return vehicle.warehouseId ? warehouses.find((w) => w.id === vehicle.warehouseId) : undefined;
 }
 
 export function isVehicleDueSoon(vehicle: Vehicle): boolean {

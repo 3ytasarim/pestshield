@@ -12,7 +12,7 @@ import { TrendAnalysisContent } from "@/components/crm/trend-analiz-dialog";
 import { computeTrendAnalysis, type TrendAnalysis } from "@/lib/trend-analysis";
 import { printTrendAnalysisReport } from "@/lib/pdf/trend-report";
 import { loadServiceOrders } from "@/lib/service-order-store";
-import { customers, type ServiceOrder } from "@/lib/mock/crm";
+import type { Customer, ServiceOrder } from "@/lib/mock/crm";
 
 const AY_ADLARI = [
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
@@ -26,6 +26,14 @@ export function TrendAnalysisReportPage() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    fetch("/api/crm/customers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customers: Customer[] } | null) => setCustomers(data?.customers ?? []))
+      .catch(() => setCustomers([]));
+  }, []);
 
   useEffect(() => {
     if (!customerId) {

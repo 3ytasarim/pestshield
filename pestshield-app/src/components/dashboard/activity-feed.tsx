@@ -56,6 +56,11 @@ export function ActivityFeed({ items, delay = 0 }: ActivityFeedProps) {
           </div>
         </CardHeader>
         <CardContent>
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border/60 py-6 text-center text-xs text-muted-foreground">
+              Henüz bir hareket yok
+            </p>
+          ) : (
           <ul className="flex flex-col gap-1">
             {items.map((item, index) => {
               const Icon = TYPE_ICON[item.type];
@@ -82,6 +87,7 @@ export function ActivityFeed({ items, delay = 0 }: ActivityFeedProps) {
               );
             })}
           </ul>
+          )}
         </CardContent>
       </Card>
     </motion.div>

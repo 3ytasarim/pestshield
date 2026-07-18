@@ -48,39 +48,39 @@ import { KrokiDialog } from "@/components/crm/kroki-dialog";
 import { PeriyotDialog } from "@/components/crm/periyot-dialog";
 import { TrendAnalizDialog } from "@/components/crm/trend-analiz-dialog";
 import { formatCurrency, formatDate, formatDateTime } from "@/components/crm/crm-format";
-import { getCustomerById, type ServiceOrder } from "@/lib/mock/crm";
-import {
-  loadServiceOrders,
-  toggleServiceOrderApproval,
-  updateServiceOrder,
-  buildServiceOrder,
-  deleteServiceOrders,
-} from "@/lib/service-order-store";
+import type { ServiceOrder } from "@/lib/mock/crm";
 import type { HizmetFormValues } from "@/lib/validations/crm";
 import { cn } from "@/lib/utils";
 
+interface ServiceOrderWithCustomer extends ServiceOrder {
+  customer: { id: string; companyName: string; customerType: string } | null;
+}
+
 export function HizmetlerPage() {
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [orders, setOrders] = useState<ServiceOrderWithCustomer[]>([]);
   const [search, setSearch] = useState("");
-  const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
+  const [editingOrder, setEditingOrder] = useState<ServiceOrderWithCustomer | null>(null);
   const [belgeOrderId, setBelgeOrderId] = useState<string | null>(null);
   const [krokiOrderId, setKrokiOrderId] = useState<string | null>(null);
   const [periyotOrderId, setPeriyotOrderId] = useState<string | null>(null);
   const [trendOrderId, setTrendOrderId] = useState<string | null>(null);
   const periyotCustomer = periyotOrderId
-    ? (getCustomerById(orders.find((o) => o.id === periyotOrderId)?.customerId ?? "") ?? null)
+    ? (orders.find((o) => o.id === periyotOrderId)?.customer ?? null)
     : null;
   const trendOrder = trendOrderId ? (orders.find((o) => o.id === trendOrderId) ?? null) : null;
   const krokiOrder = krokiOrderId ? (orders.find((o) => o.id === krokiOrderId) ?? null) : null;
 
   useEffect(() => {
-    setOrders(loadServiceOrders());
+    fetch("/api/crm/service-orders")
+      .then((res) => res.json())
+      .then((data) => setOrders(data.serviceOrders))
+      .catch(() => toast.error("Hizmet kayıtları yüklenemedi"));
   }, []);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const rows = useMemo(
-    () => orders.map((order) => ({ order, customer: getCustomerById(order.customerId) })),
+    () => orders.map((order) => ({ order, customer: order.customer })),
     [orders],
   );
 
@@ -99,30 +99,40 @@ export function HizmetlerPage() {
   const totalAmount = useMemo(() => orders.reduce((sum, o) => sum + o.total, 0), [orders]);
   const allSelected = filtered.length > 0 && filtered.every(({ order }) => selectedIds.has(order.id));
 
-  function refresh() {
-    setOrders(loadServiceOrders());
+  async function patchOrder(id: string, patch: Record<string, unknown>) {
+    const res = await fetch(`/api/crm/service-orders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    setOrders((prev) => prev.map((o) => (o.id === id ? data.serviceOrder : o)));
+    return data.serviceOrder as ServiceOrderWithCustomer;
   }
 
-  function handleToggleApproval(id: string) {
-    toggleServiceOrderApproval(id);
-    refresh();
+  async function handleToggleApproval(id: string) {
+    const order = orders.find((o) => o.id === id);
+    if (!order) return;
+    const ok = await patchOrder(id, { approved: !order.approved, approvedAt: !order.approved ? new Date().toISOString() : null });
+    if (!ok) toast.error("Onay durumu güncellenemedi");
   }
 
-  function handleDocumentCountChange(serviceOrderId: string, count: number) {
-    updateServiceOrder(serviceOrderId, { documentCount: count });
-    refresh();
+  async function handleDocumentCountChange(serviceOrderId: string, count: number) {
+    await patchOrder(serviceOrderId, { documentCount: count });
   }
 
-  function handleSketchCountChange(serviceOrderId: string, count: number) {
-    updateServiceOrder(serviceOrderId, { sketchCount: count });
-    refresh();
+  async function handleSketchCountChange(serviceOrderId: string, count: number) {
+    await patchOrder(serviceOrderId, { sketchCount: count });
   }
 
-  function handleEditSubmit(values: HizmetFormValues, contract: ContractFileValue) {
+  async function handleEditSubmit(values: HizmetFormValues, contract: ContractFileValue) {
     if (!editingOrder) return;
-    const updated = buildServiceOrder(editingOrder.customerId, values, editingOrder);
-    updateServiceOrder(editingOrder.id, { ...updated, contractFileDataUrl: contract.fileDataUrl, contractFileName: contract.fileName });
-    refresh();
+    const ok = await patchOrder(editingOrder.id, { ...values, contractFileDataUrl: contract.fileDataUrl, contractFileName: contract.fileName });
+    if (!ok) {
+      toast.error("Hizmet güncellenemedi");
+      return;
+    }
     setEditingOrder(null);
     toast.success("Hizmet güncellendi");
   }
@@ -148,11 +158,20 @@ export function HizmetlerPage() {
     });
   }
 
-  function handleBulkDelete() {
-    deleteServiceOrders(Array.from(selectedIds));
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    const res = await fetch("/api/crm/service-orders/bulk-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      toast.error("Hizmet kayıtları silinemedi");
+      return;
+    }
+    setOrders((prev) => prev.filter((o) => !selectedIds.has(o.id)));
     setSelectedIds(new Set());
     setConfirmDelete(false);
-    refresh();
     toast.success("Seçili hizmet kayıtları silindi");
   }
 
@@ -346,7 +365,7 @@ export function HizmetlerPage() {
         open={!!editingOrder}
         onOpenChange={(open) => !open && setEditingOrder(null)}
         onSubmit={handleEditSubmit}
-        customer={editingOrder ? (getCustomerById(editingOrder.customerId) ?? null) : null}
+        customer={editingOrder?.customer ?? null}
         existingContract={editingOrder ? { fileDataUrl: editingOrder.contractFileDataUrl, fileName: editingOrder.contractFileName } : undefined}
         defaultValues={
           editingOrder

@@ -18,13 +18,17 @@ import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { BiosidalBadge, CriticalBadge } from "@/components/inventory/inventory-badges";
 import { UNIT_LABELS } from "@/components/inventory/inventory-labels";
-import { products } from "@/lib/mock/inventory";
+import type { Product } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
 
-export function ChemicalsPage() {
+interface ChemicalsPageProps {
+  products: Product[];
+}
+
+export function ChemicalsPage({ products }: ChemicalsPageProps) {
   const [search, setSearch] = useState("");
 
-  const chemicals = useMemo(() => products.filter((p) => p.category === "ilac"), []);
+  const chemicals = useMemo(() => products.filter((p) => p.category === "ilac"), [products]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

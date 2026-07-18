@@ -22,7 +22,6 @@ import { CHECKLIST_STATUS_LABELS } from "@/components/audit/audit-labels";
 import {
   STANDARD_DESCRIPTIONS,
   STANDARD_LABELS,
-  getChecklistForStandard,
   getSectionsForStandard,
   getStandardReadiness,
   type ChecklistItem,
@@ -48,10 +47,11 @@ function readinessTone(score: number): { label: string; className: string; icon:
 
 interface StandardCompliancePageProps {
   standard: ComplianceStandard;
+  initialItems: ChecklistItem[];
 }
 
-export function StandardCompliancePage({ standard }: StandardCompliancePageProps) {
-  const [items, setItems] = useState<ChecklistItem[]>(() => getChecklistForStandard(standard));
+export function StandardCompliancePage({ standard, initialItems }: StandardCompliancePageProps) {
+  const [items, setItems] = useState<ChecklistItem[]>(initialItems);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(getSectionsForStandard(standard).map((s) => [s.code, true])),
@@ -72,8 +72,19 @@ export function StandardCompliancePage({ standard }: StandardCompliancePageProps
     [items],
   );
 
-  function updateStatus(itemId: string, status: ChecklistStatus) {
+  async function updateStatus(itemId: string, status: ChecklistStatus) {
+    const previous = items;
     setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, status } : i)));
+    const res = await fetch(`/api/audit/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      setItems(previous);
+      toast.error("Madde durumu güncellenemedi");
+      return;
+    }
     toast.success("Madde durumu güncellendi");
   }
 
@@ -206,7 +217,7 @@ export function StandardCompliancePage({ standard }: StandardCompliancePageProps
                             </div>
                             <ChecklistStatusBadge status={item.status} className="shrink-0" />
                           </div>
-                          {item.evidenceNote && <p className="text-xs text-foreground/70 italic">"{item.evidenceNote}"</p>}
+                          {item.evidenceNote && <p className="text-xs text-foreground/70 italic">&ldquo;{item.evidenceNote}&rdquo;</p>}
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-[11px] text-muted-foreground">
                               {item.reviewedBy} · {formatDate(item.reviewDate)}

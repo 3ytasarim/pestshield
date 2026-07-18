@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { notifications as initialNotifications, type Notification } from "@/lib/mock/notifications";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { Notification } from "@/lib/mock/notifications";
+import type { Role } from "@/generated/prisma/enums";
 
 interface NotificationsContextValue {
   notifications: Notification[];
@@ -12,8 +13,21 @@ interface NotificationsContextValue {
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
-export function NotificationsProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+export function NotificationsProvider({ role, children }: { role: Role; children: React.ReactNode }) {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    if (role !== "CLIENT") return;
+    let cancelled = false;
+    fetch("/api/notifications")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setNotifications(data.notifications ?? []);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));

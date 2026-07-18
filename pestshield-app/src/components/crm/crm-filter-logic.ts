@@ -1,6 +1,9 @@
 import type { Customer } from "@/lib/mock/crm";
-import { getContracts, getOffers } from "@/lib/mock/crm";
 import { daysUntil } from "@/components/crm/crm-format";
+
+export interface CustomerFilterContext {
+  pendingOfferCustomerIds?: Set<string>;
+}
 
 export type CustomerFilterKey =
   | "active"
@@ -23,7 +26,7 @@ export const FILTER_LABELS: Record<CustomerFilterKey, string> = {
   potential: "Potansiyel Müşteriler",
 };
 
-export function matchesFilter(customer: Customer, key: CustomerFilterKey): boolean {
+export function matchesFilter(customer: Customer, key: CustomerFilterKey, context?: CustomerFilterContext): boolean {
   switch (key) {
     case "active":
       return customer.status === "active";
@@ -42,7 +45,7 @@ export function matchesFilter(customer: Customer, key: CustomerFilterKey): boole
       return days !== null && days >= -30 && days <= 0;
     }
     case "pending_offer":
-      return getOffers(customer.id).some((offer) => offer.status === "sent");
+      return context?.pendingOfferCustomerIds?.has(customer.id) ?? false;
     case "potential":
       return customer.isPotential;
     default:
@@ -60,8 +63,4 @@ export function matchesSearch(customer: Customer, query: string): boolean {
     customer.contactEmail.toLowerCase().includes(q) ||
     customer.city.toLowerCase().includes(q)
   );
-}
-
-export function contractStatusOf(customerId: string) {
-  return getContracts(customerId)[0]?.status ?? "active";
 }

@@ -11,23 +11,27 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { TechnicianStatusBadge } from "@/components/operations/operations-badges";
 import { TechnicianForm } from "@/components/operations/technician-form";
-import { getAllWorkOrders } from "@/lib/mock/crm";
-import {
-  technicians as initialTechnicians,
-  vehicles,
-  isLicenseExpiringSoon,
-  type Technician,
-} from "@/lib/mock/operations";
+import { isLicenseExpiringSoon, type Technician, type Vehicle } from "@/lib/mock/operations";
+import type { WorkOrder } from "@/lib/mock/crm";
 import type { TechnicianFormValues } from "@/lib/validations/operations";
 import { cn } from "@/lib/utils";
 
-export function TechniciansPage() {
+export function TechniciansPage({
+  initialTechnicians,
+  initialVehicles,
+  initialOpenWorkOrders,
+}: {
+  initialTechnicians: Technician[];
+  initialVehicles: Vehicle[];
+  initialOpenWorkOrders: WorkOrder[];
+}) {
   const [technicians, setTechnicians] = useState<Technician[]>(initialTechnicians);
+  const [vehicles] = useState<Vehicle[]>(initialVehicles);
   const [formOpen, setFormOpen] = useState(false);
 
   const activeCount = useMemo(() => technicians.filter((t) => t.status === "active").length, [technicians]);
   const expiringCount = useMemo(() => technicians.filter(isLicenseExpiringSoon).length, [technicians]);
-  const openWorkOrders = useMemo(() => getAllWorkOrders().filter((w) => w.status === "planned" || w.status === "in_progress"), []);
+  const openWorkOrders = initialOpenWorkOrders;
 
   function activeOrderCount(name: string) {
     return openWorkOrders.filter((w) => w.technician === name).length;
@@ -45,10 +49,7 @@ export function TechniciansPage() {
       return;
     }
 
-    const { password: _password, ...technicianFields } = values;
-    void _password;
-    const newTechnician: Technician = { id: `tech-${Date.now()}`, ...technicianFields, vehicleId: null };
-    setTechnicians((prev) => [newTechnician, ...prev]);
+    setTechnicians((prev) => [data.technician, ...prev]);
     toast.success("Teknisyen eklendi — mobil panele giriş yapabilir");
   }
 

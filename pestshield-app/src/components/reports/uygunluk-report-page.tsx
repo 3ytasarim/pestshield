@@ -14,13 +14,20 @@ import { ChecklistStatusBadge } from "@/components/audit/audit-badges";
 import { formatDate } from "@/components/crm/crm-format";
 import { countByStatus, getUygunlukRows, uygunlukOrani, STANDARD_LABELS } from "@/lib/audit-report-data";
 import { printUygunlukRaporu } from "@/lib/pdf/uygunluk-report";
-import type { ComplianceStandard } from "@/lib/mock/audit";
+import type { ChecklistItem, ComplianceStandard } from "@/lib/mock/audit";
 
-export function UygunlukReportPage() {
+interface UygunlukReportPageProps {
+  initialItems: ChecklistItem[];
+}
+
+export function UygunlukReportPage({ initialItems }: UygunlukReportPageProps) {
   const [standard, setStandard] = useState<ComplianceStandard | "all">("all");
   const [printing, setPrinting] = useState(false);
 
-  const rows = useMemo(() => getUygunlukRows({ standard: standard !== "all" ? standard : undefined }), [standard]);
+  const rows = useMemo(
+    () => getUygunlukRows(initialItems, { standard: standard !== "all" ? standard : undefined }),
+    [initialItems, standard],
+  );
   const ratio = uygunlukOrani(rows);
   const nonCompliant = countByStatus(rows, "non_compliant");
   const pending = countByStatus(rows, "pending");

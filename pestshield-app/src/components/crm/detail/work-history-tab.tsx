@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -41,24 +41,41 @@ import { formatDate } from "@/components/crm/crm-format";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { WorkOrderForm } from "@/components/crm/detail/work-order-form";
 import { printWorkOrder } from "@/components/crm/detail/print-work-order";
-import { getCustomerById, getWorkOrders, type WorkOrder } from "@/lib/mock/crm";
+import { getCustomerById, type WorkOrder } from "@/lib/mock/crm";
+import type { Technician } from "@/lib/mock/operations";
 import { buildWorkOrderMessage, getWhatsAppLink } from "@/lib/integrations/whatsapp";
 import type { WorkOrderFormValues } from "@/lib/validations/crm";
 
 export function WorkHistoryTab({ customerId }: { customerId: string }) {
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(() => getWorkOrders(customerId));
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [detailOrder, setDetailOrder] = useState<WorkOrder | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const customer = getCustomerById(customerId);
 
-  function reschedule(order: WorkOrder) {
-    setWorkOrders((prev) =>
-      prev.map((o) =>
-        o.id === order.id
-          ? { ...o, status: "planned", plannedDate: new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10) }
-          : o,
-      ),
-    );
+  useEffect(() => {
+    fetch(`/api/crm/work-orders?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setWorkOrders(data.workOrders))
+      .catch(() => toast.error("İş emirleri yüklenemedi"));
+    fetch("/api/operations/technicians")
+      .then((res) => res.json())
+      .then((data) => setTechnicians(data.technicians))
+      .catch(() => toast.error("Teknisyenler yüklenemedi"));
+  }, [customerId]);
+
+  async function reschedule(order: WorkOrder) {
+    const res = await fetch(`/api/crm/work-orders/${order.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "planned", plannedDate: new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10) }),
+    });
+    if (!res.ok) {
+      toast.error("İş emri yeniden planlanamadı");
+      return;
+    }
+    const data = await res.json();
+    setWorkOrders((prev) => prev.map((o) => (o.id === order.id ? data.workOrder : o)));
     toast.success("İş emri yeniden planlandı");
   }
 
@@ -75,25 +92,20 @@ export function WorkHistoryTab({ customerId }: { customerId: string }) {
     window.open(getWhatsAppLink(customer.contactPhone, message), "_blank");
   }
 
-  function handleCreate(values: WorkOrderFormValues) {
+  async function handleCreate(values: WorkOrderFormValues) {
     if (!customer) return;
-    const seq = workOrders.length + 1;
-    const newOrder: WorkOrder = {
-      id: `${customerId}-wo-${Date.now()}`,
-      customerId,
-      orderNo: `IS-2026-${customer.accountCode.split("-")[1]}${String(seq).padStart(2, "0")}`,
-      serviceType: values.serviceType,
-      technician: values.technician,
-      plannedDate: values.plannedDate,
-      completedDate: null,
-      status: "planned",
-      riskFinding: null,
-      hasReport: false,
-      productsUsed: [],
-      stationsChecked: 0,
-      technicianNote: "",
-      customerSigned: false,
-    };
+    const res = await fetch("/api/crm/work-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.message ?? "İş emri oluşturulamadı");
+      return;
+    }
+    const data = await res.json();
+    const newOrder: WorkOrder = data.workOrder;
     setWorkOrders((prev) => [newOrder, ...prev]);
     toast.success("İş emri oluşturuldu", {
       action: {
@@ -250,7 +262,7 @@ export function WorkHistoryTab({ customerId }: { customerId: string }) {
         </DialogContent>
       </Dialog>
 
-      <WorkOrderForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <WorkOrderForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} technicians={technicians} />
     </div>
   );
 }

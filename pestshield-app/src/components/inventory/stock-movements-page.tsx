@@ -18,21 +18,27 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatDate } from "@/components/crm/crm-format";
 import { CategoryBadge } from "@/components/inventory/inventory-badges";
 import { UNIT_LABELS } from "@/components/inventory/inventory-labels";
-import { stockTransactions, products, type StockTransactionType } from "@/lib/mock/inventory";
+import type { Product, StockTransaction, StockTransactionType } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
 
 type TypeFilter = "all" | StockTransactionType;
 
-export function StockMovementsPage() {
+export function StockMovementsPage({
+  initialTransactions,
+  products,
+}: {
+  initialTransactions: StockTransaction[];
+  products: Product[];
+}) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
   const enriched = useMemo(
     () =>
-      stockTransactions
+      initialTransactions
         .map((txn) => ({ ...txn, product: products.find((p) => p.id === txn.productId) }))
         .sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [],
+    [initialTransactions, products],
   );
 
   const filtered = useMemo(() => {

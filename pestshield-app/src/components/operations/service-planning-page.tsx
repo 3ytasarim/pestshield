@@ -8,18 +8,13 @@ import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
-import { getAllWorkOrders, getCustomerById } from "@/lib/mock/crm";
-import { technicians } from "@/lib/mock/operations";
+import type { WorkOrder } from "@/lib/mock/crm";
+import type { Technician } from "@/lib/mock/operations";
 import { Calendar as CalendarIcon, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DAY_LABELS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-const TECH_COLORS: Record<string, string> = {
-  "Ahmet Yılmaz": "bg-primary",
-  "Mehmet Kaya": "bg-violet-500",
-  "Elif Demir": "bg-emerald-500",
-  "Canan Öztürk": "bg-amber-500",
-};
+const TECH_COLOR_PALETTE = ["bg-primary", "bg-violet-500", "bg-emerald-500", "bg-amber-500", "bg-sky-500", "bg-rose-500"];
 
 function startOfWeek(date: Date): Date {
   const d = new Date(date);
@@ -39,14 +34,31 @@ function toKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function ServicePlanningPage() {
+interface WorkOrderWithCustomer extends WorkOrder {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function ServicePlanningPage({
+  initialOrders,
+  initialTechnicians,
+}: {
+  initialOrders: WorkOrderWithCustomer[];
+  initialTechnicians: Technician[];
+}) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [technicianFilter, setTechnicianFilter] = useState<string>("all");
+  const technicians = initialTechnicians;
+
+  const techColors = useMemo(() => {
+    const map = new Map<string, string>();
+    technicians.forEach((t, i) => map.set(t.name, TECH_COLOR_PALETTE[i % TECH_COLOR_PALETTE.length]));
+    return map;
+  }, [technicians]);
 
   const weekStart = useMemo(() => addDays(startOfWeek(new Date()), weekOffset * 7), [weekOffset]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
-  const orders = useMemo(() => getAllWorkOrders().map((o) => ({ ...o, customer: getCustomerById(o.customerId) })), []);
+  const orders = initialOrders;
 
   const filteredOrders = useMemo(
     () => (technicianFilter === "all" ? orders : orders.filter((o) => o.technician === technicianFilter)),
@@ -129,7 +141,7 @@ export function ServicePlanningPage() {
                 technicianFilter === t.name ? "border-primary/20 bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted",
               )}
             >
-              <span className={cn("size-1.5 rounded-full", TECH_COLORS[t.name] ?? "bg-muted-foreground")} />
+              <span className={cn("size-1.5 rounded-full", techColors.get(t.name) ?? "bg-muted-foreground")} />
               {t.name}
             </button>
           ))}
@@ -153,7 +165,7 @@ export function ServicePlanningPage() {
                   dayOrders.map((order) => (
                     <div key={order.id} className="rounded-lg border border-border/60 bg-background/60 p-2 text-[11px]">
                       <div className="flex items-center gap-1.5">
-                        <span className={cn("size-1.5 shrink-0 rounded-full", TECH_COLORS[order.technician] ?? "bg-muted-foreground")} />
+                        <span className={cn("size-1.5 shrink-0 rounded-full", techColors.get(order.technician) ?? "bg-muted-foreground")} />
                         <span className="truncate font-medium text-foreground">{order.customer?.companyName}</span>
                       </div>
                       <p className="mt-0.5 truncate text-muted-foreground">{order.serviceType}</p>

@@ -16,19 +16,20 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import { getAllContacts, getCustomerById } from "@/lib/mock/crm";
+import type { Contact } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 type PrimaryFilter = "all" | "primary";
 
-export function ContactsPage() {
+export interface ContactWithCustomer extends Contact {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function ContactsPage({ initialContacts }: { initialContacts: ContactWithCustomer[] }) {
   const [search, setSearch] = useState("");
   const [primaryFilter, setPrimaryFilter] = useState<PrimaryFilter>("all");
 
-  const contacts = useMemo(
-    () => getAllContacts().map((c) => ({ ...c, customer: getCustomerById(c.customerId) })),
-    [],
-  );
+  const contacts = initialContacts;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

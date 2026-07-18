@@ -14,7 +14,7 @@ import { CapaSeverityBadge, CapaStatusBadge } from "@/components/audit/audit-bad
 import { formatDate } from "@/components/crm/crm-format";
 import { getCapaRows } from "@/lib/audit-report-data";
 import { printCapaRaporu } from "@/lib/pdf/capa-report";
-import type { CapaStatus } from "@/lib/mock/audit";
+import type { CapaStatus, CorrectiveAction } from "@/lib/mock/audit";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS: { value: CapaStatus | "all"; label: string }[] = [
@@ -25,11 +25,19 @@ const STATUS_OPTIONS: { value: CapaStatus | "all"; label: string }[] = [
   { value: "verified", label: "Doğrulandı" },
 ];
 
-export function CapaReportPage() {
+interface CapaReportPageProps {
+  initialCapas: CorrectiveAction[];
+  customers: { id: string; companyName: string }[];
+}
+
+export function CapaReportPage({ initialCapas, customers }: CapaReportPageProps) {
   const [status, setStatus] = useState<CapaStatus | "all">("all");
   const [printing, setPrinting] = useState(false);
 
-  const rows = useMemo(() => getCapaRows({ status: status !== "all" ? status : undefined }), [status]);
+  const rows = useMemo(
+    () => getCapaRows(initialCapas, customers, { status: status !== "all" ? status : undefined }),
+    [initialCapas, customers, status],
+  );
   const overdueCount = rows.filter((r) => r.overdue).length;
   const criticalCount = rows.filter((r) => r.severity === "critical").length;
   const openCount = rows.filter((r) => r.status === "open" || r.status === "in_progress").length;

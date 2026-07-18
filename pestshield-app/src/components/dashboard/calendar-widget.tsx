@@ -63,9 +63,13 @@ export function CalendarWidget({ today, upcoming, delay = 0 }: CalendarWidgetPro
               </Badge>
             </div>
             <div className="flex flex-col gap-2">
-              {today.map((appointment) => (
-                <AppointmentRow key={appointment.id} appointment={appointment} />
-              ))}
+              {today.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-border/60 py-4 text-center text-xs text-muted-foreground">
+                  Bugün için planlanmış servis yok
+                </p>
+              ) : (
+                today.map((appointment) => <AppointmentRow key={appointment.id} appointment={appointment} />)
+              )}
             </div>
           </div>
           {upcoming.length > 0 && (

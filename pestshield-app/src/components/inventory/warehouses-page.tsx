@@ -8,21 +8,33 @@ import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { WarehouseCard } from "@/components/inventory/warehouse-card";
 import { WarehouseForm } from "@/components/inventory/warehouse-form";
-import { warehouses as initialWarehouses, products, getCriticalProducts, type Warehouse } from "@/lib/mock/inventory";
+import { getCriticalProducts, getProductsForWarehouse, type Product, type Warehouse } from "@/lib/mock/inventory";
 import type { WarehouseFormValues } from "@/lib/validations/inventory";
 
-export function WarehousesPage() {
+export function WarehousesPage({
+  initialWarehouses,
+  products,
+}: {
+  initialWarehouses: Warehouse[];
+  products: Product[];
+}) {
   const [warehouses, setWarehouses] = useState<Warehouse[]>(initialWarehouses);
   const [formOpen, setFormOpen] = useState(false);
 
   const criticalCount = getCriticalProducts(products).length;
 
-  function handleCreate(values: WarehouseFormValues) {
-    const newWarehouse: Warehouse = {
-      id: `wh-${Date.now()}`,
-      ...values,
-    };
-    setWarehouses((prev) => [...prev, newWarehouse]);
+  async function handleCreate(values: WarehouseFormValues) {
+    const res = await fetch("/api/inventory/warehouses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Depo eklenemedi");
+      return;
+    }
+    const { warehouse } = (await res.json()) as { warehouse: Warehouse };
+    setWarehouses((prev) => [...prev, warehouse]);
     toast.success("Depo eklendi");
   }
 
@@ -78,7 +90,12 @@ export function WarehousesPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {warehouses.map((warehouse, index) => (
-          <WarehouseCard key={warehouse.id} warehouse={warehouse} delay={Math.min(index, 9) * 0.04} />
+          <WarehouseCard
+            key={warehouse.id}
+            warehouse={warehouse}
+            products={getProductsForWarehouse(warehouse.id, products)}
+            delay={Math.min(index, 9) * 0.04}
+          />
         ))}
       </div>
 

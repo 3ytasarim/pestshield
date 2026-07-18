@@ -1,9 +1,7 @@
-// Audit Raporları (Uygunluk Durumu + CAPA) için veri katmanı — mevcut
-// denetim mock modülünün üzerine ince bir sorgu katmanı.
+// Audit Raporları (Uygunluk Durumu + CAPA) için veri katmanı — gerçek
+// checklist/CAPA kayıtları üzerinde filtreleme/sıralama yapan ince sorgu katmanı.
 
 import {
-  checklistItems,
-  correctiveActions,
   isCapaOverdue,
   STANDARD_LABELS,
   type CapaSeverity,
@@ -13,12 +11,11 @@ import {
   type ComplianceStandard,
   type CorrectiveAction,
 } from "@/lib/mock/audit";
-import { getCustomerById } from "@/lib/mock/crm";
 
 export { STANDARD_LABELS };
 
-export function getUygunlukRows(options: { standard?: ComplianceStandard } = {}): ChecklistItem[] {
-  return checklistItems
+export function getUygunlukRows(items: ChecklistItem[], options: { standard?: ComplianceStandard } = {}): ChecklistItem[] {
+  return items
     .filter((i) => !options.standard || i.standard === options.standard)
     .sort((a, b) => a.id.localeCompare(b.id));
 }
@@ -39,13 +36,17 @@ export interface CapaRow extends CorrectiveAction {
   overdue: boolean;
 }
 
-export function getCapaRows(options: { status?: CapaStatus; severity?: CapaSeverity } = {}): CapaRow[] {
-  return correctiveActions
+export function getCapaRows(
+  capas: CorrectiveAction[],
+  customers: { id: string; companyName: string }[],
+  options: { status?: CapaStatus; severity?: CapaSeverity } = {},
+): CapaRow[] {
+  return capas
     .filter((c) => !options.status || c.status === options.status)
     .filter((c) => !options.severity || c.severity === options.severity)
     .map((c) => ({
       ...c,
-      customerName: c.customerId ? (getCustomerById(c.customerId)?.companyName ?? "—") : "Genel",
+      customerName: c.customerId ? (customers.find((cu) => cu.id === c.customerId)?.companyName ?? "—") : "Genel",
       overdue: isCapaOverdue(c),
     }))
     .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));

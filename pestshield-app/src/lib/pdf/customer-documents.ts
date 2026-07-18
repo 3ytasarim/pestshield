@@ -153,17 +153,21 @@ export async function printApplicationCertificate(customer: Customer) {
   const bodyHtml = `
         ${companyLogoImg(company.logo, "cert-logo")}
         <div class="cert-workplace">${escapeHtml(customer.companyName)}</div>
-        <div class="cert-title">Ürün Uygulama Belgesi</div>
+        <div class="cert-title">Entegre Zararlı Yönetimi Uygulama Sertifikası</div>
       </div>
 
       <div class="cert-body-block">
         <p class="cert-body-tr">
-          Bu işyerine, <b>"${companyName} — Dezenfeksiyon ve Haşere Kontrol Sistemleri"</b> tarafından periyodik
-          olarak Sağlık Bakanlığı tarafından ruhsatlandırılmış ürünlerle uygulama hizmeti verilmektedir.
+          Bu belge ile işbu işletmede; uluslararası gıda güvenliği ve kalite standartları (BRCGS, HACCP, AIB, ISO)
+          ile yasal mevzuat gerekliliklerine uygun Entegre Zararlı Yönetimi (IPM) prosedürlerinin uygulandığı tasdik
+          olunur. Zararlı kontrol ve fumigasyon hizmetleri, <b>${companyName}</b> uzman kadrosu tarafından, T.C.
+          Sağlık Bakanlığı onaylı ve ruhsatlı ürünler kullanılarak periyodik olarak yürütülmektedir.
         </p>
         <p class="cert-body-en">
-          "In this workplace, disinfection and/or pest control service is provided by "${companyName}" with the
-          products that are approved by The Ministry of Health."
+          This is to certify that Integrated Pest Management (IPM) procedures are implemented at this facility in
+          full compliance with international food safety and quality standards (BRCGS, HACCP, AIB, ISO) and legal
+          regulations. Pest control and fumigation services are performed periodically by the expert staff of
+          ${companyName} using products authorized and licensed by the T.R. Ministry of Health.
         </p>
       </div>
 

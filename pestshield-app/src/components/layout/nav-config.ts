@@ -209,7 +209,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: "Operasyon", href: "/dashboard/client/reports/operations", icon: Activity },
         { label: "Finans", href: "/dashboard/client/reports/finance", icon: PieChart },
         { label: "Audit", href: "/dashboard/client/reports/audit", icon: ShieldCheck },
-        { label: "AI Analizleri", href: "/dashboard/client/reports/ai", icon: Sparkles, comingSoon: true },
+        { label: "AI Analizleri", href: "/dashboard/client/reports/ai", icon: Sparkles },
       ],
     },
     {

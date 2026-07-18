@@ -13,10 +13,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatDate } from "@/components/crm/crm-format";
 import { UNIT_LABELS } from "@/components/inventory/inventory-labels";
-import { stockTransactions, products } from "@/lib/mock/inventory";
+import type { Product, StockTransaction } from "@/lib/mock/inventory";
 
-export function UsageHistoryTab() {
-  const sorted = [...stockTransactions].sort((a, b) => (a.date < b.date ? 1 : -1));
+export function UsageHistoryTab({ transactions, products }: { transactions: StockTransaction[]; products: Product[] }) {
+  const sorted = [...transactions].sort((a, b) => (a.date < b.date ? 1 : -1));
 
   if (sorted.length === 0) {
     return (

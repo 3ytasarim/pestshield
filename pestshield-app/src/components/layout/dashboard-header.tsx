@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Building2, Languages, LifeBuoy, LogOut, Search, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { Languages, LifeBuoy, LogOut, Search, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -18,9 +19,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HeaderClock } from "@/components/layout/header-clock";
+import { PestShieldFmWidget } from "@/components/layout/pestshield-fm-widget";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useCommandPalette } from "@/components/layout/command-palette-context";
+import { useAiPanel } from "@/components/ai-assistant/ai-panel-context";
 import { getPageTitle } from "@/components/layout/nav-config";
+import { getCompanySettings } from "@/lib/company-settings";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -41,9 +45,30 @@ export function DashboardHeader() {
   const { data: session } = useSession();
   const currentLabel = getPageTitle(pathname);
   const { openPalette } = useCommandPalette();
+  const { openAiPanel } = useAiPanel();
 
-  const userName = session?.user?.name ?? "Kullanıcı";
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const role = session?.user?.role;
+
+  useEffect(() => {
+    if (role !== "CLIENT") return;
+    function syncCompanySettings() {
+      const settings = getCompanySettings();
+      setCompanyName(settings.companyName || null);
+      setCompanyLogo(settings.logo);
+    }
+    syncCompanySettings();
+    window.addEventListener("pestshield:company-settings-updated", syncCompanySettings);
+    window.addEventListener("storage", syncCompanySettings);
+    return () => {
+      window.removeEventListener("pestshield:company-settings-updated", syncCompanySettings);
+      window.removeEventListener("storage", syncCompanySettings);
+    };
+  }, [role]);
+
   const userEmail = session?.user?.email ?? "";
+  const userName = companyName ?? session?.user?.name ?? "Kullanıcı";
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-card/80 px-4 shadow-sm backdrop-blur-md sm:px-6">
@@ -80,13 +105,14 @@ export function DashboardHeader() {
         >
           <Search className="size-4.5" />
         </Button>
+        <PestShieldFmWidget className="mr-1" />
         <HeaderClock className="mr-1 hidden xl:flex" />
         <Separator orientation="vertical" className="mx-0.5 hidden h-6 xl:block" />
         <Button
           variant="ghost"
           size="sm"
           className="hidden items-center gap-1.5 rounded-full border border-primary/15 bg-gradient-to-br from-primary/10 to-primary/[0.02] px-3 text-primary hover:from-primary/15 hover:to-primary/5 md:inline-flex"
-          onClick={() => toast.info("AI Copilot yakında aktif olacak")}
+          onClick={openAiPanel}
         >
           <Sparkles className="size-3.5" />
           AI
@@ -107,9 +133,18 @@ export function DashboardHeader() {
           <DropdownMenuTrigger
             render={<Button variant="ghost" className="h-9 gap-2 rounded-full pr-2 pl-1" />}
           >
-            <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 text-[11px] font-semibold text-white">
-              {initialsOf(userName)}
-            </div>
+            {companyLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={companyLogo}
+                alt="Firma logosu"
+                className="size-7 shrink-0 rounded-full border border-border/60 bg-white object-contain p-0.5"
+              />
+            ) : (
+              <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 text-[11px] font-semibold text-white">
+                {initialsOf(userName)}
+              </div>
+            )}
             <span className="hidden max-w-28 truncate text-sm font-medium sm:inline">{userName}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -120,15 +155,11 @@ export function DashboardHeader() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => toast.info("Profil yakında eklenecek")}>
-              <UserRound className="size-3.5" />
-              Profil
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push("/dashboard/client/settings")}>
-              <Building2 className="size-3.5" />
-              Şirket Ayarları
+              <UserRound className="size-3.5" />
+              Profil / Şirket Ayarları
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast.info("Lisans bilgileri yakında eklenecek")}>
+            <DropdownMenuItem onClick={() => router.push("/dashboard/client/license")}>
               <ShieldCheck className="size-3.5" />
               Lisans
             </DropdownMenuItem>

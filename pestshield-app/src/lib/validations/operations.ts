@@ -9,16 +9,15 @@ export const stationFormSchema = z.object({
 
 export type StationFormValues = z.infer<typeof stationFormSchema>;
 
-export const stationCheckFormSchema = z.object({
+export const stationCheckSubmitSchema = z.object({
   stationId: z.string().min(1, "İstasyon seçiniz"),
-  technicianName: z.string().min(2, "Teknisyen adı zorunludur"),
   activityFound: z.boolean(),
   activityLevel: z.enum(["none", "low", "medium", "high"]),
   actionTaken: z.string().min(2, "Yapılan işlem zorunludur"),
   note: z.string(),
 });
 
-export type StationCheckFormValues = z.infer<typeof stationCheckFormSchema>;
+export type StationCheckSubmitValues = z.infer<typeof stationCheckSubmitSchema>;
 
 export const technicianFormSchema = z.object({
   name: z.string().min(2, "Ad soyad en az 2 karakter olmalıdır"),
@@ -45,3 +44,12 @@ export const vehicleFormSchema = z.object({
 });
 
 export type VehicleFormValues = z.infer<typeof vehicleFormSchema>;
+
+export const checklistTemplateFormSchema = z.object({
+  title: z.string().min(2, "Başlık en az 2 karakter olmalıdır"),
+  category: z.string().min(1, "Kategori zorunludur"),
+  description: z.string().optional(),
+  frequency: z.string().min(1, "Periyot zorunludur"),
+});
+
+export type ChecklistTemplateFormValues = z.infer<typeof checklistTemplateFormSchema>;

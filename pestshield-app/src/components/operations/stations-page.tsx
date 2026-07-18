@@ -22,55 +22,54 @@ import { formatDate } from "@/components/crm/crm-format";
 import { StationStatusBadge } from "@/components/operations/operations-badges";
 import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
 import { StationForm } from "@/components/operations/station-form";
-import { getCustomerById } from "@/lib/mock/crm";
-import {
-  stations as initialStations,
-  getOverdueStations,
-  isStationOverdue,
-  type Station,
-  type StationStatus,
-} from "@/lib/mock/operations";
+import { isStationOverdue, type Station, type StationStatus } from "@/lib/mock/operations";
 import type { StationFormValues } from "@/lib/validations/operations";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | StationStatus | "overdue";
 
-export function StationsPage() {
-  const [stations, setStations] = useState<Station[]>(initialStations);
+interface StationWithCustomer extends Station {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function StationsPage({
+  initialStations,
+  customers,
+}: {
+  initialStations: StationWithCustomer[];
+  customers: { id: string; companyName: string }[];
+}) {
+  const [stations, setStations] = useState<StationWithCustomer[]>(initialStations);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [formOpen, setFormOpen] = useState(false);
 
-  const enriched = useMemo(() => stations.map((s) => ({ ...s, customer: getCustomerById(s.customerId) })), [stations]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return enriched.filter((s) => {
+    return stations.filter((s) => {
       if (statusFilter === "overdue" && !isStationOverdue(s)) return false;
       if (statusFilter !== "all" && statusFilter !== "overdue" && s.status !== statusFilter) return false;
       if (q && !s.label.toLowerCase().includes(q) && !s.customer?.companyName.toLowerCase().includes(q) && !s.qrCode.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [enriched, search, statusFilter]);
+  }, [stations, search, statusFilter]);
 
   const needsAttentionCount = useMemo(() => stations.filter((s) => s.status === "needs_attention").length, [stations]);
-  const overdueCount = useMemo(() => getOverdueStations().length, [stations]);
+  const overdueCount = useMemo(() => stations.filter(isStationOverdue).length, [stations]);
 
-  function handleCreate(values: StationFormValues) {
-    const seq = stations.length + 1;
-    const newStation: Station = {
-      id: `stn-${Date.now()}`,
-      qrCode: `PS-STN-${String(seq).padStart(6, "0")}`,
-      customerId: values.customerId,
-      locationId: values.locationId,
-      label: values.label,
-      type: values.type,
-      status: "active",
-      installedDate: new Date().toISOString().slice(0, 10),
-      lastCheckDate: null,
-      nextCheckDue: new Date().toISOString().slice(0, 10),
-    };
-    setStations((prev) => [newStation, ...prev]);
+  async function handleCreate(values: StationFormValues) {
+    const res = await fetch("/api/crm/stations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "İstasyon eklenemedi");
+      return;
+    }
+    const customer = customers.find((c) => c.id === values.customerId) ?? null;
+    setStations((prev) => [{ ...data.station, customer }, ...prev]);
     toast.success("İstasyon eklendi");
   }
 
@@ -195,7 +194,7 @@ export function StationsPage() {
         </Card>
       )}
 
-      <StationForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <StationForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
     </div>
   );
 }

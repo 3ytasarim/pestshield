@@ -21,24 +21,30 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { InvoiceStatusBadge } from "@/components/finance/finance-badges";
 import { InvoiceForm } from "@/components/finance/invoice-form";
-import { getCustomerById } from "@/lib/mock/crm";
-import { invoices as initialInvoices, type Invoice, type InvoiceStatus } from "@/lib/mock/finance";
+import type { Invoice, InvoiceStatus } from "@/lib/mock/finance";
 import type { InvoiceFormValues } from "@/lib/validations/finance";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | InvoiceStatus;
 
-export function InvoicesPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
+interface InvoiceWithCustomer extends Invoice {
+  customer: { id: string; companyName: string } | null;
+}
+
+export function InvoicesPage({
+  initialInvoices,
+  customers,
+}: {
+  initialInvoices: InvoiceWithCustomer[];
+  customers: { id: string; companyName: string }[];
+}) {
+  const [invoices, setInvoices] = useState<InvoiceWithCustomer[]>(initialInvoices);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [formOpen, setFormOpen] = useState(false);
 
   const enriched = useMemo(
-    () =>
-      [...invoices]
-        .map((inv) => ({ ...inv, customer: getCustomerById(inv.customerId) }))
-        .sort((a, b) => (a.issueDate < b.issueDate ? 1 : -1)),
+    () => [...invoices].sort((a, b) => (a.issueDate < b.issueDate ? 1 : -1)),
     [invoices],
   );
 
@@ -59,20 +65,19 @@ export function InvoicesPage() {
     return invoices.filter((i) => i.status === status).length;
   }
 
-  function handleCreate(values: InvoiceFormValues) {
-    const customer = getCustomerById(values.customerId);
-    const isOverdue = new Date(values.dueDate).getTime() < Date.now();
-    const newInvoice: Invoice = {
-      id: `inv-${Date.now()}`,
-      customerId: values.customerId,
-      invoiceNo: `FTR-2026-M${Date.now().toString().slice(-4)}`,
-      issueDate: values.issueDate,
-      dueDate: values.dueDate,
-      amount: values.amount,
-      status: isOverdue ? "overdue" : "pending",
-      description: values.description,
-    };
-    setInvoices((prev) => [newInvoice, ...prev]);
+  async function handleCreate(values: InvoiceFormValues) {
+    const res = await fetch("/api/finance/invoices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Fatura oluşturulamadı");
+      return;
+    }
+    const { invoice } = (await res.json()) as { invoice: Invoice };
+    const customer = customers.find((c) => c.id === values.customerId) ?? null;
+    setInvoices((prev) => [{ ...invoice, customer }, ...prev]);
     toast.success(`${customer?.companyName ?? "Müşteri"} için fatura oluşturuldu`);
   }
 
@@ -215,7 +220,7 @@ export function InvoicesPage() {
         </Card>
       )}
 
-      <InvoiceForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <InvoiceForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
     </div>
   );
 }

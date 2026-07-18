@@ -14,8 +14,7 @@ import { formatDate } from "@/components/crm/crm-format";
 import { RiskLevelBadge } from "@/components/audit/audit-badges";
 import { RISK_CATEGORY_LABELS, RISK_STATUS_LABELS } from "@/components/audit/audit-labels";
 import { RiskForm } from "@/components/audit/risk-form";
-import { getCustomerById } from "@/lib/mock/crm";
-import { risks as initialRisks, riskLevel, riskScore, type Risk, type RiskStatus } from "@/lib/mock/audit";
+import { riskLevel, riskScore, type Risk, type RiskStatus } from "@/lib/mock/audit";
 import type { RiskFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +27,12 @@ const CELL_STYLES: Record<string, string> = {
 
 type StatusFilter = "all" | RiskStatus;
 
-export function RiskManagementPage() {
+interface RiskManagementPageProps {
+  initialRisks: Risk[];
+  customers: { id: string; companyName: string }[];
+}
+
+export function RiskManagementPage({ initialRisks, customers }: RiskManagementPageProps) {
   const [risks, setRisks] = useState<Risk[]>(initialRisks);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedCell, setSelectedCell] = useState<{ likelihood: number; impact: number } | null>(null);
@@ -61,21 +65,18 @@ export function RiskManagementPage() {
       .sort((a, b) => riskScore(b) - riskScore(a));
   }, [risks, statusFilter, selectedCell]);
 
-  function handleCreate(values: RiskFormValues) {
-    const newRisk: Risk = {
-      id: `risk-${Date.now()}`,
-      title: values.title,
-      category: values.category,
-      description: values.description,
-      likelihood: values.likelihood,
-      impact: values.impact,
-      mitigation: values.mitigation,
-      owner: values.owner,
-      status: "open",
-      reviewDate: new Date().toISOString().slice(0, 10),
-      customerId: values.customerId === "none" ? null : values.customerId,
-    };
-    setRisks((prev) => [newRisk, ...prev]);
+  async function handleCreate(values: RiskFormValues) {
+    const res = await fetch("/api/audit/risks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Risk kaydı oluşturulamadı");
+      return;
+    }
+    setRisks((prev) => [data.risk, ...prev]);
     toast.success("Risk kaydı oluşturuldu");
   }
 
@@ -191,7 +192,7 @@ export function RiskManagementPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map((risk, index) => {
-            const customer = risk.customerId ? getCustomerById(risk.customerId) : null;
+            const customer = risk.customerId ? customers.find((c) => c.id === risk.customerId) : null;
             return (
               <motion.div
                 key={risk.id}
@@ -236,7 +237,7 @@ export function RiskManagementPage() {
         </div>
       )}
 
-      <RiskForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <RiskForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
     </div>
   );
 }

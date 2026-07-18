@@ -310,7 +310,7 @@ export function CompanySettingsPage() {
                   )}
                 </div>
                 <p className="max-w-xs text-[11px] text-muted-foreground">
-                  Belgede "RUHSATLI VE ONAYLIDIR" yazısının üzerinde gösterilir. Bu alana istediğiniz mühür, damga
+                  Belgede &ldquo;RUHSATLI VE ONAYLIDIR&rdquo; yazısının üzerinde gösterilir. Bu alana istediğiniz mühür, damga
                   veya onay görselini kendiniz seçip yükleyebilirsiniz — boş bırakılırsa görsel alanı gizlenir.
                 </p>
               </div>

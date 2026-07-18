@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { MapPin, MoreHorizontal, Plus, Star } from "lucide-react";
 import {
   Table,
@@ -30,22 +31,50 @@ import {
 import { AddressForm } from "@/components/crm/detail/address-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { ADDRESS_TYPE_LABELS } from "@/components/crm/crm-labels";
-import { getAddresses, type Address } from "@/lib/mock/crm";
+import type { Address } from "@/lib/mock/crm";
 import type { AddressFormValues } from "@/lib/validations/crm";
 
 export function AddressesTab({ customerId }: { customerId: string }) {
-  const [addresses, setAddresses] = useState<Address[]>(() => getAddresses(customerId));
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Address | null>(null);
   const [deleting, setDeleting] = useState<Address | null>(null);
 
-  function handleSubmit(values: AddressFormValues) {
+  useEffect(() => {
+    fetch(`/api/crm/addresses?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { addresses: Address[] } | null) => setAddresses(data?.addresses ?? []))
+      .catch(() => setAddresses([]));
+  }, [customerId]);
+
+  async function handleSubmit(values: AddressFormValues) {
     if (editing) {
-      setAddresses((prev) => prev.map((a) => (a.id === editing.id ? { ...a, ...values } : a)));
+      const res = await fetch(`/api/crm/addresses/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Adres güncellenemedi");
+        return;
+      }
+      setAddresses((prev) => prev.map((a) => (a.id === editing.id ? data.address : a)));
       setEditing(null);
       return;
     }
-    setAddresses((prev) => [{ ...values, id: `${customerId}-address-${Date.now()}`, customerId }, ...prev]);
+
+    const res = await fetch("/api/crm/addresses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Adres oluşturulamadı");
+      return;
+    }
+    setAddresses((prev) => [data.address, ...prev]);
   }
 
   return (
@@ -136,8 +165,14 @@ export function AddressesTab({ customerId }: { customerId: string }) {
             <AlertDialogCancel>Vazgeç</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => {
-                setAddresses((prev) => prev.filter((a) => a.id !== deleting?.id));
+              onClick={async () => {
+                if (!deleting) return;
+                const res = await fetch(`/api/crm/addresses/${deleting.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                  toast.error("Adres silinemedi");
+                  return;
+                }
+                setAddresses((prev) => prev.filter((a) => a.id !== deleting.id));
                 setDeleting(null);
               }}
             >

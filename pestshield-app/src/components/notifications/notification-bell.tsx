@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/components/notifications/notifications-context";
 import { NOTIFICATION_TYPE_ICONS } from "@/components/notifications/notification-labels";
+import { AlertPanel } from "@/components/alerts/alert-panel";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string): string {
@@ -24,6 +26,7 @@ function timeAgo(iso: string): string {
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { data: session } = useSession();
   const router = useRouter();
   const recent = notifications.slice(0, 6);
 
@@ -38,6 +41,12 @@ export function NotificationBell() {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="border-b border-border/60">
+          <p className="px-3.5 pt-2.5 text-[10px] font-semibold text-muted-foreground uppercase">Proaktif Uyarılar</p>
+          <div className="max-h-64 overflow-y-auto">
+            <AlertPanel userId={session?.user?.id} role={session?.user?.role} maxItems={4} />
+          </div>
+        </div>
         <div className="flex items-center justify-between border-b border-border/60 px-3.5 py-2.5">
           <span className="text-sm font-semibold text-foreground">Bildirimler</span>
           {unreadCount > 0 && (

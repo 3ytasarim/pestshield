@@ -5,17 +5,16 @@ import { ArrowDownLeft, ArrowUpRight, Landmark } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatCurrency } from "@/components/crm/crm-format";
-import { getTransactionsForBankAccount, type BankAccount } from "@/lib/mock/finance";
+import type { BankAccount, BankTransaction } from "@/lib/mock/finance";
 import { cn } from "@/lib/utils";
 
 interface BankAccountCardProps {
   account: BankAccount;
+  transactions: BankTransaction[];
   delay?: number;
 }
 
-export function BankAccountCard({ account, delay = 0 }: BankAccountCardProps) {
-  const transactions = getTransactionsForBankAccount(account.id).slice(0, 3);
-
+export function BankAccountCard({ account, transactions, delay = 0 }: BankAccountCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}

@@ -17,7 +17,6 @@ import { HizmetForm, type ContractFileValue } from "@/components/crm/detail/hizm
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { HizmetOnaySwitch } from "@/components/crm/hizmet-onay-switch";
 import { getCustomerById, type ServiceOrder } from "@/lib/mock/crm";
-import { addServiceOrder, buildServiceOrder, getServiceOrdersFor, toggleServiceOrderApproval } from "@/lib/service-order-store";
 import type { HizmetFormValues } from "@/lib/validations/crm";
 
 export function HizmetlerTab({ customerId }: { customerId: string }) {
@@ -26,19 +25,41 @@ export function HizmetlerTab({ customerId }: { customerId: string }) {
   const customer = getCustomerById(customerId);
 
   useEffect(() => {
-    setOrders(getServiceOrdersFor(customerId));
+    fetch(`/api/crm/service-orders?customerId=${customerId}`)
+      .then((res) => res.json())
+      .then((data) => setOrders(data.serviceOrders))
+      .catch(() => toast.error("Hizmet kayıtları yüklenemedi"));
   }, [customerId]);
 
-  function handleSubmit(values: HizmetFormValues, contract: ContractFileValue) {
-    const newOrder = { ...buildServiceOrder(customerId, values), contractFileDataUrl: contract.fileDataUrl, contractFileName: contract.fileName };
-    addServiceOrder(newOrder);
-    setOrders((prev) => [newOrder, ...prev]);
+  async function handleSubmit(values: HizmetFormValues, contract: ContractFileValue) {
+    const res = await fetch("/api/crm/service-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId, contractFileDataUrl: contract.fileDataUrl, contractFileName: contract.fileName }),
+    });
+    if (!res.ok) {
+      toast.error("Hizmet kaydedilemedi");
+      return;
+    }
+    const data = await res.json();
+    setOrders((prev) => [data.serviceOrder, ...prev]);
     toast.success("Hizmet kaydedildi");
   }
 
-  function handleToggleApproval(orderId: string) {
-    toggleServiceOrderApproval(orderId);
-    setOrders(getServiceOrdersFor(customerId));
+  async function handleToggleApproval(orderId: string) {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const res = await fetch(`/api/crm/service-orders/${orderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approved: !order.approved, approvedAt: !order.approved ? new Date().toISOString() : null }),
+    });
+    if (!res.ok) {
+      toast.error("Onay durumu güncellenemedi");
+      return;
+    }
+    const data = await res.json();
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? data.serviceOrder : o)));
   }
 
   return (

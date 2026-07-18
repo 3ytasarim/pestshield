@@ -62,6 +62,7 @@ export interface Customer {
   contactTitle: string;
   contactPhone: string;
   contactEmail: string;
+  fax: string;
   country: string;
   city: string;
   district: string;
@@ -88,6 +89,7 @@ export interface Customer {
   nextServiceDate: string;
   pendingCollection: number;
   contractEndDate: string | null;
+  parasutContactId: string | null;
   createdAt: string;
 }
 
@@ -488,6 +490,7 @@ export const customers: Customer[] = CUSTOMER_SEED.map((seed, i) => {
     contactTitle: TITLES[i % TITLES.length],
     contactPhone: `0532 ${pad(100 + i, 3)} ${pad(10 + i, 2)} ${pad(20 + i, 2)}`,
     contactEmail: `iletisim${i + 1}@${seed.companyName.toLowerCase().split(" ")[0]}.com.tr`,
+    fax: "",
     country: "Türkiye",
     city: seed.city,
     district,
@@ -514,6 +517,7 @@ export const customers: Customer[] = CUSTOMER_SEED.map((seed, i) => {
     nextServiceDate: daysFromNow([10, 4, 18, -5, 12, 25, -8][i]),
     pendingCollection: [0, 18400, 4200, 62500, 0, 9800, 31200][i],
     contractEndDate: contractEndDays > 0 ? daysFromNow(contractEndDays) : contractEndDays === 0 ? null : daysFromNow(contractEndDays),
+    parasutContactId: null,
     createdAt: daysFromNow(-[400, 220, 610, 900, 150, 730, 500][i]),
   };
 });

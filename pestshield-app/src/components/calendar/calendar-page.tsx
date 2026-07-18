@@ -99,7 +99,7 @@ export function CalendarPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <span className="flex items-center gap-2.5">
             <Plug className="size-4 shrink-0" />
-            Google Calendar'a henüz bağlı değilsiniz — iş emirleri otomatik senkronize edilmiyor.
+            Google Calendar&apos;a henüz bağlı değilsiniz — iş emirleri otomatik senkronize edilmiyor.
           </span>
           <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/dashboard/client/integrations" />}>
             Bağlan

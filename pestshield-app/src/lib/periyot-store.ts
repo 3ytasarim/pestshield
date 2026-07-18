@@ -58,6 +58,22 @@ export function getOccurrenceById(id: string): PeriyotOccurrence | null {
   return loadOccurrences().find((o) => o.id === id) ?? null;
 }
 
+/** Tüm servis siparişleri/gruplar arasında ham erişim — teknisyen çakışma taraması gibi çapraz sorgular için. */
+export function getAllOccurrences(): PeriyotOccurrence[] {
+  return loadOccurrences();
+}
+
+const AI_BATCH_NAME = "AI ile Oluşturulan Servisler";
+
+/** AI Command Center'ın tekil (tekrarlamayan) servis önerileri için kullandığı sabit grup — var olan bir grubu bulur ya da ilk seferinde oluşturur. */
+export function ensureAiBatch(serviceOrderId: string): PeriyotBatch {
+  const existing = getBatchesFor(serviceOrderId).find((b) => b.name === AI_BATCH_NAME);
+  if (existing) return existing;
+  const batch: PeriyotBatch = { id: `periyot-batch-ai-${Date.now()}`, serviceOrderId, name: AI_BATCH_NAME, donem: "daily", createdAt: new Date().toISOString() };
+  saveBatches([...loadBatches(), batch]);
+  return batch;
+}
+
 export function getBatchById(id: string): PeriyotBatch | null {
   return loadBatches().find((b) => b.id === id) ?? null;
 }

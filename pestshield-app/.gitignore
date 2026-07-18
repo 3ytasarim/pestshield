@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# manuel deployment zip'leri (cPanel'e elle yükleme için, git'e girmez)
+*.zip
