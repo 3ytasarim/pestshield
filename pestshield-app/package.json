@@ -10,11 +10,12 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:seed": "tsx prisma/seed.ts",
-    "db:push": "prisma db push",
+    "db:push": "prisma db push --schema=./prisma/schema.prisma",
     "tenant:create": "tsx scripts/create-tenant-owner.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate --schema=./prisma/schema.prisma"
   },
   "prisma": {
+    "schema": "prisma/schema.prisma",
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
