@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
     cpus: 1,
     workerThreads: false,
   },
+  // Next.js'in yerleşik next/image optimizasyonu, .next/cache/images altına
+  // resimleri islerken ayri worker thread'ler kullanir (experimental.cpus/
+  // workerThreads bunu KAPSAMAZ - o sadece build-time webpack worker'lari
+  // icin). strace ile dogrulandi: iki farkli worker thread ayni onbellek
+  // dosyasina neredeyse esanli erisince "open EEXIST" olusuyordu. Bu
+  // paylasimli hosting'de guvenli olmadigi icin optimizasyonu tamamen
+  // kapatiyoruz - resimler orijinal haliyle (optimize edilmeden) sunulur.
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
