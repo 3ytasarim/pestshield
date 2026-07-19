@@ -12,7 +12,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:push": "prisma db push --schema=./prisma/schema.prisma",
     "tenant:create": "tsx scripts/create-tenant-owner.ts",
-    "postinstall": "prisma generate --schema=./prisma/schema.prisma"
+    "generate": "prisma generate --schema=./prisma/schema.prisma"
   },
   "prisma": {
     "schema": "prisma/schema.prisma",
