@@ -13,6 +13,9 @@ export const authConfig = {
   // Host header'ını otomatik güvenilir saymaz - aksi halde NEXTAUTH_URL doğru
   // olsa bile "UntrustedHost" hatasıyla tüm auth istekleri 500 döner.
   trustHost: true,
+  // Gecici tani amacli - EEXIST hatasinin arkasinda Auth.js'in kendi bir
+  // hatasi olup olmadigini gormek icin. Sorun cozulunce kaldirilacak.
+  debug: true,
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
   providers: [],
