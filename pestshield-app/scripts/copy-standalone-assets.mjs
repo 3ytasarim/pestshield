@@ -25,5 +25,9 @@ function copyIfExists(from, to) {
 
 copyIfExists(join(root, "public"), join(standaloneDir, "public"));
 copyIfExists(join(root, ".next", "static"), join(standaloneDir, ".next", "static"));
+// .env de kopyalanmazsa, server.js farklı bir çalışma dizininden (ör. Passenger'ın
+// kendi süreç yönetimi) başlatıldığında ortam değişkenlerini (DATABASE_URL,
+// AUTH_SECRET vb.) bulamaz ve auth/DB işlemleri 500 ile çöker.
+copyIfExists(join(root, ".env"), join(standaloneDir, ".env"));
 
 console.log("Standalone varlık kopyalama tamamlandı.");
