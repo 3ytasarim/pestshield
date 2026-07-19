@@ -40,6 +40,28 @@ fs.openSync = function (...args) {
     throw err;
   }
 };
+// fs.open/openSync'te yakalanmadi - modern kod genelde fs.promises.open
+// (async/await) kullanir, bu ayri bir uygulama, ayrica sarmalanmasi gerekiyor.
+const _openP = fs.promises.open.bind(fs.promises);
+fs.promises.open = async function (...args) {
+  try { return await _openP(...args); }
+  catch (err) {
+    if (err && err.code === "EEXIST") {
+      console.error("[EEXIST-TANI-PROMISE]", { path: err.path, syscall: err.syscall, target: args[0] });
+    }
+    throw err;
+  }
+};
+// Son bir guvenlik agi: yukaridakilerin hicbiri yakalamazsa (ornegin dahili
+// bir binding cagrisi), en azindan tam hata nesnesini gormek icin.
+process.on("uncaughtException", (err) => {
+  if (err && err.code === "EEXIST") {
+    console.error("[EEXIST-TANI-UNCAUGHT]", {
+      name: err.name, message: err.message, code: err.code, errno: err.errno,
+      syscall: err.syscall, path: err.path, dest: err.dest, stack: err.stack,
+    });
+  }
+});
 
 const { createServer } = require("node:http");
 const next = require("next");
