@@ -9,6 +9,10 @@ import type { Role } from "@/generated/prisma/enums";
  * sadece Node runtime'da çalışan `src/auth.ts`'e eklenir.
  */
 export const authConfig = {
+  // Vercel dışı hosting'lerde (ör. cPanel/Passenger) Auth.js gelen isteğin
+  // Host header'ını otomatik güvenilir saymaz - aksi halde NEXTAUTH_URL doğru
+  // olsa bile "UntrustedHost" hatasıyla tüm auth istekleri 500 döner.
+  trustHost: true,
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
   providers: [],
