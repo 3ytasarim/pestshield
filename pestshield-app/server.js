@@ -4,6 +4,15 @@
 // ile ürettiği server.js bu kullanım şeklini desteklemiyor (bkz. next.config.ts
 // notu). Bunun yerine klasik, require()-güvenli custom server kalıbı:
 // https://nextjs.org/docs/pages/guides/custom-server
+// LSAPI/Passenger tarzı adaptörler uygulamayı BEKLENMEDIK bir calisma
+// dizininden (cwd) baslatabilir - bu, Next.js'in ".next/cache" gibi GORECELI
+// yollara yazma girisimlerinin, elle "node server.js" ile calistirdigimizda
+// hic gormedigimiz "open EEXIST" hatalarina yol acmasini acikliyor olabilir.
+// cwd'yi bu dosyanin GERCEK konumuna sabitleyerek bu belirsizligi ortadan
+// kaldiriyoruz (Passenger'in kendi dokumantasyonunda da onerilen yontem).
+process.chdir(__dirname);
+console.error(`[server.js] cwd sabitlendi: ${process.cwd()} (__dirname: ${__dirname})`);
+
 const { createServer } = require("node:http");
 const next = require("next");
 
