@@ -30,4 +30,11 @@ copyIfExists(join(root, ".next", "static"), join(standaloneDir, ".next", "static
 // AUTH_SECRET vb.) bulamaz ve auth/DB işlemleri 500 ile çöker.
 copyIfExists(join(root, ".env"), join(standaloneDir, ".env"));
 
+// `.next/cache` runtime'da ilk istekte tembel (lazy) oluşturuluyor - paylaşımlı
+// hosting'lerde neredeyse eşzamanlı gelen ilk birkaç istek bu klasörü/dosyayı
+// aynı anda oluşturmaya çalışınca "open EEXIST" ile 500 hatası veriyordu.
+// Uygulama hiç başlamadan önce klasörü biz oluşturup bu yarışı ortadan kaldırıyoruz.
+mkdirSync(join(standaloneDir, ".next", "cache"), { recursive: true });
+console.log(`Oluşturuldu: ${join(standaloneDir, ".next", "cache")}`);
+
 console.log("Standalone varlık kopyalama tamamlandı.");
