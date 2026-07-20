@@ -52,6 +52,13 @@ function elapsedLabel(startedAt: string | null, endedAt: string | null): string 
   return `${h} sa ${m} dk`;
 }
 
+interface ServerWorkday {
+  status: Status;
+  startedAt: string;
+  endedAt: string | null;
+  pings: { lat: number; lng: number; recordedAt: string }[];
+}
+
 export function WorkdayTracker() {
   const [state, setState] = useState<StoredWorkday>(() => loadStored());
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -62,6 +69,33 @@ export function WorkdayTracker() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  // Sunucudaki gunun mesai kaydini (varsa) kaynak olarak al - baska bir
+  // cihaz/tarayicida "Mesaiye Basla" denmisse burada da devam edebilelim.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/tech/workday")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { workday: ServerWorkday | null } | null) => {
+        if (!data?.workday || cancelled) return;
+        const w = data.workday;
+        setState({
+          status: w.status,
+          startedAt: w.startedAt,
+          endedAt: w.endedAt,
+          points: w.pings.map((p) => ({ lat: p.lat, lng: p.lng, timestamp: p.recordedAt })),
+        });
+        if (w.status === "in_progress" && intervalRef.current === null) {
+          intervalRef.current = setInterval(recordPoint, PING_INTERVAL_MS);
+        }
+      })
+      .catch(() => {
+        // Sunucuya ulasilamazsa yerelde kalinan yerden (varsa) devam edilir.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (state.status !== "in_progress") return;
@@ -91,6 +125,13 @@ export function WorkdayTracker() {
           timestamp: new Date().toISOString(),
         };
         setState((prev) => ({ ...prev, points: [...prev.points, point] }));
+        fetch("/api/tech/workday/ping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat: point.lat, lng: point.lng }),
+        }).catch(() => {
+          // Baglanti yoksa nokta yerelde kalir; bir sonraki basarili ping'de senkron devam eder.
+        });
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED && typeof window !== "undefined" && !window.isSecureContext) {
@@ -117,6 +158,9 @@ export function WorkdayTracker() {
     }
     const startedAt = new Date().toISOString();
     setState({ status: "in_progress", startedAt, endedAt: null, points: [] });
+    fetch("/api/tech/workday", { method: "POST" }).catch(() => {
+      // Sunucuya ulasilamazsa mesai yerelde devam eder; ping'ler sonraki senkronda gonderilir.
+    });
     recordPoint();
     intervalRef.current = setInterval(recordPoint, PING_INTERVAL_MS);
     toast.success("İş günü başladı — konumunuz her 5 saniyede bir kaydediliyor");
@@ -126,6 +170,9 @@ export function WorkdayTracker() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (watchIdRef.current !== null) navigator.geolocation?.clearWatch(watchIdRef.current);
     setState((prev) => ({ ...prev, status: "completed", endedAt: new Date().toISOString() }));
+    fetch("/api/tech/workday/end", { method: "POST" }).catch(() => {
+      // Sunucuya ulasilamazsa yerel durum "completed" olarak kalir.
+    });
     toast.success("İş günü sonlandırıldı");
   }
 

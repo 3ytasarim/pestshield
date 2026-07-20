@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
   Clock,
-  Info,
   MapPin,
   Pause,
   Play,
@@ -18,8 +17,56 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
-import { technicianWorkdays, routeDistanceKm, type TechnicianWorkday } from "@/lib/mock/tracking";
+import { routeDistanceKm, type TechnicianWorkday } from "@/lib/mock/tracking";
 import { cn } from "@/lib/utils";
+
+interface ServerWorkday {
+  id: string;
+  technicianName: string;
+  date: string;
+  status: TechnicianWorkday["status"];
+  startedAt: string | null;
+  endedAt: string | null;
+  pings: { lat: number; lng: number; recordedAt: string }[];
+}
+
+function toWorkday(w: ServerWorkday): TechnicianWorkday {
+  const breadcrumbs = w.pings.map((p) => ({ lat: p.lat, lng: p.lng, timestamp: p.recordedAt }));
+  const stops: TechnicianWorkday["stops"] = [];
+  if (breadcrumbs.length > 0) {
+    stops.push({
+      id: `${w.id}-start`,
+      label: "Başlangıç",
+      customerId: null,
+      lat: breadcrumbs[0].lat,
+      lng: breadcrumbs[0].lng,
+      arrivedAt: null,
+      departedAt: w.startedAt,
+      workOrderNo: null,
+    });
+    const last = breadcrumbs[breadcrumbs.length - 1];
+    stops.push({
+      id: `${w.id}-${w.status === "completed" ? "end" : "current"}`,
+      label: w.status === "completed" ? "Bitiş" : "Şu An",
+      customerId: null,
+      lat: last.lat,
+      lng: last.lng,
+      arrivedAt: w.status === "completed" ? w.endedAt : last.timestamp,
+      departedAt: null,
+      workOrderNo: null,
+    });
+  }
+  return {
+    id: w.id,
+    technicianName: w.technicianName,
+    date: w.date,
+    status: w.status,
+    startedAt: w.startedAt,
+    endedAt: w.endedAt,
+    stops,
+    breadcrumbs,
+  };
+}
 
 const RouteMap = dynamic(() => import("@/components/tracking/route-map").then((m) => m.RouteMap), {
   ssr: false,
@@ -52,13 +99,32 @@ const STATUS_STYLES: Record<TechnicianWorkday["status"], string> = {
 };
 
 export function RouteTrackingPage() {
-  const [selectedId, setSelectedId] = useState(technicianWorkdays[0]?.id ?? "");
+  const [workdays, setWorkdays] = useState<TechnicianWorkday[] | null>(null);
+  const [selectedId, setSelectedId] = useState("");
   const [liveIndex, setLiveIndex] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const workday = technicianWorkdays.find((w) => w.id === selectedId) ?? technicianWorkdays[0];
-  const distance = useMemo(() => routeDistanceKm(workday.breadcrumbs), [workday]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/operations/routes")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { workdays: ServerWorkday[] } | null) => {
+        if (cancelled || !data) return;
+        const mapped = data.workdays.map(toWorkday);
+        setWorkdays(mapped);
+        setSelectedId((prev) => prev || (mapped[0]?.id ?? ""));
+      })
+      .catch(() => {
+        if (!cancelled) setWorkdays([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const workday = workdays?.find((w) => w.id === selectedId) ?? workdays?.[0] ?? null;
+  const distance = useMemo(() => (workday ? routeDistanceKm(workday.breadcrumbs) : 0), [workday]);
 
   useEffect(() => {
     setLiveIndex(null);
@@ -67,7 +133,7 @@ export function RouteTrackingPage() {
   }, [selectedId]);
 
   useEffect(() => {
-    if (!playing) {
+    if (!playing || !workday) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
@@ -84,7 +150,7 @@ export function RouteTrackingPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [playing, workday.breadcrumbs.length]);
+  }, [playing, workday]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,21 +162,19 @@ export function RouteTrackingPage() {
       >
         <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Günlük Rotalar</h1>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Teknisyenlerin sahada işe başladıkları andan işi sonlandırdıkları ana kadar izledikleri rota.
+          Teknisyenlerin sahada işe başladıkları andan işi sonlandırdıkları ana kadar izledikleri rota — telefonlarından
+          gönderdikleri gerçek konum verisiyle.
         </p>
       </motion.div>
 
-      <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-        <Info className="mt-0.5 size-4 shrink-0 text-primary" />
-        <p className="text-foreground/80">
-          Bu sayfadaki rota verisi <span className="font-semibold">simüle edilmiştir</span>. Gerçek canlı konum takibi için
-          teknisyen telefonunda konum izni + ~5 saniyede bir GPS ping gönderen bir backend entegrasyonu gerekir; arayüz ve
-          harita bileşeni bu veriyle birebir aynı şekilde çalışmaya hazırdır.
-        </p>
-      </div>
-
+      {workdays === null ? (
+        <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Yükleniyor…</div>
+      ) : workdays.length === 0 ? (
+        <EmptyState icon={RouteIcon} title="Aktif teknisyen yok" description="Firmanıza kayıtlı aktif bir teknisyen bulunamadı." />
+      ) : (
+      <>
       <div className="flex flex-wrap gap-1.5">
-        {technicianWorkdays.map((w) => (
+        {workdays.map((w) => (
           <button
             key={w.id}
             type="button"
@@ -131,7 +195,7 @@ export function RouteTrackingPage() {
         ))}
       </div>
 
-      {workday.status === "not_started" ? (
+      {!workday ? null : workday.status === "not_started" ? (
         <EmptyState icon={RouteIcon} title="Henüz rota yok" description={`${workday.technicianName} bugün henüz işe başlamadı.`} />
       ) : (
         <>
@@ -229,9 +293,11 @@ export function RouteTrackingPage() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            {formatDate(workday.date)} tarihli rota · {workday.breadcrumbs.length} konum kaydı (demo amaçlı seyreltilmiştir)
+            {formatDate(workday.date)} tarihli rota · {workday.breadcrumbs.length} konum kaydı
           </p>
         </>
+      )}
+      </>
       )}
     </div>
   );

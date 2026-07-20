@@ -112,6 +112,11 @@ enum WorkOrderStatus {
   cancelled
 }
 
+enum WorkdayStatus {
+  in_progress
+  completed
+}
+
 enum InvoiceStatus {
   paid
   pending
@@ -306,6 +311,8 @@ model User {
   stations           Station[]
   stationChecks      StationCheck[]
   workOrders         WorkOrder[]
+  technicianWorkdays TechnicianWorkday[]
+  locationPings      TechnicianLocationPing[]
   invoices           Invoice[]
   collections        Collection[]
   bankAccounts       BankAccount[]
@@ -715,9 +722,49 @@ model Technician {
   vehicles      Vehicle[]
   stationChecks StationCheck[]
   workOrders    WorkOrder[]
+  workdays      TechnicianWorkday[]
 
   @@index([ownerId])
   @@map("technicians")
+}
+
+/// Bir teknisyenin bir gunluk mesai oturumu - "Mesaiye Basla"/"Mesaiyi
+/// Sonlandir" ile acilir/kapanir. Gercek GPS izini TechnicianLocationPing
+/// tutar (bkz. src/components/tech/workday-tracker.tsx).
+model TechnicianWorkday {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  date      String
+  status    WorkdayStatus @default(in_progress)
+  startedAt DateTime
+  endedAt   DateTime?
+
+  pings TechnicianLocationPing[]
+
+  @@unique([technicianId, date])
+  @@index([ownerId])
+  @@map("technician_workdays")
+}
+
+model TechnicianLocationPing {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  workdayId String
+  workday   TechnicianWorkday @relation(fields: [workdayId], references: [id], onDelete: Cascade)
+
+  lat        Float
+  lng        Float
+  recordedAt DateTime
+
+  @@index([workdayId])
+  @@map("technician_location_pings")
 }
 
 model Vehicle {
