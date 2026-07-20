@@ -59,3 +59,26 @@ export const otpSchema = z.object({
 });
 
 export type OtpFormValues = z.infer<typeof otpSchema>;
+
+export const companySettingsSchema = z.object({
+  companyName: z.string().min(1, "Firma adı zorunludur"),
+  authorizedName: z.string().optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  logo: z.string().nullable().optional(),
+});
+
+export type CompanySettingsFormValues = z.infer<typeof companySettingsSchema>;
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Mevcut şifrenizi girin"),
+    newPassword: z.string().min(8, "Yeni şifre en az 8 karakter olmalıdır"),
+    confirmNewPassword: z.string().min(8, "Yeni şifre en az 8 karakter olmalıdır"),
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: "Yeni şifreler eşleşmiyor",
+    path: ["confirmNewPassword"],
+  });
+
+export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;

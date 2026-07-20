@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Award, Building2, CheckCircle2, ImagePlus, MapPin, Phone, Save, Stamp, Trash2, UserRound } from "lucide-react";
+import { Award, Building2, CheckCircle2, ImagePlus, KeyRound, MapPin, Phone, Save, Stamp, Trash2, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,45 @@ export function CompanySettingsPage() {
   const [savingCert, setSavingCert] = useState(false);
   const sealInputRef = useRef<HTMLInputElement>(null);
 
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // Firma bilgileri hesaba (veritabanına) bağlı - her cihaz/tarayıcıda aynı
+  // görünmesi için sayfa açılışında sunucudan çekilir. Mevcut PDF üretim
+  // kodları senkron olarak localStorage okuduğu için, sunucudan gelen veri
+  // localStorage'a da yazılır (bkz. saveCompanySettings).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/account/company-settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: Partial<CompanySettings> | null) => {
+        if (!data || cancelled) return;
+        const next: CompanySettings = {
+          companyName: data.companyName ?? "",
+          authorizedName: data.authorizedName ?? "",
+          address: data.address ?? "",
+          phone: data.phone ?? "",
+          logo: data.logo ?? null,
+          updatedAt: (data.updatedAt as unknown as string) ?? null,
+        };
+        saveCompanySettings(next);
+        setSettings(next);
+        setCompanyName(next.companyName);
+        setAuthorizedName(next.authorizedName);
+        setAddress(next.address);
+        setPhone(next.phone);
+        setLogo(next.logo);
+      })
+      .catch(() => {
+        // Sunucudan çekilemezse localStorage'daki (varsa) son bilinen değerler kalır.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleLogoSelect(file: File | undefined) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -65,25 +104,81 @@ export function CompanySettingsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!companyName.trim()) {
       toast.error("Firma adını girin");
       return;
     }
     setSaving(true);
-    const next: CompanySettings = {
-      companyName: companyName.trim(),
-      authorizedName: authorizedName.trim(),
-      address: address.trim(),
-      phone: phone.trim(),
-      logo,
-      updatedAt: new Date().toISOString(),
-    };
-    saveCompanySettings(next);
-    setSettings(next);
-    setSaving(false);
-    toast.success("Şirket ayarları kaydedildi");
-    window.dispatchEvent(new Event("pestshield:company-settings-updated"));
+    try {
+      const res = await fetch("/api/account/company-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: companyName.trim(),
+          authorizedName: authorizedName.trim(),
+          address: address.trim(),
+          phone: phone.trim(),
+          logo,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message ?? "Kaydedilemedi");
+      }
+      const data = await res.json();
+      const next: CompanySettings = {
+        companyName: data.companyName ?? "",
+        authorizedName: data.authorizedName ?? "",
+        address: data.address ?? "",
+        phone: data.phone ?? "",
+        logo: data.logo ?? null,
+        updatedAt: data.updatedAt ?? new Date().toISOString(),
+      };
+      saveCompanySettings(next);
+      setSettings(next);
+      toast.success("Şirket ayarları kaydedildi");
+      window.dispatchEvent(new Event("pestshield:company-settings-updated"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Kaydedilemedi");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      toast.error("Tüm şifre alanlarını doldurun");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error("Yeni şifreler eşleşmiyor");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Yeni şifre en az 8 karakter olmalıdır");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const res = await fetch("/api/account/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.message ?? "Şifre değiştirilemedi");
+      }
+      toast.success("Şifreniz güncellendi");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Şifre değiştirilemedi");
+    } finally {
+      setChangingPassword(false);
+    }
   }
 
   async function handleSealSelect(file: File | undefined) {
@@ -327,6 +422,59 @@ export function CompanySettingsPage() {
           <Button onClick={handleSaveCertTemplate} loading={savingCert} className="w-fit">
             <Save className="size-4" />
             Kaydet
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <KeyRound className="size-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Şifre Değiştir</p>
+              <p className="text-xs text-muted-foreground">Hesabınızın giriş şifresini güncelleyin.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 sm:max-w-md">
+            <div>
+              <Label className="mb-1.5">Mevcut Şifre</Label>
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                className="h-11 rounded-xl px-3.5"
+              />
+            </div>
+            <div>
+              <Label className="mb-1.5">Yeni Şifre</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                className="h-11 rounded-xl px-3.5"
+              />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">En az 8 karakter.</p>
+            </div>
+            <div>
+              <Label className="mb-1.5">Yeni Şifre (Tekrar)</Label>
+              <Input
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                autoComplete="new-password"
+                className="h-11 rounded-xl px-3.5"
+              />
+            </div>
+          </div>
+
+          <Button onClick={handleChangePassword} loading={changingPassword} className="w-fit">
+            <KeyRound className="size-4" />
+            Şifreyi Güncelle
           </Button>
         </CardContent>
       </Card>
