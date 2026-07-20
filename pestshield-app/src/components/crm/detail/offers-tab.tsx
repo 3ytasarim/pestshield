@@ -32,13 +32,12 @@ import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { OfferForm } from "@/components/crm/detail/offer-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { printOffer } from "@/components/crm/detail/print-offer";
-import { getCustomerById, type Offer } from "@/lib/mock/crm";
+import type { Customer, Offer } from "@/lib/mock/crm";
 import type { OfferFormValues } from "@/lib/validations/crm";
 
-export function OffersTab({ customerId }: { customerId: string }) {
+export function OffersTab({ customerId, customer }: { customerId: string; customer: Customer }) {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [formOpen, setFormOpen] = useState(false);
-  const customer = getCustomerById(customerId);
 
   useEffect(() => {
     fetch(`/api/crm/offers?customerId=${customerId}`)

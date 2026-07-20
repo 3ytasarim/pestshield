@@ -45,3 +45,49 @@ export const updateOccurrenceSchema = z.object({
 });
 
 export type UpdateOccurrenceValues = z.infer<typeof updateOccurrenceSchema>;
+
+const malzemeKullanimiSchema = z.object({
+  key: z.string(),
+  adet: z.string().default(""),
+  kullanildi: z.boolean().default(false),
+});
+
+export const ek1FormSchema = z.object({
+  uygulayanFirmaAdi: z.string().default(""),
+  acikAdresi: z.string().default(""),
+  mesulMudur: z.string().default(""),
+  uygulayicilar: z.string().default(""),
+  telefon: z.string().default(""),
+  izinTarihSayisi: z.string().default(""),
+  ekipSorumlusu: z.string().default(""),
+  urunTicariAdi: z.string().default(""),
+  urunUygulamaSekli: z.string().default(""),
+  urunAktifMaddesi: z.string().default(""),
+  urunAntidotu: z.string().default(""),
+  urunAmbalajMiktari: z.string().default(""),
+  uygulamaYeriAdresi: z.string().default(""),
+  hedefZararliTuru: z.string().default(""),
+  meskenIsyeriVb: z.string().default(""),
+  meskenDaireSayisi: z.string().default(""),
+  uygulamaAlani: z.string().default(""),
+  uygulamaAlaniBirimi: z.string().default("m2"),
+  kullanilanMalzemeler: z.string().default(""),
+  malzemeKullanimlari: z.array(malzemeKullanimiSchema).default([]),
+  malzemelerEtkin: z.boolean().default(false),
+  guvenlikOnlemleri: z.string().default(""),
+  ekipSorumlusuImza: z.string().default(""),
+  ekipSorumlusuImzaData: z.string().nullable().default(null),
+  yeriSorumlusuImza: z.string().default(""),
+  yeriSorumlusuImzaData: z.string().nullable().default(null),
+});
+
+export type Ek1FormValues = z.infer<typeof ek1FormSchema>;
+
+export const periyotCapaNoteSchema = z.object({
+  description: z.string().min(1, "Açıklama zorunludur"),
+  documentName: z.string().default(""),
+  documentDataUrl: z.string().nullable().default(null),
+  documentFileName: z.string().nullable().default(null),
+});
+
+export type PeriyotCapaNoteValues = z.infer<typeof periyotCapaNoteSchema>;

@@ -15,6 +15,7 @@ export interface SmtpMailConnection {
   connected: boolean;
   host: string;
   port: string;
+  requiresAuth: boolean;
   username: string;
   password: string;
   encryption: SmtpEncryption;
@@ -27,6 +28,7 @@ const DEFAULT_CONNECTION: SmtpMailConnection = {
   connected: false,
   host: "",
   port: "587",
+  requiresAuth: true,
   username: "",
   password: "",
   encryption: "tls",

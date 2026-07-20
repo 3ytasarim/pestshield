@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { CircleCheck, Clock, FileText, ReceiptText, Search } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -12,11 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatDate, formatDateTime } from "@/components/crm/crm-format";
-import { getTahakkukRows, type TahakkukDurumu, type TahakkukRow } from "@/lib/tahakkuk-report-data";
-import { getOccurrenceById, getBatchById } from "@/lib/periyot-store";
-import { getEk1FormFor } from "@/lib/ek1-form-store";
+import type { TahakkukDurumu, TahakkukRow } from "@/lib/tahakkuk-report-data";
 import { printEk1Form } from "@/lib/pdf/ek1-report";
-import { customers } from "@/lib/mock/crm";
+import type { Customer } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 const DURUM_BADGE: Record<TahakkukDurumu, string> = {
@@ -46,17 +44,27 @@ export function TahakkukReportPage() {
   const [applied, setApplied] = useState<Applied>(INITIAL_APPLIED);
   const [search, setSearch] = useState("");
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [rows, setRows] = useState<TahakkukRow[]>([]);
 
-  const rows = useMemo(
-    () =>
-      getTahakkukRows({
-        startDate: applied.startDate || undefined,
-        endDate: applied.endDate || undefined,
-        customerId: applied.customerId !== "all" ? applied.customerId : undefined,
-        durum: applied.durum !== "all" ? (applied.durum as TahakkukDurumu) : undefined,
-      }),
-    [applied],
-  );
+  useEffect(() => {
+    fetch("/api/crm/customers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customers?: Customer[] } | null) => setCustomers(data?.customers ?? []))
+      .catch(() => setCustomers([]));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (applied.startDate) params.set("startDate", applied.startDate);
+    if (applied.endDate) params.set("endDate", applied.endDate);
+    if (applied.customerId !== "all") params.set("customerId", applied.customerId);
+    if (applied.durum !== "all") params.set("durum", applied.durum);
+    fetch(`/api/reports/tahakkuk?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows?: TahakkukRow[] } | null) => setRows(data?.rows ?? []))
+      .catch(() => setRows([]));
+  }, [applied]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -72,14 +80,15 @@ export function TahakkukReportPage() {
   }
 
   async function handleOpenBelge(row: TahakkukRow) {
-    if (!row.hasEk1) return;
+    if (!row.hasEk1 || !row.ek1Form) return;
     setOpeningId(row.occurrenceId);
     try {
-      const form = getEk1FormFor(row.occurrenceId);
-      const occurrence = getOccurrenceById(row.occurrenceId);
-      const batch = getBatchById(row.batchId);
-      if (!form || !occurrence) return;
-      await printEk1Form(form, occurrence, row.customerName, batch?.name ?? row.serviceName);
+      await printEk1Form(
+        row.ek1Form,
+        { periodDate: row.periodDate, startTime: row.startTime, endTime: row.endTime },
+        row.customerName,
+        row.batchName || row.serviceName,
+      );
     } finally {
       setOpeningId(null);
     }

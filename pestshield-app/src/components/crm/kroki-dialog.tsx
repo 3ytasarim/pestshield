@@ -39,18 +39,10 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatFileSize } from "@/components/crm/crm-format";
 import { KROKI_STATION_TYPES, numberStations, stationColor } from "@/components/crm/kroki-constants";
 import { KrokiStationIdDialog } from "@/components/crm/kroki-station-id-dialog";
-import {
-  getKrokiSketchesFor,
-  addKrokiSketch,
-  updateKrokiSketch,
-  deleteKrokiSketch,
-  readKrokiFile,
-  DEFAULT_LAYER_VISIBILITY,
-} from "@/lib/kroki-store";
+import { readImageFile as readKrokiFile } from "@/lib/file-utils";
 import { compositeKrokiImage } from "@/lib/kroki-image";
-import { buildStationReportRows } from "@/lib/kat-plani-report-data";
 import { printKatPlaniIstasyonRaporu } from "@/lib/pdf/kat-plani-report";
-import { getCustomerById, type KrokiSketch, type KrokiStation, type KrokiStationType } from "@/lib/mock/crm";
+import type { Customer, KrokiSketch, KrokiStation, KrokiStationType } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 interface KrokiDialogProps {
@@ -75,8 +67,10 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
   const [addSaving, setAddSaving] = useState(false);
   const addFileInputRef = useRef<HTMLInputElement>(null);
 
-  function refresh(id: string) {
-    const list = getKrokiSketchesFor(id);
+  async function refresh(id: string) {
+    const res = await fetch(`/api/crm/service-orders/${id}/kroki-sketches`);
+    const data = res.ok ? await res.json() : null;
+    const list: KrokiSketch[] = data?.krokiSketches ?? [];
     setSketches(list);
     onCountChange(id, list.length);
   }
@@ -111,7 +105,7 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
     }
   }
 
-  function handleAddSave() {
+  async function handleAddSave() {
     if (!serviceOrderId) return;
     if (!addName.trim()) {
       toast.error("Kroki adını girin");
@@ -122,32 +116,37 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
       return;
     }
     setAddSaving(true);
-    addKrokiSketch({
-      id: `kroki-${Date.now()}`,
-      serviceOrderId,
-      name: addName.trim(),
-      createdDate: addDate,
-      imageDataUrl: addFile.dataUrl,
-      fileSizeKb: addFile.sizeKb,
-      stations: [],
-      stationSize: 24,
-      heatMapEnabled: false,
-      layerVisibility: DEFAULT_LAYER_VISIBILITY,
-      createdAt: new Date().toISOString(),
+    const res = await fetch(`/api/crm/service-orders/${serviceOrderId}/kroki-sketches`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: addName.trim(),
+        createdDate: addDate,
+        imageDataUrl: addFile.dataUrl,
+        fileSizeKb: addFile.sizeKb,
+      }),
     });
-    refresh(serviceOrderId);
+    setAddSaving(false);
+    if (!res.ok) {
+      toast.error("Kroki kaydedilemedi");
+      return;
+    }
+    await refresh(serviceOrderId);
     setAddName("");
     setAddFile(null);
     if (addFileInputRef.current) addFileInputRef.current.value = "";
-    setAddSaving(false);
     setTab("listele");
     toast.success("Kroki kaydedildi");
   }
 
-  function handleDeleteSketch(id: string) {
+  async function handleDeleteSketch(id: string) {
     if (!serviceOrderId) return;
-    deleteKrokiSketch(id);
-    refresh(serviceOrderId);
+    const res = await fetch(`/api/crm/kroki-sketches/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Kroki silinemedi");
+      return;
+    }
+    await refresh(serviceOrderId);
     toast.success("Kroki silindi");
   }
 
@@ -157,8 +156,10 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
   }
 
   async function handlePrintKatPlani(sketch: KrokiSketch) {
-    if (!serviceOrderId) return;
-    const customer = customerId ? getCustomerById(customerId) : null;
+    if (!serviceOrderId || !customerId) return;
+    const customerRes = await fetch(`/api/crm/customers/${customerId}`);
+    const customerData: { customer?: Customer } | null = customerRes.ok ? await customerRes.json() : null;
+    const customer = customerData?.customer ?? null;
     if (!customer) {
       toast.error("Müşteri bilgisi bulunamadı");
       return;
@@ -166,7 +167,9 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
     setPrintingReportId(sketch.id);
     try {
       const compositeImage = await compositeKrokiImage(sketch);
-      const rows = buildStationReportRows(serviceOrderId, sketch);
+      const rowsRes = await fetch(`/api/reports/kat-plani?serviceOrderId=${serviceOrderId}&sketchId=${sketch.id}`);
+      const rowsData = rowsRes.ok ? await rowsRes.json() : null;
+      const rows = rowsData?.rows ?? [];
       await printKatPlaniIstasyonRaporu(sketch, rows, compositeImage, customer, serviceName ?? "");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Rapor oluşturulamadı");
@@ -175,19 +178,42 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
     }
   }
 
-  function handleEditorSave(updated: KrokiSketch) {
+  async function handleEditorSave(updated: KrokiSketch) {
     if (!serviceOrderId) return;
-    updateKrokiSketch(updated.id, updated);
-    refresh(serviceOrderId);
+    const res = await fetch(`/api/crm/kroki-sketches/${updated.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: updated.name,
+        createdDate: updated.createdDate,
+        stationSize: updated.stationSize,
+        heatMapEnabled: updated.heatMapEnabled,
+        layerVisibility: updated.layerVisibility,
+        stations: updated.stations,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Kroki güncellenemedi");
+      return;
+    }
+    await refresh(serviceOrderId);
     setEditingSketch(null);
     setTab("listele");
     toast.success("Kroki güncellendi");
   }
 
-  function handleStationIdSave(stations: KrokiStation[]) {
+  async function handleStationIdSave(stations: KrokiStation[]) {
     if (!serviceOrderId || !stationIdSketch) return;
-    updateKrokiSketch(stationIdSketch.id, { stations });
-    refresh(serviceOrderId);
+    const res = await fetch(`/api/crm/kroki-sketches/${stationIdSketch.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stations }),
+    });
+    if (!res.ok) {
+      toast.error("İstasyon kimlikleri kaydedilemedi");
+      return;
+    }
+    await refresh(serviceOrderId);
     setStationIdSketch(null);
   }
 

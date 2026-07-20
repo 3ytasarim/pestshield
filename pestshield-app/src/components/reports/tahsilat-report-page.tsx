@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Printer, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -13,25 +13,34 @@ import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { PaymentMethodBadge } from "@/components/finance/finance-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { getTahsilatRows } from "@/lib/finance-report-data";
-import { printTahsilatRaporu } from "@/lib/pdf/tahsilat-report";
-import { customers } from "@/lib/mock/crm";
+import { printTahsilatRaporu, type TahsilatReportRow } from "@/lib/pdf/tahsilat-report";
+import type { Customer } from "@/lib/mock/crm";
 
 export function TahsilatReportPage() {
   const [customerId, setCustomerId] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [rows, setRows] = useState<TahsilatReportRow[]>([]);
 
-  const rows = useMemo(
-    () =>
-      getTahsilatRows({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        customerId: customerId !== "all" ? customerId : undefined,
-      }),
-    [customerId, startDate, endDate],
-  );
+  useEffect(() => {
+    fetch("/api/crm/customers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customers?: Customer[] } | null) => setCustomers(data?.customers ?? []))
+      .catch(() => setCustomers([]));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    if (customerId !== "all") params.set("customerId", customerId);
+    fetch(`/api/reports/tahsilat?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows?: TahsilatReportRow[] } | null) => setRows(data?.rows ?? []))
+      .catch(() => setRows([]));
+  }, [customerId, startDate, endDate]);
 
   const total = rows.reduce((sum, r) => sum + r.amount, 0);
   const customerLabel = customerId === "all" ? "Tüm Müşteriler" : (customers.find((c) => c.id === customerId)?.companyName ?? "—");

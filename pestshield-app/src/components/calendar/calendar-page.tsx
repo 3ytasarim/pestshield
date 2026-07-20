@@ -9,9 +9,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
-import { getAllWorkOrders, getCustomerById } from "@/lib/mock/crm";
-import { downloadIcsFile, generateIcsContent, getGoogleCalendarConnection, type GoogleCalendarConnection } from "@/lib/integrations/google-calendar";
+import type { WorkOrder } from "@/lib/mock/crm";
+import { downloadIcsFile, generateIcsContent } from "@/lib/integrations/google-calendar";
 import { cn } from "@/lib/utils";
+
+interface GoogleCalendarStatus {
+  connected: boolean;
+  calendarId?: string;
+  calendarName?: string | null;
+}
+
+type CalendarOrder = WorkOrder & { customerName: string | undefined };
 
 const DAY_LABELS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
@@ -32,10 +40,33 @@ function monthGrid(year: number, month: number): Date[] {
 
 export function CalendarPage() {
   const [monthOffset, setMonthOffset] = useState(0);
-  const [connection, setConnection] = useState<GoogleCalendarConnection | null>(null);
+  const [connection, setConnection] = useState<GoogleCalendarStatus | null>(null);
+  const [orders, setOrders] = useState<CalendarOrder[]>([]);
 
   useEffect(() => {
-    setConnection(getGoogleCalendarConnection());
+    fetch("/api/integrations/google-calendar")
+      .then((res) => (res.ok ? res.json() : { connected: false }))
+      .then(setConnection)
+      .catch(() => setConnection({ connected: false }));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetch("/api/crm/work-orders").then((res) => (res.ok ? res.json() : { workOrders: [] })),
+      fetch("/api/crm/customers").then((res) => (res.ok ? res.json() : { customers: [] })),
+    ])
+      .then(([workOrdersData, customersData]: [{ workOrders: WorkOrder[] }, { customers: { id: string; companyName: string }[] }]) => {
+        if (cancelled) return;
+        const nameById = new Map(customersData.customers.map((c) => [c.id, c.companyName]));
+        setOrders(workOrdersData.workOrders.map((o) => ({ ...o, customerName: nameById.get(o.customerId) })));
+      })
+      .catch(() => {
+        if (!cancelled) setOrders([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const baseDate = useMemo(() => {
@@ -46,8 +77,6 @@ export function CalendarPage() {
   }, [monthOffset]);
 
   const days = useMemo(() => monthGrid(baseDate.getFullYear(), baseDate.getMonth()), [baseDate]);
-
-  const orders = useMemo(() => getAllWorkOrders().map((o) => ({ ...o, customer: getCustomerById(o.customerId) })), []);
 
   const ordersByDay = useMemo(() => {
     const map = new Map<string, typeof orders>();
@@ -67,7 +96,7 @@ export function CalendarPage() {
   const todayCount = useMemo(() => (ordersByDay.get(toKey(new Date())) ?? []).length, [ordersByDay]);
 
   function exportIcs() {
-    const content = generateIcsContent(orders.map((o) => ({ ...o, customerName: o.customer?.companyName })));
+    const content = generateIcsContent(orders);
     downloadIcsFile("pestshield-servis-takvimi.ics", content);
     toast.success("Takvim dosyası indirildi (.ics)");
   }
@@ -93,7 +122,7 @@ export function CalendarPage() {
       {connection?.connected ? (
         <div className="flex items-center gap-2.5 rounded-xl border border-success/20 bg-success/5 px-4 py-3 text-sm text-success">
           <CheckCircle2 className="size-4 shrink-0" />
-          Google Calendar ile bağlı — <span className="font-mono text-xs">{connection.calendarId}</span> takvimine senkronize.
+          Google Calendar ile bağlı — <span className="font-mono text-xs">{connection.calendarName ?? connection.calendarId}</span> takvimine senkronize.
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
@@ -157,8 +186,8 @@ export function CalendarPage() {
                 </span>
                 <div className="flex flex-col gap-0.5">
                   {dayOrders.slice(0, 2).map((order) => (
-                    <div key={order.id} className="truncate rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary" title={`${order.customer?.companyName} — ${order.serviceType}`}>
-                      {order.customer?.companyName}
+                    <div key={order.id} className="truncate rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary" title={`${order.customerName} — ${order.serviceType}`}>
+                      {order.customerName}
                     </div>
                   ))}
                   {dayOrders.length > 2 && <span className="text-[10px] text-muted-foreground">+{dayOrders.length - 2} daha</span>}
@@ -176,7 +205,7 @@ export function CalendarPage() {
             <Card key={order.id} className="rounded-xl border-border/60">
               <CardContent className="flex items-center justify-between gap-2 py-3">
                 <div>
-                  <p className="text-sm font-medium text-foreground">{order.customer?.companyName}</p>
+                  <p className="text-sm font-medium text-foreground">{order.customerName}</p>
                   <p className="text-xs text-muted-foreground">
                     {order.serviceType} · {order.technician}
                   </p>

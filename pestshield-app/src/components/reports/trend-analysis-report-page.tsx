@@ -9,9 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { TrendAnalysisContent } from "@/components/crm/trend-analiz-dialog";
-import { computeTrendAnalysis, type TrendAnalysis } from "@/lib/trend-analysis";
+import type { TrendAnalysis } from "@/lib/trend-analysis";
 import { printTrendAnalysisReport } from "@/lib/pdf/trend-report";
-import { loadServiceOrders } from "@/lib/service-order-store";
 import type { Customer, ServiceOrder } from "@/lib/mock/crm";
 
 const AY_ADLARI = [
@@ -41,17 +40,49 @@ export function TrendAnalysisReportPage() {
       setServiceOrderId(null);
       return;
     }
-    const orders = loadServiceOrders().filter((o) => o.customerId === customerId);
-    setServiceOrders(orders);
-    setServiceOrderId(orders[0]?.id ?? null);
+    let cancelled = false;
+    fetch(`/api/crm/service-orders?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { serviceOrders?: ServiceOrder[] } | null) => {
+        if (cancelled) return;
+        const orders = data?.serviceOrders ?? [];
+        setServiceOrders(orders);
+        setServiceOrderId(orders[0]?.id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setServiceOrders([]);
+          setServiceOrderId(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [customerId]);
 
   const customer = customers.find((c) => c.id === customerId) ?? null;
   const serviceOrder = serviceOrders.find((o) => o.id === serviceOrderId) ?? null;
 
-  const fullAnalysis: TrendAnalysis | null = useMemo(() => {
-    if (!serviceOrderId) return null;
-    return computeTrendAnalysis(serviceOrderId);
+  const [fullAnalysis, setFullAnalysis] = useState<TrendAnalysis | null>(null);
+  const [displayAnalysis, setDisplayAnalysis] = useState<TrendAnalysis | null>(null);
+
+  useEffect(() => {
+    if (!serviceOrderId) {
+      setFullAnalysis(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/reports/trend-analysis?serviceOrderId=${serviceOrderId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { analysis?: TrendAnalysis } | null) => {
+        if (!cancelled) setFullAnalysis(data?.analysis ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setFullAnalysis(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [serviceOrderId]);
 
   const years = useMemo(() => {
@@ -72,9 +103,23 @@ export function TrendAnalysisReportPage() {
 
   const monthKey = selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : null;
 
-  const displayAnalysis: TrendAnalysis | null = useMemo(() => {
-    if (!serviceOrderId || !monthKey) return fullAnalysis;
-    return computeTrendAnalysis(serviceOrderId, monthKey);
+  useEffect(() => {
+    if (!serviceOrderId || !monthKey) {
+      setDisplayAnalysis(fullAnalysis);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/reports/trend-analysis?serviceOrderId=${serviceOrderId}&asOfMonthKey=${monthKey}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { analysis?: TrendAnalysis } | null) => {
+        if (!cancelled) setDisplayAnalysis(data?.analysis ?? fullAnalysis);
+      })
+      .catch(() => {
+        if (!cancelled) setDisplayAnalysis(fullAnalysis);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [serviceOrderId, monthKey, fullAnalysis]);
 
   async function handlePrint() {

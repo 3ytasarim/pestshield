@@ -92,13 +92,13 @@ export function CustomerTabs({ customer, value, onValueChange }: CustomerTabsPro
         <StationsTab customerId={customer.id} />
       </TabsContent>
       <TabsContent value="work-history" className="mt-4">
-        <WorkHistoryTab customerId={customer.id} />
+        <WorkHistoryTab customerId={customer.id} customer={customer} />
       </TabsContent>
       <TabsContent value="hizmetler" className="mt-4">
-        <HizmetlerTab customerId={customer.id} />
+        <HizmetlerTab customerId={customer.id} customer={customer} />
       </TabsContent>
       <TabsContent value="offers" className="mt-4">
-        <OffersTab customerId={customer.id} />
+        <OffersTab customerId={customer.id} customer={customer} />
       </TabsContent>
       <TabsContent value="contracts" className="mt-4">
         <ContractsTab customerId={customer.id} />

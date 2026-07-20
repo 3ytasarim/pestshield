@@ -3,11 +3,30 @@
 
 import { formatDate } from "@/components/crm/crm-format";
 import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
-import type { Technician } from "@/lib/mock/operations";
-import type { PdksRow } from "@/lib/pdks-report-data";
 
-export async function printPdksReport(rows: PdksRow[], technician: Technician | null, dateRangeLabel: string) {
-  const reportNo = `PDKS-${technician?.id.replace("tech-", "") ?? "TUM"}-${Date.now().toString().slice(-8)}`;
+export interface PdksRow {
+  workdayId: string;
+  technicianName: string;
+  date: string;
+  status: "in_progress" | "completed";
+  startTime: string | null;
+  endTime: string | null;
+  durationMinutes: number | null;
+  stopCount: number;
+  distanceKm: number;
+}
+
+const STATUS_LABELS: Record<PdksRow["status"], string> = {
+  in_progress: "Devam Ediyor",
+  completed: "Tamamlandı",
+};
+
+export async function printPdksReport(
+  rows: PdksRow[],
+  technician: { id: string; name: string; email?: string } | null,
+  dateRangeLabel: string,
+) {
+  const reportNo = `PDKS-${technician?.id.slice(0, 8) ?? "TUM"}-${Date.now().toString().slice(-8)}`;
 
   const totalMinutes = rows.reduce((sum, r) => sum + (r.durationMinutes ?? 0), 0);
   const totalDistance = rows.reduce((sum, r) => sum + r.distanceKm, 0);
@@ -99,7 +118,7 @@ export async function printPdksReport(rows: PdksRow[], technician: Technician | 
           <td>${fmtDuration(r.durationMinutes)}</td>
           <td>${r.stopCount}</td>
           <td class="num">${r.distanceKm.toFixed(1)}</td>
-          <td>${escapeHtml(r.statusLabel)}</td>
+          <td>${escapeHtml(STATUS_LABELS[r.status])}</td>
         </tr>`,
                 )
                 .join("")

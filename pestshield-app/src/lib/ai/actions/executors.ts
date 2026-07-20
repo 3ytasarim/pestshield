@@ -211,6 +211,7 @@ async function runSendEmail(proposal: AiActionProposal<PrepareEmailParams>): Pro
       body: JSON.stringify({
         host: smtp.host,
         port: smtp.port,
+        requiresAuth: smtp.requiresAuth,
         username: smtp.username,
         password: smtp.password,
         encryption: smtp.encryption,

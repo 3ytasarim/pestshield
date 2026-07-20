@@ -14,3 +14,10 @@ export const parasutSelectCompanySchema = z.object({
 });
 
 export type ParasutSelectCompanyValues = z.infer<typeof parasutSelectCompanySchema>;
+
+export const googleCalendarSelectCalendarSchema = z.object({
+  calendarId: z.string().min(1, "Takvim seçimi zorunludur"),
+  calendarName: z.string().min(1),
+});
+
+export type GoogleCalendarSelectCalendarValues = z.infer<typeof googleCalendarSelectCalendarSchema>;

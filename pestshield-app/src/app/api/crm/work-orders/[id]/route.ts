@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireClientOwner } from "@/lib/api-auth";
 import { workOrderPatchSchema } from "@/lib/validations/crm";
 import { serializeWorkOrder } from "@/lib/crm/serialize";
+import { syncWorkOrderToCalendar } from "@/lib/integrations/google-calendar/sync";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { ownerId, error } = await requireClientOwner();
@@ -27,5 +28,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data: parsed.data,
     include: { technician: true },
   });
+
+  try {
+    await syncWorkOrderToCalendar(ownerId, order.id);
+  } catch {
+    // Takvim senkronu iş emri güncellemesini asla engellemez — bkz. sync.ts.
+  }
+
   return NextResponse.json({ workOrder: serializeWorkOrder(order) });
 }

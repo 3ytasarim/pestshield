@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FlaskConical, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -11,11 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TechnicianMultiSelect } from "@/components/crm/technician-multiselect";
 import { getCompanySettings } from "@/lib/company-settings";
-import { technicians } from "@/lib/mock/operations";
-import { customers } from "@/lib/mock/crm";
+import type { Customer } from "@/lib/mock/crm";
 import { printBiyosidalUygulamaRaporu, type BiyosidalRaporFormValues } from "@/lib/pdf/biyosidal-uygulama-raporu";
-
-const TECHNICIAN_OPTIONS = technicians.filter((t) => t.status === "active").map((t) => t.name);
 
 function buildDefaultForm(): BiyosidalRaporFormValues {
   const company = getCompanySettings();
@@ -78,6 +75,21 @@ export function ChemicalUsageReportPage() {
   const [form, setForm] = useState<BiyosidalRaporFormValues>(() => buildDefaultForm());
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [technicianOptions, setTechnicianOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/crm/customers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customers?: Customer[] } | null) => setCustomers(data?.customers ?? []))
+      .catch(() => setCustomers([]));
+    fetch("/api/operations/technicians")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { technicians?: { name: string; status: string }[] } | null) => {
+        setTechnicianOptions((data?.technicians ?? []).filter((t) => t.status === "active").map((t) => t.name));
+      })
+      .catch(() => setTechnicianOptions([]));
+  }, []);
 
   const customer = customers.find((c) => c.id === customerId) ?? null;
   const uygulamaYeriAdresi = useMemo(
@@ -134,7 +146,7 @@ export function ChemicalUsageReportPage() {
                   <SelectValue placeholder="Seçiniz…">{() => form.mesulMudur || "Seçiniz…"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {TECHNICIAN_OPTIONS.map((name) => (
+                  {technicianOptions.map((name) => (
                     <SelectItem key={name} value={name}>
                       {name}
                     </SelectItem>
@@ -146,7 +158,7 @@ export function ChemicalUsageReportPage() {
               label="Uygulayıcı(lar) Adı, Soyadı"
               value={form.uygulayicilar}
               onChange={(v) => update({ uygulayicilar: v })}
-              options={TECHNICIAN_OPTIONS}
+              options={technicianOptions}
             />
             <BoxField label="Telefon" value={form.telefon} onChange={(v) => update({ telefon: v })} />
             <BoxField label="Müdürlük İzin Tarih ve Sayısı" value={form.izinTarihSayisi} onChange={(v) => update({ izinTarihSayisi: v })} />
@@ -157,7 +169,7 @@ export function ChemicalUsageReportPage() {
                   <SelectValue placeholder="Seçiniz…">{() => form.ekipSorumlusu || "Seçiniz…"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {TECHNICIAN_OPTIONS.map((name) => (
+                  {technicianOptions.map((name) => (
                     <SelectItem key={name} value={name}>
                       {name}
                     </SelectItem>

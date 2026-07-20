@@ -251,22 +251,22 @@ model User {
 
   /// Firma kaydı akışıyla oluşturulan müşteri hesapları için serbest metin
   /// firma adı. Tam ilişkisel Company modeli sonraki bir sprintte eklenecek.
-  companyName String?
-  shortName   String?
-  address     String?
-  country     String?
-  city        String?
-  district    String?
-  phone       String?
+  companyName     String?
+  shortName       String?
+  address         String?
+  country         String?
+  city            String?
+  district        String?
+  phone           String?
   authorizedPhone String?
   /// Firma logosu — base64 data URL (bkz. src/lib/file-utils.ts readImageFile).
-  logoUrl     String?
+  logoUrl         String?
 
   /// Biyosidal ürün uygulama ruhsatı - EK-1 formunun "Uygulamayı Yapana Ait
   /// Bilgiler" bölümüne otomatik yazılır.
-  permitDate     String?
-  permitNumber   String?
-  activityField  String?
+  permitDate    String?
+  permitNumber  String?
+  activityField String?
 
   /// Faturalama bilgileri.
   taxNumber String?
@@ -304,8 +304,8 @@ model User {
   offerItems         OfferItem[]
   serviceOrders      ServiceOrder[]
   serviceOrderItems  ServiceOrderItem[]
-  techniciansOwned   Technician[]        @relation("TechnicianOwner")
-  technicianProfile  Technician?         @relation("TechnicianUser")
+  techniciansOwned   Technician[]                  @relation("TechnicianOwner")
+  technicianProfile  Technician?                   @relation("TechnicianUser")
   vehicles           Vehicle[]
   checklistTemplates ChecklistTemplate[]
   stations           Station[]
@@ -324,10 +324,17 @@ model User {
   auditRecords       AuditRecord[]
   correctiveActions  CorrectiveAction[]
   risks              Risk[]
-  periyotBatches      PeriyotBatch[]
-  periyotOccurrences  PeriyotOccurrence[]
-  biocidalUsages      PeriyotBiocidalProductUsage[]
-  parasutIntegration  ParasutIntegration?
+  periyotBatches     PeriyotBatch[]
+  periyotOccurrences PeriyotOccurrence[]
+  biocidalUsages     PeriyotBiocidalProductUsage[]
+  krokiSketches      KrokiSketch[]
+  krokiStations      KrokiStation[]
+  stationInspections StationInspection[]
+  ek1Forms           Ek1Form[]
+  periyotCapaNotes   PeriyotCapaNote[]
+  parasutIntegration ParasutIntegration?
+  googleCalendarIntegration GoogleCalendarIntegration?
+  documents          Document[]
 
   @@map("users")
 }
@@ -399,7 +406,7 @@ model LicenseCode {
 
   /// Kod sadece bu firma hesabıyla kullanılabilir.
   targetUserId String
-  targetUser   User        @relation("LicenseCodeTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetUser   User   @relation("LicenseCodeTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   createdByUserId String
   createdBy       User   @relation("LicenseCodeCreator", fields: [createdByUserId], references: [id])
@@ -421,68 +428,68 @@ model Customer {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  companyName   String
-  taxNumber     String       @default("")
-  taxOffice     String       @default("")
-  sector        String       @default("")
-  customerType  CustomerType @default(Kurumsal)
-  isPotential   Boolean      @default(false)
-  status        CustomerStatus @default(active)
-  shortName     String       @default("")
-  logo          String?
-  contactName   String       @default("")
-  contactTitle  String       @default("")
-  contactPhone  String       @default("")
-  contactEmail  String       @default("")
-  country       String       @default("Türkiye")
-  city          String       @default("")
-  district      String       @default("")
-  addressLine   String       @default("")
-  postalCode    String       @default("")
-  iban          String       @default("")
-  portalEmail   String       @default("")
-  portalPassword String      @default("")
+  companyName    String
+  taxNumber      String         @default("")
+  taxOffice      String         @default("")
+  sector         String         @default("")
+  customerType   CustomerType   @default(Kurumsal)
+  isPotential    Boolean        @default(false)
+  status         CustomerStatus @default(active)
+  shortName      String         @default("")
+  logo           String?
+  contactName    String         @default("")
+  contactTitle   String         @default("")
+  contactPhone   String         @default("")
+  contactEmail   String         @default("")
+  country        String         @default("Türkiye")
+  city           String         @default("")
+  district       String         @default("")
+  addressLine    String         @default("")
+  postalCode     String         @default("")
+  iban           String         @default("")
+  portalEmail    String         @default("")
+  portalPassword String         @default("")
 
   sendServiceReportEmail    Boolean @default(true)
   sendTrendAnalysisEmail    Boolean @default(true)
   sendCorrectiveActionEmail Boolean @default(true)
 
-  serviceType        String @default("")
-  servicePeriod      String @default("")
-  operationsManager  String @default("")
-  salesRep           String @default("")
-  riskLevel          RiskLevel @default(low)
-  accountCode        String @default("")
-  paymentTermDays    Int    @default(30)
-  invoiceEmail       String @default("")
-  currency           String @default("TRY")
-  riskScore          Int    @default(15)
-  auditReadinessScore Int   @default(70)
+  serviceType         String    @default("")
+  servicePeriod       String    @default("")
+  operationsManager   String    @default("")
+  salesRep            String    @default("")
+  riskLevel           RiskLevel @default(low)
+  accountCode         String    @default("")
+  paymentTermDays     Int       @default(30)
+  invoiceEmail        String    @default("")
+  currency            String    @default("TRY")
+  riskScore           Int       @default(15)
+  auditReadinessScore Int       @default(70)
 
-  lastServiceDate String  @default("")
-  nextServiceDate String  @default("")
+  lastServiceDate   String  @default("")
+  nextServiceDate   String  @default("")
   pendingCollection Decimal @default(0) @db.Decimal(12, 2)
-  contractEndDate String?
+  contractEndDate   String?
 
   createdAt DateTime @default(now())
 
-  fax               String  @default("")
-  parasutContactId  String? @unique
+  fax              String  @default("")
+  parasutContactId String? @unique
 
-  branches      Branch[]
-  contacts      Contact[]
-  addresses     Address[]
-  locations     Location[]
-  contracts     Contract[]
-  offers        Offer[]
-  serviceOrders ServiceOrder[]
-  stations      Station[]
-  workOrders    WorkOrder[]
-  invoices      Invoice[]
-  collections   Collection[]
-  auditRecords      AuditRecord[]
-  correctiveActions CorrectiveAction[]
-  risks             Risk[]
+  branches           Branch[]
+  contacts           Contact[]
+  addresses          Address[]
+  locations          Location[]
+  contracts          Contract[]
+  offers             Offer[]
+  serviceOrders      ServiceOrder[]
+  stations           Station[]
+  workOrders         WorkOrder[]
+  invoices           Invoice[]
+  collections        Collection[]
+  auditRecords       AuditRecord[]
+  correctiveActions  CorrectiveAction[]
+  risks              Risk[]
   periyotOccurrences PeriyotOccurrence[]
 
   @@index([ownerId])
@@ -612,13 +619,13 @@ model Offer {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  offerNo     String
-  title       String
-  amount      Decimal     @default(0) @db.Decimal(12, 2)
-  currency    String      @default("TRY")
-  validUntil  String
-  status      OfferStatus @default(draft)
-  createdAt   String
+  offerNo    String
+  title      String
+  amount     Decimal     @default(0) @db.Decimal(12, 2)
+  currency   String      @default("TRY")
+  validUntil String
+  status     OfferStatus @default(draft)
+  createdAt  String
 
   items OfferItem[]
 
@@ -653,12 +660,12 @@ model ServiceOrder {
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   serviceNo         String
-  description       String  @default("")
-  contractStartDate String  @default("")
-  contractEndDate   String  @default("")
-  assignedPersonnel String  @default("")
-  periodDays        Int     @default(1)
-  withholdingTax    String  @default("none")
+  description       String @default("")
+  contractStartDate String @default("")
+  contractEndDate   String @default("")
+  assignedPersonnel String @default("")
+  periodDays        Int    @default(1)
+  withholdingTax    String @default("none")
 
   subtotal          Decimal @default(0) @db.Decimal(12, 2)
   vatTotal          Decimal @default(0) @db.Decimal(12, 2)
@@ -679,6 +686,7 @@ model ServiceOrder {
   items              ServiceOrderItem[]
   periyotBatches     PeriyotBatch[]
   periyotOccurrences PeriyotOccurrence[]
+  krokiSketches      KrokiSketch[]
 
   @@index([ownerId])
   @@index([customerId])
@@ -772,18 +780,18 @@ model Vehicle {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  plate                 String
-  brand                 String        @default("")
-  model                 String        @default("")
-  assignedTechnicianId  String?
-  assignedTechnician    Technician?   @relation(fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
-  warehouseId           String?
-  warehouse             Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
-  registrationNumber    String        @default("")
-  registrationExpiry    String        @default("")
-  inspectionDue         String        @default("")
-  insuranceDue          String        @default("")
-  status                VehicleStatus @default(active)
+  plate                String
+  brand                String        @default("")
+  model                String        @default("")
+  assignedTechnicianId String?
+  assignedTechnician   Technician?   @relation(fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  warehouseId          String?
+  warehouse            Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  registrationNumber   String        @default("")
+  registrationExpiry   String        @default("")
+  inspectionDue        String        @default("")
+  insuranceDue         String        @default("")
+  status               VehicleStatus @default(active)
 
   @@index([ownerId])
   @@index([assignedTechnicianId])
@@ -876,6 +884,9 @@ model WorkOrder {
   stationsChecked Int             @default(0)
   technicianNote  String          @default("")
   customerSigned  Boolean         @default(false)
+
+  /// Bu iş emrine karşılık gelen Google Takvim etkinliğinin id'si (bkz. google-calendar/sync.ts).
+  googleEventId String?
 
   @@index([ownerId])
   @@index([customerId])
@@ -1002,7 +1013,7 @@ model Product {
   defaultDose      String?
   targetOrganisms  String?
 
-  transactions StockTransaction[]
+  transactions   StockTransaction[]
   biocidalUsages PeriyotBiocidalProductUsage[]
 
   @@index([ownerId])
@@ -1039,10 +1050,10 @@ model ComplianceChecklistItem {
   sectionTitle String
   itemCode     String
   title        String
-  description  String          @default("")
-  status       ChecklistStatus @default(pending)
-  evidenceNote String          @default("")
-  reviewedBy   String          @default("")
+  description  String             @default("")
+  status       ChecklistStatus    @default(pending)
+  evidenceNote String             @default("")
+  reviewedBy   String             @default("")
   reviewDate   String
 
   @@index([ownerId])
@@ -1078,17 +1089,17 @@ model CorrectiveAction {
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
-  title         String
-  standard      ComplianceStandard?
-  source        CapaSource
-  severity      CapaSeverity
-  rootCause     String
-  actionPlan    String
-  responsible   String
-  createdDate   String
-  dueDate       String
-  resolvedDate  String?
-  status        CapaStatus @default(open)
+  title        String
+  standard     ComplianceStandard?
+  source       CapaSource
+  severity     CapaSeverity
+  rootCause    String
+  actionPlan   String
+  responsible  String
+  createdDate  String
+  dueDate      String
+  resolvedDate String?
+  status       CapaStatus          @default(open)
 
   @@index([ownerId])
   @@index([customerId])
@@ -1109,8 +1120,8 @@ model Risk {
   likelihood  Int
   impact      Int
   mitigation  String
-  ownerName   String @map("owner_name")
-  status      AuditRiskStatus @default(open)
+  ownerName   String            @map("owner_name")
+  status      AuditRiskStatus   @default(open)
   reviewDate  String
 
   @@index([ownerId])
@@ -1162,6 +1173,9 @@ model PeriyotOccurrence {
   createdAt String
 
   biocidalProductUsages PeriyotBiocidalProductUsage[]
+  stationInspections    StationInspection[]
+  periyotCapaNotes      PeriyotCapaNote[]
+  ek1Form               Ek1Form?
 
   @@index([ownerId])
   @@index([batchId])
@@ -1189,6 +1203,160 @@ model PeriyotBiocidalProductUsage {
   @@map("periyot_biocidal_product_usages")
 }
 
+enum KrokiStationType {
+  zehirli
+  zehirsiz
+  ic_uckun
+  dis_uckun
+}
+
+model KrokiSketch {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  name           String
+  createdDate    String
+  imageDataUrl   String
+  fileSizeKb     Int     @default(0)
+  stationSize    Int     @default(24)
+  heatMapEnabled Boolean @default(false)
+
+  zehirliVisible  Boolean @default(true)
+  zehirsizVisible Boolean @default(true)
+  icUckunVisible  Boolean @default(true)
+  disUckunVisible Boolean @default(true)
+
+  createdAt String
+
+  stations    KrokiStation[]
+  inspections StationInspection[]
+
+  @@index([ownerId])
+  @@index([serviceOrderId])
+  @@map("kroki_sketches")
+}
+
+model KrokiStation {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  krokiSketchId String
+  krokiSketch   KrokiSketch @relation(fields: [krokiSketchId], references: [id], onDelete: Cascade)
+
+  type      KrokiStationType
+  x         Float
+  y         Float
+  stationId String           @default("")
+
+  inspections StationInspection[]
+
+  @@index([ownerId])
+  @@index([krokiSketchId])
+  @@map("kroki_stations")
+}
+
+model StationInspection {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  periyotOccurrenceId String
+  periyotOccurrence   PeriyotOccurrence @relation(fields: [periyotOccurrenceId], references: [id], onDelete: Cascade)
+
+  krokiSketchId String
+  krokiSketch   KrokiSketch @relation(fields: [krokiSketchId], references: [id], onDelete: Cascade)
+
+  krokiStationId String
+  krokiStation   KrokiStation @relation(fields: [krokiStationId], references: [id], onDelete: Cascade)
+
+  stationType KrokiStationType
+
+  tuketim        String?
+  hareket        String?
+  tur1           String?
+  tur2           String?
+  degisim        String?
+  tur            String?
+  sayim          String?
+  olcum          String?
+  florasanDurumu String?
+
+  @@index([ownerId])
+  @@index([periyotOccurrenceId])
+  @@index([krokiStationId])
+  @@map("station_inspections")
+}
+
+model Ek1Form {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  periyotOccurrenceId String            @unique
+  periyotOccurrence   PeriyotOccurrence @relation(fields: [periyotOccurrenceId], references: [id], onDelete: Cascade)
+
+  uygulayanFirmaAdi String @default("")
+  acikAdresi        String @default("")
+  mesulMudur        String @default("")
+  uygulayicilar     String @default("")
+  telefon           String @default("")
+  izinTarihSayisi   String @default("")
+  ekipSorumlusu     String @default("")
+
+  urunTicariAdi      String @default("")
+  urunUygulamaSekli  String @default("")
+  urunAktifMaddesi   String @default("")
+  urunAntidotu       String @default("")
+  urunAmbalajMiktari String @default("")
+
+  uygulamaYeriAdresi  String @default("")
+  hedefZararliTuru    String @default("")
+  meskenIsyeriVb      String @default("")
+  meskenDaireSayisi   String @default("")
+  uygulamaAlani       String @default("")
+  uygulamaAlaniBirimi String @default("m2")
+
+  kullanilanMalzemeler String  @default("")
+  malzemeKullanimlari  Json    @default("[]")
+  malzemelerEtkin      Boolean @default(false)
+  guvenlikOnlemleri    String  @default("")
+
+  ekipSorumlusuImza     String  @default("")
+  ekipSorumlusuImzaData String?
+  yeriSorumlusuImza     String  @default("")
+  yeriSorumlusuImzaData String?
+
+  updatedAt String
+
+  @@index([ownerId])
+  @@map("ek1_forms")
+}
+
+model PeriyotCapaNote {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  periyotOccurrenceId String
+  periyotOccurrence   PeriyotOccurrence @relation(fields: [periyotOccurrenceId], references: [id], onDelete: Cascade)
+
+  description      String
+  documentName     String  @default("")
+  documentDataUrl  String?
+  documentFileName String?
+
+  createdAt String
+
+  @@index([ownerId])
+  @@index([periyotOccurrenceId])
+  @@map("periyot_capa_notes")
+}
+
 /// Firma başına tek Paraşüt (muhasebe SaaS) OAuth2 bağlantısı — clientSecret ve
 /// token'lar sunucu tarafında AES-256-GCM ile şifreli tutulur (bkz. src/lib/crypto.ts),
 /// tarayıcıya asla düz metin olarak gönderilmez.
@@ -1213,6 +1381,50 @@ model ParasutIntegration {
   lastSyncCount  Int       @default(0)
 
   @@map("parasut_integrations")
+}
+
+/// Şirket düzeyinde (müşteri/servis emrine bağlı olmayan) genel belgeler —
+/// ruhsat, sigorta poliçesi, sözleşme şablonu vb. Entegrasyonlar'daki ServiceOrder
+/// sözleşme eki ile aynı desen: dosya base64 data URL olarak saklanır.
+model Document {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name         String
+  fileDataUrl  String @db.Text
+  fileName     String
+  fileSizeKb   Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@map("documents")
+}
+
+/// Google Calendar entegrasyonu — PestShield TEK bir paylaşımlı Google OAuth
+/// uygulaması olarak kayıtlıdır (GOOGLE_OAUTH_CLIENT_ID/SECRET ortam
+/// değişkenleri), Paraşüt'ten farklı olarak kiracı başına client id/secret YOK.
+/// Her kiracı sadece "Google ile Bağlan" der, kendi access/refresh token'ı
+/// burada (şifreli) saklanır.
+model GoogleCalendarIntegration {
+  id      String @id @default(uuid())
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  tokenExpiresAt  DateTime?
+
+  calendarId   String  @default("primary")
+  calendarName String?
+
+  connectedAt    DateTime?
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+  lastSyncCount  Int       @default(0)
+
+  @@map("google_calendar_integrations")
 }
 
 /// PestShield tarafından üretilip yeni müşteri firmalara iletilen katılım kodu.

@@ -19,7 +19,6 @@ import { TextField, TextareaField, SelectField, CurrencyField, FieldWrapper, For
 import { formatCurrency } from "@/components/crm/crm-format";
 import { hizmetFormSchema, type HizmetFormValues } from "@/lib/validations/crm";
 import { VAT_RATE_OPTIONS, WITHHOLDING_TAX_OPTIONS, withholdingFraction } from "@/components/crm/crm-labels";
-import { technicians } from "@/lib/mock/operations";
 import { readDocumentFile } from "@/lib/service-document-store";
 import type { Customer } from "@/lib/mock/crm";
 
@@ -27,10 +26,6 @@ export interface ContractFileValue {
   fileDataUrl: string | null;
   fileName: string | null;
 }
-
-const TECHNICIAN_OPTIONS = technicians
-  .filter((t) => t.status === "active")
-  .map((t) => ({ value: t.name, label: t.name }));
 
 function VatRateField({ name, control, label }: { name: `items.${number}.vatRate`; control: Control<HizmetFormValues>; label: string }) {
   return (
@@ -90,7 +85,22 @@ export function HizmetForm({ open, onOpenChange, onSubmit, customer, defaultValu
   const withholdingTax = useWatch({ control, name: "withholdingTax" });
 
   const [contractFile, setContractFile] = useState<{ dataUrl: string; fileName: string } | null>(null);
+  const [technicianOptions, setTechnicianOptions] = useState<{ value: string; label: string }[]>([]);
   const contractInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/operations/technicians")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { technicians?: { name: string; status: string }[] } | null) => {
+        setTechnicianOptions(
+          (data?.technicians ?? [])
+            .filter((t) => t.status === "active")
+            .map((t) => ({ value: t.name, label: t.name })),
+        );
+      })
+      .catch(() => setTechnicianOptions([]));
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -166,7 +176,7 @@ export function HizmetForm({ open, onOpenChange, onSubmit, customer, defaultValu
               label="İlgili Personel"
               name="assignedPersonnel"
               control={control}
-              options={TECHNICIAN_OPTIONS}
+              options={technicianOptions}
               placeholder="Saha teknisyeni seçin"
               error={errors.assignedPersonnel?.message}
             />

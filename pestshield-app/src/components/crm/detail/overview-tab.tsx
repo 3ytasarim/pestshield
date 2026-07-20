@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Building2,
@@ -18,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { CustomerTypeBadge, PotentialBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { getActivity, type ActivityType, type Customer } from "@/lib/mock/crm";
+import type { ActivityItem, ActivityType, Customer } from "@/lib/mock/crm";
 
 const ACTIVITY_ICON: Record<ActivityType, typeof ClipboardList> = {
   service_completed: ClipboardList,
@@ -41,8 +42,15 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof User; label: strin
 }
 
 export function OverviewTab({ customer }: { customer: Customer }) {
-  const activity = getActivity(customer.id);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const riskOpenCount = customer.riskLevel === "critical" ? 4 : customer.riskLevel === "high" ? 3 : customer.riskLevel === "medium" ? 1 : 0;
+
+  useEffect(() => {
+    fetch(`/api/crm/customers/${customer.id}/activity`)
+      .then((res) => res.json())
+      .then((data) => setActivity(data.activity ?? []))
+      .catch(() => setActivity([]));
+  }, [customer.id]);
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -156,22 +164,26 @@ export function OverviewTab({ customer }: { customer: Customer }) {
           <CardTitle>Son Aktiviteler</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="flex flex-col gap-3">
-            {activity.map((item) => {
-              const Icon = ACTIVITY_ICON[item.type];
-              return (
-                <li key={item.id} className="flex items-start gap-2.5 text-sm">
-                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <Icon className="size-3.5 text-primary" />
-                  </span>
-                  <div>
-                    <p className="text-foreground/90">{item.message}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          {activity.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Henüz aktivite bulunmuyor.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {activity.map((item) => {
+                const Icon = ACTIVITY_ICON[item.type];
+                return (
+                  <li key={item.id} className="flex items-start gap-2.5 text-sm">
+                    <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Icon className="size-3.5 text-primary" />
+                    </span>
+                    <div>
+                      <p className="text-foreground/90">{item.message}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>

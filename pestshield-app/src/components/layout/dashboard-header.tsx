@@ -23,7 +23,7 @@ import { PestShieldFmWidget } from "@/components/layout/pestshield-fm-widget";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useCommandPalette } from "@/components/layout/command-palette-context";
 import { useAiPanel } from "@/components/ai-assistant/ai-panel-context";
-import { getPageTitle } from "@/components/layout/nav-config";
+import { getPageTitle, matchCustomerDetailPath } from "@/components/layout/nav-config";
 import { getCompanySettings } from "@/lib/company-settings";
 import {
   Breadcrumb,
@@ -43,13 +43,27 @@ export function DashboardHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-  const currentLabel = getPageTitle(pathname);
   const { openPalette } = useCommandPalette();
   const { openAiPanel } = useAiPanel();
 
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [customerDetailLabel, setCustomerDetailLabel] = useState<string | null>(null);
   const role = session?.user?.role;
+  const customerDetailId = matchCustomerDetailPath(pathname);
+  const currentLabel = customerDetailId ? (customerDetailLabel ?? getPageTitle(pathname)) : getPageTitle(pathname);
+
+  useEffect(() => {
+    if (!customerDetailId) {
+      setCustomerDetailLabel(null);
+      return;
+    }
+    setCustomerDetailLabel(null);
+    fetch(`/api/crm/customers/${customerDetailId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setCustomerDetailLabel(data?.customer?.companyName ?? null))
+      .catch(() => setCustomerDetailLabel(null));
+  }, [customerDetailId]);
 
   useEffect(() => {
     if (role !== "CLIENT") return;

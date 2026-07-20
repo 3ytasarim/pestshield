@@ -4,11 +4,16 @@
 // analiz verisi. Krokiye özel değil, hizmetin geneli için tek bir analizdir.
 // Her ay için o ayın SON periyot ziyaretindeki kayıtlar temsilci alınır.
 
-import type { KrokiSketch, KrokiStation, KrokiStationType, PeriyotOccurrence, StationInspection } from "@/lib/mock/crm";
+import type { KrokiSketch, KrokiStation, KrokiStationType, StationInspection } from "@/lib/mock/crm";
 import { KROKI_STATION_TYPES, numberStations, stationLabel } from "@/components/crm/kroki-constants";
-import { getKrokiSketchesFor } from "@/lib/kroki-store";
-import { getBatchesFor, getOccurrencesFor } from "@/lib/periyot-store";
-import { getInspectionsFor } from "@/lib/station-inspection-store";
+import { prisma } from "@/lib/db";
+import { serializeKrokiSketch, serializeStationInspection } from "@/lib/kroki/serialize";
+
+interface TrendOccurrence {
+  id: string;
+  periodDate: string;
+  biocidalProducts: string;
+}
 
 const AY_ADLARI = [
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
@@ -89,11 +94,13 @@ export interface TrendAnalysis {
   biocidalRecords: { monthLabel: string; occurrenceDate: string; text: string }[];
 }
 
-function allOccurrencesFor(serviceOrderId: string): PeriyotOccurrence[] {
-  const batches = getBatchesFor(serviceOrderId);
-  return batches
-    .flatMap((b) => getOccurrencesFor(b.id))
-    .sort((a, b) => (a.periodDate < b.periodDate ? -1 : a.periodDate > b.periodDate ? 1 : 0));
+async function allOccurrencesFor(ownerId: string, serviceOrderId: string): Promise<TrendOccurrence[]> {
+  const occurrences = await prisma.periyotOccurrence.findMany({
+    where: { ownerId, serviceOrderId },
+    select: { id: true, periodDate: true, biocidalProducts: true },
+    orderBy: { periodDate: "asc" },
+  });
+  return occurrences;
 }
 
 /** Bir hizmete ait tüm istasyonları, hangi krokiye ait olduğu bilgisiyle birlikte
@@ -114,14 +121,34 @@ function flattenStations(sketches: KrokiSketch[]): {
   return result;
 }
 
-export function computeTrendAnalysis(serviceOrderId: string, asOfMonthKey?: string): TrendAnalysis {
-  const sketches = getKrokiSketchesFor(serviceOrderId);
+export async function computeTrendAnalysis(ownerId: string, serviceOrderId: string, asOfMonthKey?: string): Promise<TrendAnalysis> {
+  const [sketchRecords, occurrences] = await Promise.all([
+    prisma.krokiSketch.findMany({ where: { ownerId, serviceOrderId }, include: { stations: true } }),
+    allOccurrencesFor(ownerId, serviceOrderId),
+  ]);
+  const sketches = sketchRecords.map(serializeKrokiSketch);
   const sketchIds = new Set(sketches.map((s) => s.id));
-  const occurrences = allOccurrencesFor(serviceOrderId);
 
-  const byMonth = new Map<string, PeriyotOccurrence>();
+  const allInspections = occurrences.length
+    ? (
+        await prisma.stationInspection.findMany({
+          where: { ownerId, periyotOccurrenceId: { in: occurrences.map((o) => o.id) } },
+        })
+      ).map(serializeStationInspection)
+    : [];
+  const inspectionsByOccurrence = new Map<string, StationInspection[]>();
+  for (const insp of allInspections) {
+    const list = inspectionsByOccurrence.get(insp.periyotOccurrenceId) ?? [];
+    list.push(insp);
+    inspectionsByOccurrence.set(insp.periyotOccurrenceId, list);
+  }
+  function inspectionsFor(occurrenceId: string): StationInspection[] {
+    return (inspectionsByOccurrence.get(occurrenceId) ?? []).filter((i) => sketchIds.has(i.krokiSketchId));
+  }
+
+  const byMonth = new Map<string, TrendOccurrence>();
   for (const occ of occurrences) {
-    const insp = getInspectionsFor(occ.id).filter((i) => sketchIds.has(i.krokiSketchId));
+    const insp = inspectionsFor(occ.id);
     if (insp.length === 0) continue;
     const key = monthKeyOf(occ.periodDate);
     const existing = byMonth.get(key);
@@ -131,7 +158,7 @@ export function computeTrendAnalysis(serviceOrderId: string, asOfMonthKey?: stri
   let months: TrendMonthEntry[] = Array.from(byMonth.entries())
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([monthKey, occ]) => {
-      const inspList = getInspectionsFor(occ.id).filter((i) => sketchIds.has(i.krokiSketchId));
+      const inspList = inspectionsFor(occ.id);
       const inspections: Record<string, StationInspection> = {};
       for (const i of inspList) inspections[i.krokiStationId] = i;
       return { monthKey, monthLabel: monthLabelOf(occ.periodDate), occurrenceId: occ.id, occurrenceDate: occ.periodDate, inspections };

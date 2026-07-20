@@ -1,54 +1,9 @@
-// Google Calendar entegrasyonu — bağlantı durumu ve .ics (iCalendar) dışa aktarım yardımcıları.
-//
-// ÖNEMLİ: Bu ortamda gerçek Google OAuth akışı (kullanıcıyı accounts.google.com'a
-// yönlendirip token almak) çalıştırılamaz — bunun için gerçek bir Google Cloud
-// projesi, OAuth Client ID/Secret ve onaylı bir redirect URI gerekir. Aşağıdaki
-// bağlantı durumu bu yüzden yerel olarak (localStorage) simüle edilir; formu
-// dolduran kullanıcı "bağlandı" sayılır. Üretimde bu dosya gerçek OAuth2 + Google
-// Calendar REST API çağrılarıyla değiştirilir; arayüz (Entegrasyonlar/Takvim
-// sayfaları) zaten bu veri şekliyle çalışmaya hazırdır.
-//
-// Gerçek ve çalışan kısım: aşağıdaki .ics üretimi — iş emirlerini standart
-// iCalendar formatında dışa aktarır, Google Calendar/Outlook/Apple Calendar'a
-// içe aktarılabilir (RFC 5545 uyumlu).
+// Google Calendar .ics (iCalendar) dışa aktarım yardımcıları — iş emirlerini
+// standart iCalendar formatında dışa aktarır, Google Calendar/Outlook/Apple
+// Calendar'a içe aktarılabilir (RFC 5545 uyumlu). Gerçek OAuth2 tabanlı canlı
+// senkronizasyon için bkz. src/lib/integrations/google-calendar/ (client.ts, sync.ts).
 
 import type { WorkOrder } from "@/lib/mock/crm";
-
-const STORAGE_KEY = "pestshield.integrations.googleCalendar";
-
-export interface GoogleCalendarConnection {
-  connected: boolean;
-  clientId: string;
-  calendarId: string;
-  connectedAt: string | null;
-}
-
-const DEFAULT_CONNECTION: GoogleCalendarConnection = {
-  connected: false,
-  clientId: "",
-  calendarId: "",
-  connectedAt: null,
-};
-
-export function getGoogleCalendarConnection(): GoogleCalendarConnection {
-  if (typeof window === "undefined") return DEFAULT_CONNECTION;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONNECTION;
-    return { ...DEFAULT_CONNECTION, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_CONNECTION;
-  }
-}
-
-export function saveGoogleCalendarConnection(conn: GoogleCalendarConnection) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(conn));
-}
-
-export function disconnectGoogleCalendar() {
-  saveGoogleCalendarConnection(DEFAULT_CONNECTION);
-}
 
 function icsEscape(value: string): string {
   return value.replace(/[\\,;]/g, (m) => `\\${m}`).replace(/\n/g, "\\n");

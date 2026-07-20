@@ -5,6 +5,8 @@ import { formatDate, formatDateLong } from "@/components/crm/crm-format";
 import { escapeHtml, openPrintWindow } from "@/lib/pdf/shared";
 import type { Ek1Form, PeriyotOccurrence } from "@/lib/mock/crm";
 
+type Ek1PrintOccurrence = Pick<PeriyotOccurrence, "periodDate" | "startTime" | "endTime">;
+
 function row(label: string, value: string): string {
   return `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`;
 }
@@ -13,7 +15,7 @@ function sectionHeader(title: string): string {
   return `<tr class="section"><td colspan="2">${escapeHtml(title)}</td></tr>`;
 }
 
-export async function printEk1Form(form: Ek1Form, occurrence: PeriyotOccurrence, customerName: string, batchName: string) {
+export async function printEk1Form(form: Ek1Form, occurrence: Ek1PrintOccurrence, customerName: string, batchName: string) {
   const timeRange = `${formatDateLong(occurrence.periodDate)} ${occurrence.startTime} - ${occurrence.endTime}`;
 
   const html = `<!doctype html>

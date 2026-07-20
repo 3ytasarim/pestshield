@@ -18,14 +18,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDateLong } from "@/components/crm/crm-format";
 import { SignaturePad } from "@/components/crm/signature-pad";
 import { TechnicianMultiSelect } from "@/components/crm/technician-multiselect";
-import { getEk1FormFor, saveEk1Form } from "@/lib/ek1-form-store";
 import { printEk1Form } from "@/lib/pdf/ek1-report";
 import { getCompanySettings } from "@/lib/company-settings";
-import { technicians } from "@/lib/mock/operations";
-import { getCustomerById, type Ek1Form, type PeriyotOccurrence } from "@/lib/mock/crm";
+import type { Ek1Form, PeriyotOccurrence } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
-const TECHNICIAN_OPTIONS = technicians.filter((t) => t.status === "active").map((t) => t.name);
+export interface Ek1CustomerInfo {
+  companyName: string;
+  addressLine: string;
+  district: string;
+  city: string;
+  contactName: string;
+}
 
 interface Ek1DialogProps {
   open: boolean;
@@ -43,9 +47,8 @@ export function summarizeBiocidalUsages(occurrence: PeriyotOccurrence): string {
     .join(", ");
 }
 
-export function buildDefaultEk1Form(occurrence: PeriyotOccurrence, customerId: string | null): Ek1Form {
+export function buildDefaultEk1Form(occurrence: PeriyotOccurrence, customer: Ek1CustomerInfo | null): Ek1Form {
   const company = getCompanySettings();
-  const customer = customerId ? getCustomerById(customerId) : null;
   const address = customer
     ? [customer.addressLine, customer.district, customer.city].filter(Boolean).join(", ")
     : "";
@@ -86,29 +89,75 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
   const [form, setForm] = useState<Ek1Form | null>(null);
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [customer, setCustomer] = useState<Ek1CustomerInfo | null>(null);
+  const [technicianOptions, setTechnicianOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    if (open && occurrence) {
-      const existing = getEk1FormFor(occurrence.id);
-      const base = existing ?? buildDefaultEk1Form(occurrence, customerId);
-      setForm({
-        ...base,
-        ekipSorumlusuImzaData: base.ekipSorumlusuImzaData ?? null,
-        yeriSorumlusuImzaData: base.yeriSorumlusuImzaData ?? null,
+    if (!open) return;
+    fetch("/api/operations/technicians")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { technicians?: { name: string; status: string }[] } | null) => {
+        setTechnicianOptions((data?.technicians ?? []).filter((t) => t.status === "active").map((t) => t.name));
+      })
+      .catch(() => setTechnicianOptions([]));
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !customerId) return;
+    let cancelled = false;
+    fetch(`/api/crm/customers/${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customer?: Ek1CustomerInfo } | null) => {
+        if (!cancelled && data?.customer) setCustomer(data.customer);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, customerId]);
+
+  useEffect(() => {
+    if (!open || !occurrence) return;
+    let cancelled = false;
+    fetch(`/api/crm/periyot/occurrences/${occurrence.id}/ek1`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { ek1Form?: Ek1Form | null } | null) => {
+        if (cancelled) return;
+        const base = data?.ek1Form ?? buildDefaultEk1Form(occurrence, customer);
+        setForm({
+          ...base,
+          ekipSorumlusuImzaData: base.ekipSorumlusuImzaData ?? null,
+          yeriSorumlusuImzaData: base.yeriSorumlusuImzaData ?? null,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setForm(buildDefaultEk1Form(occurrence, customer));
       });
-    }
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, occurrence?.id]);
+  }, [open, occurrence?.id, customer]);
 
   function update(patch: Partial<Ek1Form>) {
     setForm((prev) => (prev ? { ...prev, ...patch } : prev));
   }
 
-  function handleSave() {
-    if (!form) return;
+  async function handleSave() {
+    if (!form || !occurrence) return;
     setSaving(true);
-    saveEk1Form({ ...form, updatedAt: new Date().toISOString() });
+    const res = await fetch(`/api/crm/periyot/occurrences/${occurrence.id}/ek1`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
     setSaving(false);
+    if (!res.ok) {
+      toast.error("EK-1 formu kaydedilemedi");
+      return;
+    }
+    const data = await res.json();
+    setForm(data.ek1Form);
     toast.success("EK-1 formu kaydedildi");
     onSaved?.();
   }
@@ -117,7 +166,6 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
     if (!form || !occurrence) return;
     setPrinting(true);
     try {
-      const customer = customerId ? getCustomerById(customerId) : null;
       await printEk1Form(form, occurrence, customer?.companyName ?? "", batchName);
     } finally {
       setPrinting(false);
@@ -155,7 +203,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
                       <SelectValue placeholder="Seçiniz…">{() => form.mesulMudur || "Seçiniz…"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {TECHNICIAN_OPTIONS.map((name) => (
+                      {technicianOptions.map((name) => (
                         <SelectItem key={name} value={name}>
                           {name}
                         </SelectItem>
@@ -163,7 +211,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
                     </SelectContent>
                   </Select>
                 </div>
-                <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={form.uygulayicilar} onChange={(v) => update({ uygulayicilar: v })} options={TECHNICIAN_OPTIONS} />
+                <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={form.uygulayicilar} onChange={(v) => update({ uygulayicilar: v })} options={technicianOptions} />
                 <Field label="Telefon" value={form.telefon} onChange={(v) => update({ telefon: v })} />
                 <Field label="Müdürlük İzin Tarih ve Sayısı" value={form.izinTarihSayisi} onChange={(v) => update({ izinTarihSayisi: v })} />
                 <Field label="Ekip Sorumlusu" value={form.ekipSorumlusu} onChange={(v) => update({ ekipSorumlusu: v })} />

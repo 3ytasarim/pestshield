@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireClientOwner, requireClientOrTechOwner } from "@/lib/api-auth";
 import { workOrderFormSchema } from "@/lib/validations/crm";
 import { serializeWorkOrder } from "@/lib/crm/serialize";
+import { syncWorkOrderToCalendar } from "@/lib/integrations/google-calendar/sync";
 
 const createSchema = workOrderFormSchema.extend({ customerId: z.string().min(1) });
 
@@ -65,5 +66,12 @@ export async function POST(request: Request) {
     },
     include: { technician: true },
   });
+
+  try {
+    await syncWorkOrderToCalendar(ownerId, order.id);
+  } catch {
+    // Takvim senkronu iş emri oluşturmayı asla engellemez — bkz. sync.ts.
+  }
+
   return NextResponse.json({ workOrder: serializeWorkOrder(order) }, { status: 201 });
 }

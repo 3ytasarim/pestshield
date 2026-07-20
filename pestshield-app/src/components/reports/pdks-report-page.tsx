@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Clock, Printer, Route as RouteIcon, Timer, Users } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,10 +19,18 @@ import {
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatDate } from "@/components/crm/crm-format";
-import { getPdksRows } from "@/lib/pdks-report-data";
-import { printPdksReport } from "@/lib/pdf/pdks-report";
-import { technicians } from "@/lib/mock/operations";
+import { printPdksReport, type PdksRow } from "@/lib/pdf/pdks-report";
 import { cn } from "@/lib/utils";
+
+interface TechnicianOption {
+  id: string;
+  name: string;
+}
+
+const STATUS_LABELS: Record<PdksRow["status"], string> = {
+  in_progress: "Devam Ediyor",
+  completed: "Tamamlandı",
+};
 
 const STATUS_BADGE: Record<string, string> = {
   Tamamlandı: "bg-success/15 text-success",
@@ -35,13 +43,28 @@ export function PdksReportPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [technicianOptions, setTechnicianOptions] = useState<TechnicianOption[]>([]);
+  const [rows, setRows] = useState<PdksRow[]>([]);
 
-  const technician = technicianId === "all" ? null : (technicians.find((t) => t.id === technicianId) ?? null);
+  const technician = technicianId === "all" ? null : (technicianOptions.find((t) => t.id === technicianId) ?? null);
 
-  const rows = useMemo(
-    () => getPdksRows({ technicianName: technician?.name ?? null, startDate: startDate || undefined, endDate: endDate || undefined }),
-    [technician, startDate, endDate],
-  );
+  useEffect(() => {
+    fetch("/api/operations/technicians")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { technicians?: TechnicianOption[] } | null) => setTechnicianOptions(data?.technicians ?? []))
+      .catch(() => setTechnicianOptions([]));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (technicianId !== "all") params.set("technicianId", technicianId);
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    fetch(`/api/reports/pdks?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows?: PdksRow[] } | null) => setRows(data?.rows ?? []))
+      .catch(() => setRows([]));
+  }, [technicianId, startDate, endDate]);
 
   const totalMinutes = rows.reduce((sum, r) => sum + (r.durationMinutes ?? 0), 0);
   const totalDistance = rows.reduce((sum, r) => sum + r.distanceKm, 0);
@@ -94,7 +117,7 @@ export function PdksReportPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tüm Personel</SelectItem>
-                {technicians.map((t) => (
+                {technicianOptions.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>
@@ -158,7 +181,7 @@ export function PdksReportPage() {
                         <TableCell className="hidden sm:table-cell">{r.stopCount}</TableCell>
                         <TableCell className="hidden sm:table-cell">{r.distanceKm.toFixed(1)} km</TableCell>
                         <TableCell>
-                          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_BADGE[r.statusLabel])}>{r.statusLabel}</span>
+                          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_BADGE[STATUS_LABELS[r.status]])}>{STATUS_LABELS[r.status]}</span>
                         </TableCell>
                       </TableRow>
                     ))}

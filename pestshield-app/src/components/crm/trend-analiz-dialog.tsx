@@ -36,10 +36,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/components/crm/crm-format";
-import { computeTrendAnalysis, type TrendAnalysis } from "@/lib/trend-analysis";
+import type { TrendAnalysis } from "@/lib/trend-analysis";
 import { printTrendAnalysisReport } from "@/lib/pdf/trend-report";
-import { getServiceOrdersFor } from "@/lib/service-order-store";
-import { getCustomerById, type Customer } from "@/lib/mock/crm";
+import type { Customer, ServiceOrder } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 const PIE_COLORS = ["#0d9488", "#0891b2", "#f59e0b", "#dc2626", "#7c3aed", "#16a34a"];
@@ -62,20 +61,69 @@ export function TrendAnalizDialog({ open, onOpenChange, serviceOrderId, customer
   const [selectedServiceOrderId, setSelectedServiceOrderId] = useState<string | null>(serviceOrderId);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [fullAnalysis, setFullAnalysis] = useState<TrendAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<TrendAnalysis | null>(null);
 
   useEffect(() => {
     if (open) setSelectedServiceOrderId(serviceOrderId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, serviceOrderId]);
 
-  const customer: Customer | null = customerId ? (getCustomerById(customerId) ?? null) : null;
-  const serviceOrders = useMemo(() => (customerId ? getServiceOrdersFor(customerId) : []), [customerId]);
+  useEffect(() => {
+    if (!open || !customerId) return;
+    let cancelled = false;
+    fetch(`/api/crm/customers/${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customer?: Customer } | null) => {
+        if (!cancelled && data?.customer) setCustomer(data.customer);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, customerId]);
+
+  useEffect(() => {
+    if (!customerId) {
+      setServiceOrders([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/crm/service-orders?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { serviceOrders?: ServiceOrder[] } | null) => {
+        if (!cancelled) setServiceOrders(data?.serviceOrders ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setServiceOrders([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+
   const selectedServiceOrder = serviceOrders.find((o) => o.id === selectedServiceOrderId) ?? null;
   const activeServiceName = selectedServiceOrder?.description ?? serviceName;
 
-  const fullAnalysis: TrendAnalysis | null = useMemo(() => {
-    if (!open || !selectedServiceOrderId) return null;
-    return computeTrendAnalysis(selectedServiceOrderId);
+  useEffect(() => {
+    if (!open || !selectedServiceOrderId) {
+      setFullAnalysis(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/reports/trend-analysis?serviceOrderId=${selectedServiceOrderId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { analysis?: TrendAnalysis } | null) => {
+        if (!cancelled) setFullAnalysis(data?.analysis ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setFullAnalysis(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, selectedServiceOrderId]);
 
   const years = useMemo(() => {
@@ -96,9 +144,23 @@ export function TrendAnalizDialog({ open, onOpenChange, serviceOrderId, customer
 
   const monthKey = selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : null;
 
-  const analysis: TrendAnalysis | null = useMemo(() => {
-    if (!selectedServiceOrderId || !monthKey) return fullAnalysis;
-    return computeTrendAnalysis(selectedServiceOrderId, monthKey);
+  useEffect(() => {
+    if (!selectedServiceOrderId || !monthKey) {
+      setAnalysis(fullAnalysis);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/reports/trend-analysis?serviceOrderId=${selectedServiceOrderId}&asOfMonthKey=${monthKey}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { analysis?: TrendAnalysis } | null) => {
+        if (!cancelled) setAnalysis(data?.analysis ?? fullAnalysis);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalysis(fullAnalysis);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedServiceOrderId, monthKey, fullAnalysis]);
 
   async function handlePrint() {

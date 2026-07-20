@@ -33,8 +33,6 @@ import {
   UCKUN_TUR_OPTIONS,
   FLORASAN_OPTIONS,
 } from "@/components/crm/istasyon-inspection-constants";
-import { getKrokiSketchesFor } from "@/lib/kroki-store";
-import { getInspectionsFor, saveInspectionsFor } from "@/lib/station-inspection-store";
 import type { KrokiSketch, KrokiStation, KrokiStationType, PeriyotOccurrence, StationInspection } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
@@ -81,11 +79,21 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open && serviceOrderId) {
-      setSketches(getKrokiSketchesFor(serviceOrderId));
-      setSelectedSketchId(null);
-      setInspections({});
-    }
+    if (!open || !serviceOrderId) return;
+    let cancelled = false;
+    fetch(`/api/crm/service-orders/${serviceOrderId}/kroki-sketches`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { krokiSketches?: KrokiSketch[] } | null) => {
+        if (!cancelled) setSketches(data?.krokiSketches ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSketches([]);
+      });
+    setSelectedSketchId(null);
+    setInspections({});
+    return () => {
+      cancelled = true;
+    };
   }, [open, serviceOrderId]);
 
   const selectedSketch = sketches.find((s) => s.id === selectedSketchId) ?? null;
@@ -95,13 +103,23 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
       setInspections({});
       return;
     }
-    const existing = getInspectionsFor(occurrence.id);
-    const map: Record<string, StationInspection> = {};
-    for (const station of selectedSketch.stations) {
-      const found = existing.find((i) => i.krokiStationId === station.id);
-      map[station.id] = found ?? emptyInspection(station, occurrence.id, selectedSketch.id);
-    }
-    setInspections(map);
+    let cancelled = false;
+    fetch(`/api/crm/periyot/occurrences/${occurrence.id}/station-inspections`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { inspections?: StationInspection[] } | null) => {
+        if (cancelled) return;
+        const existing = data?.inspections ?? [];
+        const map: Record<string, StationInspection> = {};
+        for (const station of selectedSketch.stations) {
+          const found = existing.find((i) => i.krokiStationId === station.id);
+          map[station.id] = found ?? emptyInspection(station, occurrence.id, selectedSketch.id);
+        }
+        setInspections(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSketchId, occurrence?.id]);
 
@@ -124,11 +142,19 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
     toast.success("Tüm istasyonlara uygulandı");
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!occurrence || !selectedSketch) return;
     setSaving(true);
-    saveInspectionsFor(occurrence.id, Object.values(inspections));
+    const res = await fetch(`/api/crm/periyot/occurrences/${occurrence.id}/station-inspections`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inspections: Object.values(inspections) }),
+    });
     setSaving(false);
+    if (!res.ok) {
+      toast.error("İstasyon denetimi kaydedilemedi");
+      return;
+    }
     toast.success("İstasyon denetimi kaydedildi");
   }
 

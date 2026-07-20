@@ -53,7 +53,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/generated/prisma";
-import { getCustomerById } from "@/lib/mock/crm";
 
 export interface NavItem {
   label: string;
@@ -234,6 +233,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: "Entegrasyonlar", href: "/dashboard/client/integrations", icon: Plug },
         { label: "API", href: "/dashboard/client/api", icon: Code2, comingSoon: true },
         { label: "Şirket Ayarları", href: "/dashboard/client/settings", icon: Settings },
+        { label: "Belgeler", href: "/dashboard/client/documents", icon: FileText },
       ],
     },
   ],
@@ -243,11 +243,16 @@ const ALL_NAV_ITEMS = Object.values(NAV_GROUPS_BY_ROLE)
   .flat()
   .flatMap((group) => group.items);
 
-/** Verilen path'e karşılık gelen Türkçe sayfa başlığını döndürür. */
+/** Bir path'in müşteri detay sayfası olup olmadığını ve varsa ID'sini döndürür. */
+export function matchCustomerDetailPath(pathname: string): string | null {
+  const match = pathname.match(/^\/dashboard\/client\/customers\/([^/]+)/);
+  return match ? match[1] : null;
+}
+
+/** Verilen path'e karşılık gelen Türkçe sayfa başlığını döndürür. Müşteri detay sayfaları için gerçek isim ayrıca çözümlenmelidir. */
 export function getPageTitle(pathname: string): string {
-  const customerDetailMatch = pathname.match(/^\/dashboard\/client\/customers\/([^/]+)/);
-  if (customerDetailMatch) {
-    return getCustomerById(customerDetailMatch[1])?.companyName ?? "Müşteri Detayı";
+  if (matchCustomerDetailPath(pathname)) {
+    return "Müşteri Detayı";
   }
   return ALL_NAV_ITEMS.find((item) => item.href === pathname)?.label ?? "Genel Bakış";
 }

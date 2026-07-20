@@ -21,10 +21,12 @@ export async function GET(request: Request) {
       ...(customerId ? { customerId } : {}),
       ...(periodDate ? { periodDate } : {}),
     },
-    include: { biocidalProductUsages: true },
+    include: { biocidalProductUsages: true, ek1Form: { select: { id: true } } },
     orderBy: { periodDate: "asc" },
   });
-  return NextResponse.json({ occurrences: occurrences.map((o) => serializePeriyotOccurrence(o)) });
+  return NextResponse.json({
+    occurrences: occurrences.map((o) => ({ ...serializePeriyotOccurrence(o), hasEk1Form: !!o.ek1Form })),
+  });
 }
 
 export async function POST(request: Request) {

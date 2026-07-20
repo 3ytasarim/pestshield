@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Truck } from "lucide-react";
@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
-import { technicians } from "@/lib/mock/operations";
 import { vehicleFormSchema, type VehicleFormValues } from "@/lib/validations/operations";
 
 const EMPTY: VehicleFormValues = {
@@ -35,8 +34,6 @@ const STATUS_OPTIONS = [
   { value: "inactive", label: "Pasif" },
 ];
 
-const TECHNICIAN_OPTIONS = [{ value: "none", label: "Atanmadı" }, ...technicians.map((t) => ({ value: t.id, label: t.name }))];
-
 interface VehicleFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,9 +49,24 @@ export function VehicleForm({ open, onOpenChange, onSubmit }: VehicleFormProps) 
     formState: { errors, isSubmitting },
   } = useForm<VehicleFormValues>({ resolver: zodResolver(vehicleFormSchema), defaultValues: EMPTY });
 
+  const [technicianOptions, setTechnicianOptions] = useState<{ value: string; label: string }[]>([{ value: "none", label: "Atanmadı" }]);
+
   useEffect(() => {
     if (open) reset(EMPTY);
   }, [open, reset]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/operations/technicians")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { technicians?: { id: string; name: string }[] } | null) => {
+        setTechnicianOptions([
+          { value: "none", label: "Atanmadı" },
+          ...(data?.technicians ?? []).map((t) => ({ value: t.id, label: t.name })),
+        ]);
+      })
+      .catch(() => setTechnicianOptions([{ value: "none", label: "Atanmadı" }]));
+  }, [open]);
 
   function submit(values: VehicleFormValues) {
     onSubmit(values);
@@ -78,7 +90,7 @@ export function VehicleForm({ open, onOpenChange, onSubmit }: VehicleFormProps) 
             <TextField label="Marka" required registration={register("brand")} error={errors.brand?.message} />
             <TextField label="Model" required registration={register("model")} error={errors.model?.message} />
           </div>
-          <SelectField label="Atanan Teknisyen" name="assignedTechnicianId" control={control} options={TECHNICIAN_OPTIONS} error={errors.assignedTechnicianId?.message} />
+          <SelectField label="Atanan Teknisyen" name="assignedTechnicianId" control={control} options={technicianOptions} error={errors.assignedTechnicianId?.message} />
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <TextField label="Ruhsat No" required registration={register("registrationNumber")} error={errors.registrationNumber?.message} />
             <TextField label="Ruhsat Geçerlilik" type="date" required registration={register("registrationExpiry")} error={errors.registrationExpiry?.message} />

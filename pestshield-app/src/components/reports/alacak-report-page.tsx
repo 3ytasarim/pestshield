@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Printer, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -9,13 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { getAlacakRows } from "@/lib/finance-report-data";
-import { printAlacakRaporu } from "@/lib/pdf/alacak-report";
+import { printAlacakRaporu, type AlacakReportRow } from "@/lib/pdf/alacak-report";
 import { cn } from "@/lib/utils";
 
 export function AlacakReportPage() {
   const [printing, setPrinting] = useState(false);
-  const rows = useMemo(() => getAlacakRows(), []);
+  const [rows, setRows] = useState<AlacakReportRow[]>([]);
+
+  useEffect(() => {
+    fetch("/api/reports/alacak")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows?: AlacakReportRow[] } | null) => setRows(data?.rows ?? []))
+      .catch(() => setRows([]));
+  }, []);
 
   const totalBalance = rows.reduce((sum, r) => sum + r.balance, 0);
   const overdueRows = rows.filter((r) => r.isOverdue);

@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 interface TestMailRequest {
   host: string;
   port: string;
+  requiresAuth: boolean;
   username: string;
   password: string;
   encryption: "none" | "ssl" | "tls";
@@ -14,9 +15,9 @@ interface TestMailRequest {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as Partial<TestMailRequest>;
-  const { host, port, username, password, encryption, fromName, fromEmail, toEmail } = body;
+  const { host, port, requiresAuth = true, username, password, encryption, fromName, fromEmail, toEmail } = body;
 
-  if (!host || !port || !username || !password || !fromEmail || !toEmail) {
+  if (!host || !port || (requiresAuth && (!username || !password)) || !fromEmail || !toEmail) {
     return NextResponse.json({ message: "SMTP bilgileri ve alıcı e-posta adresi zorunludur" }, { status: 400 });
   }
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
       port: portNumber,
       secure: encryption === "ssl",
       requireTLS: encryption === "tls",
-      auth: { user: username, pass: password },
+      ...(requiresAuth ? { auth: { user: username, pass: password } } : {}),
       connectionTimeout: 10_000,
     });
 

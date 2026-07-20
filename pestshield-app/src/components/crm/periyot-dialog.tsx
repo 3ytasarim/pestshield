@@ -49,18 +49,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { BelgeTanimlamaDialog } from "@/components/crm/belge-tanimlama-dialog";
 import { IstasyonlarDialog } from "@/components/crm/istasyonlar-dialog";
-import { Ek1Dialog, Section, Field, FieldArea, buildDefaultEk1Form, summarizeBiocidalUsages } from "@/components/crm/ek1-dialog";
+import { Ek1Dialog, Section, Field, FieldArea, buildDefaultEk1Form, summarizeBiocidalUsages, type Ek1CustomerInfo } from "@/components/crm/ek1-dialog";
 import { TechnicianMultiSelect } from "@/components/crm/technician-multiselect";
 import { MALZEME_TYPES, summarizeMalzemeler } from "@/components/crm/ek1-constants";
 import { formatDateLong } from "@/components/crm/crm-format";
 import { DONEM_LABELS } from "@/lib/periyot/generate";
-import { getEk1FormFor, saveEk1Form } from "@/lib/ek1-form-store";
-import { printEk1Form } from "@/lib/pdf/ek1-report";
 import { loadTemplates, saveTemplate, deleteTemplate, type PeriyotTemplate } from "@/lib/periyot-template-store";
 import { getServiceDocumentsFor, addServiceDocument, deleteServiceDocument, readDocumentFile } from "@/lib/service-document-store";
-import { getPeriyotCapaNotesFor, addPeriyotCapaNote, deletePeriyotCapaNote, type PeriyotCapaNote } from "@/lib/periyot-capa-store";
+import type { PeriyotCapaNote } from "@/lib/periyot-capa-store";
 import { Textarea } from "@/components/ui/textarea";
-import { getCustomerById } from "@/lib/mock/crm";
 import type { BiocidalProductUsage, Ek1Form, MalzemeKullanimi, PeriyotBatch, PeriyotDonem, PeriyotOccurrence, ServiceDocument } from "@/lib/mock/crm";
 import type { Product } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
@@ -119,7 +116,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   const [tab, setTab] = useState("listele");
   const [batches, setBatches] = useState<PeriyotBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const [occurrences, setOccurrences] = useState<PeriyotOccurrence[]>([]);
+  const [occurrences, setOccurrences] = useState<(PeriyotOccurrence & { hasEk1Form?: boolean })[]>([]);
   const [editingOccurrence, setEditingOccurrence] = useState<PeriyotOccurrence | null>(null);
   const [editingEk1, setEditingEk1] = useState<Ek1Form | null>(null);
   const [kvkkApproved, setKvkkApproved] = useState(false);
@@ -127,7 +124,21 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<PeriyotTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("-");
-  const [printingEk1, setPrintingEk1] = useState(false);
+  const [customer, setCustomer] = useState<Ek1CustomerInfo | null>(null);
+
+  useEffect(() => {
+    if (!open || !customerId) return;
+    let cancelled = false;
+    fetch(`/api/crm/customers/${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customer?: Ek1CustomerInfo } | null) => {
+        if (!cancelled && data?.customer) setCustomer(data.customer);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, customerId]);
 
   const [editorDocuments, setEditorDocuments] = useState<ServiceDocument[]>([]);
   const [belgeName, setBelgeName] = useState("");
@@ -152,7 +163,6 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   const [belgeOccurrenceId, setBelgeOccurrenceId] = useState<string | null>(null);
   const [istasyonOccurrenceId, setIstasyonOccurrenceId] = useState<string | null>(null);
   const [ek1OccurrenceId, setEk1OccurrenceId] = useState<string | null>(null);
-  const [ek1Version, setEk1Version] = useState(0);
 
   const [addDate, setAddDate] = useState("");
   const [addStart, setAddStart] = useState("");
@@ -218,9 +228,8 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   }, [selectedBatchId]);
 
   const ek1FilledIds = useMemo(
-    () => new Set(occurrences.filter((o) => !!getEk1FormFor(o.id)).map((o) => o.id)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [occurrences, ek1Version],
+    () => new Set(occurrences.filter((o) => o.hasEk1Form).map((o) => o.id)),
+    [occurrences],
   );
 
   const filteredSorted = useMemo(() => {
@@ -400,17 +409,9 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     toast.success("Periyot grubu silindi");
   }
 
-  function openEditor(o: PeriyotOccurrence) {
+  async function openEditor(o: PeriyotOccurrence) {
     const normalizedOccurrence = { ...o, biocidalProductUsages: o.biocidalProductUsages ?? [] };
     setEditingOccurrence(normalizedOccurrence);
-    const existingEk1 = getEk1FormFor(o.id);
-    const base = existingEk1 ?? buildDefaultEk1Form(normalizedOccurrence, customerId);
-    setEditingEk1({
-      ...base,
-      uygulamaAlaniBirimi: base.uygulamaAlaniBirimi || "m2",
-      malzemeKullanimlari: normalizeMalzemeler(base.malzemeKullanimlari),
-      malzemelerEtkin: base.malzemelerEtkin ?? true,
-    });
     setTab("duzenle");
     setTemplates(loadTemplates());
     setSelectedTemplateId("-");
@@ -420,10 +421,25 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     setEditorDocuments(getServiceDocumentsFor(o.id));
     setBelgeName("");
     setBelgeFile(null);
-    setCapaNotes(getPeriyotCapaNotesFor(o.id));
     setCapaDescription("");
     setCapaDocName("");
     setCapaFile(null);
+
+    const [ek1Res, capaRes] = await Promise.all([
+      fetch(`/api/crm/periyot/occurrences/${o.id}/ek1`),
+      fetch(`/api/crm/periyot/occurrences/${o.id}/capa-notes`),
+    ]);
+    const ek1Data = ek1Res.ok ? await ek1Res.json() : null;
+    const capaData = capaRes.ok ? await capaRes.json() : null;
+
+    const base = ek1Data?.ek1Form ?? buildDefaultEk1Form(normalizedOccurrence, customer);
+    setEditingEk1({
+      ...base,
+      uygulamaAlaniBirimi: base.uygulamaAlaniBirimi || "m2",
+      malzemeKullanimlari: normalizeMalzemeler(base.malzemeKullanimlari),
+      malzemelerEtkin: base.malzemelerEtkin ?? true,
+    });
+    setCapaNotes(capaData?.capaNotes ?? []);
   }
 
   function closeEditor() {
@@ -520,22 +536,28 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     if (result) setCapaFile(result);
   }
 
-  function handleAddCapaNote() {
+  async function handleAddCapaNote() {
     if (!editingOccurrence) return;
     if (!capaDescription.trim()) {
       toast.error("Açıklama girin");
       return;
     }
-    addPeriyotCapaNote({
-      id: `periyot-capa-${Date.now()}`,
-      periyotOccurrenceId: editingOccurrence.id,
-      description: capaDescription.trim(),
-      documentName: capaDocName.trim(),
-      documentDataUrl: capaFile?.dataUrl ?? null,
-      documentFileName: capaFile?.fileName ?? null,
-      createdAt: new Date().toISOString(),
+    const res = await fetch(`/api/crm/periyot/occurrences/${editingOccurrence.id}/capa-notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: capaDescription.trim(),
+        documentName: capaDocName.trim(),
+        documentDataUrl: capaFile?.dataUrl ?? null,
+        documentFileName: capaFile?.fileName ?? null,
+      }),
     });
-    setCapaNotes(getPeriyotCapaNotesFor(editingOccurrence.id));
+    if (!res.ok) {
+      toast.error("Rapor eklenemedi");
+      return;
+    }
+    const data = await res.json();
+    setCapaNotes((prev) => [data.capaNote, ...prev]);
     setCapaDescription("");
     setCapaDocName("");
     setCapaFile(null);
@@ -543,10 +565,14 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     toast.success("Rapor eklendi");
   }
 
-  function handleDeleteCapaNote(id: string) {
+  async function handleDeleteCapaNote(id: string) {
     if (!editingOccurrence) return;
-    deletePeriyotCapaNote(id);
-    setCapaNotes(getPeriyotCapaNotesFor(editingOccurrence.id));
+    const res = await fetch(`/api/crm/periyot/capa-notes/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Rapor silinemedi");
+      return;
+    }
+    setCapaNotes((prev) => prev.filter((n) => n.id !== id));
     toast.success("Rapor silindi");
   }
 
@@ -575,8 +601,15 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     }
 
     const kullanilanMalzemeler = summarizeMalzemeler(editingEk1.malzemeKullanimlari);
-    saveEk1Form({ ...editingEk1, kullanilanMalzemeler, updatedAt: new Date().toISOString() });
-    setEk1Version((v) => v + 1);
+    const ek1Res = await fetch(`/api/crm/periyot/occurrences/${editingOccurrence.id}/ek1`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...editingEk1, kullanilanMalzemeler }),
+    });
+    if (!ek1Res.ok) {
+      toast.error("EK-1 formu kaydedilemedi");
+      return;
+    }
 
     if (saveAsTemplate && templateName.trim()) {
       saveTemplate({
@@ -654,17 +687,6 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
   function updateMalzeme(key: string, patch: Partial<MalzemeKullanimi>) {
     if (!editingEk1) return;
     setEditingEk1({ ...editingEk1, malzemeKullanimlari: editingEk1.malzemeKullanimlari.map((m) => (m.key === key ? { ...m, ...patch } : m)) });
-  }
-
-  async function handlePrintEk1FromEditor() {
-    if (!editingOccurrence || !editingEk1) return;
-    setPrintingEk1(true);
-    try {
-      const customer = customerId ? getCustomerById(customerId) : null;
-      await printEk1Form(editingEk1, editingOccurrence, customer?.companyName ?? "", selectedBatch?.name ?? "");
-    } finally {
-      setPrintingEk1(false);
-    }
   }
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
@@ -1461,7 +1483,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
       occurrence={occurrences.find((o) => o.id === ek1OccurrenceId) ?? null}
       customerId={customerId}
       batchName={selectedBatch?.name ?? ""}
-      onSaved={() => setEk1Version((v) => v + 1)}
+      onSaved={() => refreshOccurrencesAsync()}
     />
     </>
   );

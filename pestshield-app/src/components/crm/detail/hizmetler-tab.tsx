@@ -16,13 +16,12 @@ import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { HizmetForm, type ContractFileValue } from "@/components/crm/detail/hizmet-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { HizmetOnaySwitch } from "@/components/crm/hizmet-onay-switch";
-import { getCustomerById, type ServiceOrder } from "@/lib/mock/crm";
+import type { Customer, ServiceOrder } from "@/lib/mock/crm";
 import type { HizmetFormValues } from "@/lib/validations/crm";
 
-export function HizmetlerTab({ customerId }: { customerId: string }) {
+export function HizmetlerTab({ customerId, customer }: { customerId: string; customer: Customer }) {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [formOpen, setFormOpen] = useState(false);
-  const customer = getCustomerById(customerId);
 
   useEffect(() => {
     fetch(`/api/crm/service-orders?customerId=${customerId}`)
@@ -113,7 +112,7 @@ export function HizmetlerTab({ customerId }: { customerId: string }) {
         </div>
       )}
 
-      <HizmetForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleSubmit} customer={customer ?? null} />
+      <HizmetForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleSubmit} customer={customer} />
     </div>
   );
 }

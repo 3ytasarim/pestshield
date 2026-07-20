@@ -41,17 +41,16 @@ import { formatDate } from "@/components/crm/crm-format";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { WorkOrderForm } from "@/components/crm/detail/work-order-form";
 import { printWorkOrder } from "@/components/crm/detail/print-work-order";
-import { getCustomerById, type WorkOrder } from "@/lib/mock/crm";
+import type { Customer, WorkOrder } from "@/lib/mock/crm";
 import type { Technician } from "@/lib/mock/operations";
 import { buildWorkOrderMessage, getWhatsAppLink } from "@/lib/integrations/whatsapp";
 import type { WorkOrderFormValues } from "@/lib/validations/crm";
 
-export function WorkHistoryTab({ customerId }: { customerId: string }) {
+export function WorkHistoryTab({ customerId, customer }: { customerId: string; customer: Customer }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [detailOrder, setDetailOrder] = useState<WorkOrder | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const customer = getCustomerById(customerId);
 
   useEffect(() => {
     fetch(`/api/crm/work-orders?customerId=${customerId}`)

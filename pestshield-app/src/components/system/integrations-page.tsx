@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -24,14 +25,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
-import {
-  disconnectGoogleCalendar,
-  getGoogleCalendarConnection,
-  saveGoogleCalendarConnection,
-  type GoogleCalendarConnection,
-} from "@/lib/integrations/google-calendar";
 import {
   disconnectWhatsApp,
   getWhatsAppConnection,
@@ -52,38 +48,123 @@ const COMING_SOON = [
   { icon: Smartphone, title: "SMS Gateway", description: "Servis hatırlatma ve tahsilat bildirimleri SMS ile gönderilsin (Netgsm, İleti Merkezi vb.)." },
 ];
 
-function GoogleCalendarCard() {
-  const [connection, setConnection] = useState<GoogleCalendarConnection>(() => getGoogleCalendarConnection());
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [calendarId, setCalendarId] = useState("");
-  const [connecting, setConnecting] = useState(false);
+interface GoogleCalendarStatus {
+  connected: boolean;
+  configured?: boolean;
+  calendarId?: string;
+  calendarName?: string | null;
+  connectedAt?: string | null;
+  lastSyncAt?: string | null;
+  lastSyncStatus?: string | null;
+  lastSyncCount?: number;
+}
 
-  function handleConnect() {
-    if (!clientId.trim() || !clientSecret.trim() || !calendarId.trim()) {
-      toast.error("Tüm alanları doldurun");
-      return;
+interface GoogleCalendarEntry {
+  id: string;
+  summary: string;
+  primary?: boolean;
+}
+
+function GoogleCalendarCard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState<GoogleCalendarStatus>({ connected: false });
+  const [loading, setLoading] = useState(true);
+  const [calendars, setCalendars] = useState<GoogleCalendarEntry[]>([]);
+  const [switching, setSwitching] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  async function loadStatus() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/integrations/google-calendar");
+      const data = await res.json();
+      setStatus(data);
+      if (data.connected) {
+        const calRes = await fetch("/api/integrations/google-calendar/calendars");
+        const calData = await calRes.json();
+        if (calRes.ok) setCalendars(calData.calendars ?? []);
+      }
+    } catch {
+      toast.error("Google Calendar bağlantı durumu alınamadı");
+    } finally {
+      setLoading(false);
     }
-    setConnecting(true);
-    const next: GoogleCalendarConnection = {
-      connected: true,
-      clientId: clientId.trim(),
-      calendarId: calendarId.trim(),
-      connectedAt: new Date().toISOString(),
-    };
-    saveGoogleCalendarConnection(next);
-    setConnection(next);
-    setConnecting(false);
-    toast.success("Google Calendar bağlantısı kaydedildi");
   }
 
-  function handleDisconnect() {
-    disconnectGoogleCalendar();
-    setConnection(getGoogleCalendarConnection());
-    setClientId("");
-    setClientSecret("");
-    setCalendarId("");
-    toast.success("Bağlantı kesildi");
+  useEffect(() => {
+    loadStatus();
+  }, []);
+
+  useEffect(() => {
+    const result = searchParams.get("googleCalendar");
+    if (!result) return;
+    if (result === "connected") {
+      toast.success("Google Calendar bağlantısı kuruldu");
+      loadStatus();
+    } else if (result === "error") {
+      const reason = searchParams.get("reason");
+      toast.error(reason === "state_mismatch" ? "Bağlantı doğrulanamadı, tekrar deneyin" : "Google Calendar bağlantısı kurulamadı");
+    }
+    router.replace("/dashboard/client/integrations");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  function handleConnect() {
+    window.location.href = "/api/integrations/google-calendar/authorize";
+  }
+
+  async function handleSelectCalendar(calendarId: string) {
+    const calendar = calendars.find((c) => c.id === calendarId);
+    if (!calendar) return;
+    setSwitching(true);
+    try {
+      const res = await fetch("/api/integrations/google-calendar/select-calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendarId: calendar.id, calendarName: calendar.summary }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Takvim seçilemedi");
+        return;
+      }
+      toast.success("Senkronize edilecek takvim güncellendi");
+      await loadStatus();
+    } catch {
+      toast.error("Takvim seçilemedi — sunucuya ulaşılamadı");
+    } finally {
+      setSwitching(false);
+    }
+  }
+
+  async function handleSyncNow() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/integrations/google-calendar/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Senkronizasyon başarısız oldu");
+        return;
+      }
+      toast.success(`Senkronizasyon tamamlandı — ${data.synced} iş emri`);
+      await loadStatus();
+    } catch {
+      toast.error("Senkronizasyon başarısız oldu — sunucuya ulaşılamadı");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    try {
+      await fetch("/api/integrations/google-calendar", { method: "DELETE" });
+      setCalendars([]);
+      toast.success("Bağlantı kesildi");
+      await loadStatus();
+    } catch {
+      toast.error("Bağlantı kesilemedi");
+    }
   }
 
   return (
@@ -99,7 +180,7 @@ function GoogleCalendarCard() {
               <p className="text-xs text-muted-foreground">İş emirleri otomatik olarak takvime senkronize edilsin.</p>
             </div>
           </div>
-          {connection.connected ? (
+          {status.connected ? (
             <Badge variant="outline" className="gap-1 rounded-full border-success/20 bg-success/10 text-success">
               <CheckCircle2 className="size-3" />
               Bağlı
@@ -111,50 +192,72 @@ function GoogleCalendarCard() {
           )}
         </div>
 
-        <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs text-foreground/80">
-          <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
-          <p className="min-w-0">
-            Gerçek Google OAuth bağlantısı için Google Cloud Console&apos;da bir proje oluşturup Calendar API&apos;yi
-            etkinleştirmeniz ve OAuth Client ID/Secret üretmeniz gerekir. Aşağıdaki bilgileri girip kaydettiğinizde bu ortamda
-            bağlantı simüle edilir; İş Emirleri modülündeki servisler bu takvime yazılmaya hazır hale gelir.
-          </p>
-        </div>
-
-        {connection.connected ? (
+        {loading ? null : status.connected ? (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
-                <p className="font-semibold text-muted-foreground uppercase">Client ID</p>
-                <p className="mt-0.5 truncate font-mono text-foreground">{connection.clientId}</p>
+                <p className="font-semibold text-muted-foreground uppercase">Senkronize Takvim</p>
+                <p className="mt-0.5 truncate text-foreground">{status.calendarName ?? status.calendarId}</p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
-                <p className="font-semibold text-muted-foreground uppercase">Takvim ID</p>
-                <p className="mt-0.5 truncate font-mono text-foreground">{connection.calendarId}</p>
+                <p className="font-semibold text-muted-foreground uppercase">Son Senkronizasyon</p>
+                <p className="mt-0.5 truncate text-foreground">
+                  {status.lastSyncAt ? formatDate(status.lastSyncAt) : "Henüz yapılmadı"}
+                  {typeof status.lastSyncCount === "number" && status.lastSyncCount > 0 ? ` · ${status.lastSyncCount} kayıt` : ""}
+                </p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Bağlantı tarihi: {formatDate(connection.connectedAt)}</p>
-            <Button variant="outline" onClick={handleDisconnect} className="w-fit">
-              <Unlink className="size-4" />
-              Bağlantıyı Kes
-            </Button>
+            {status.lastSyncStatus && status.lastSyncStatus.startsWith("error") && (
+              <p className="text-xs text-destructive">Son senkronizasyon hatası: {status.lastSyncStatus.replace(/^error:\s*/, "")}</p>
+            )}
+            {calendars.length > 0 && (
+              <div>
+                <Label className="mb-1.5">Senkronize Edilecek Takvim</Label>
+                <Select value={status.calendarId} onValueChange={(v) => v && handleSelectCalendar(v)} disabled={switching}>
+                  <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                    <SelectValue placeholder="Takvim seçiniz">
+                      {() => calendars.find((c) => c.id === status.calendarId)?.summary ?? status.calendarName ?? status.calendarId}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {calendars.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.summary}
+                        {c.primary ? " (Birincil)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" loading={syncing} onClick={handleSyncNow} className="w-fit">
+                <RefreshCw className="size-4" />
+                Şimdi Senkronize Et
+              </Button>
+              <Button variant="outline" onClick={handleDisconnect} className="w-fit">
+                <Unlink className="size-4" />
+                Bağlantıyı Kes
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3.5">
-            <div>
-              <Label className="mb-1.5">Google OAuth Client ID</Label>
-              <Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" className="h-11 rounded-xl px-3.5 font-mono text-sm" />
+            <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs text-foreground/80">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
+              <p className="min-w-0">
+                Google hesabınızla bağlanın — iş emirleri planlandığında/güncellendiğinde otomatik olarak seçtiğiniz Google
+                Takvim&apos;e yazılır.
+              </p>
             </div>
-            <div>
-              <Label className="mb-1.5">Google OAuth Client Secret</Label>
-              <Input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="••••••••••••" className="h-11 rounded-xl px-3.5" />
-            </div>
-            <div>
-              <Label className="mb-1.5">Takvim ID</Label>
-              <Input value={calendarId} onChange={(e) => setCalendarId(e.target.value)} placeholder="ornek@group.calendar.google.com" className="h-11 rounded-xl px-3.5 font-mono text-sm" />
-            </div>
-            <Button onClick={handleConnect} loading={connecting} className="w-fit">
+            {!status.configured && (
+              <p className="text-xs text-destructive">
+                Sunucu tarafında Google OAuth henüz yapılandırılmadı (GOOGLE_OAUTH_CLIENT_ID/SECRET eksik).
+              </p>
+            )}
+            <Button onClick={handleConnect} disabled={!status.configured} className="w-fit">
               <Plug className="size-4" />
-              Bağlan
+              Google ile Bağlan
             </Button>
           </div>
         )}
@@ -288,6 +391,7 @@ function MailSettingsCard() {
   const [connection, setConnection] = useState<SmtpMailConnection>(() => getSmtpMailConnection());
   const [host, setHost] = useState("");
   const [port, setPort] = useState("587");
+  const [requiresAuth, setRequiresAuth] = useState(true);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [encryption, setEncryption] = useState<SmtpEncryption>("tls");
@@ -298,7 +402,8 @@ function MailSettingsCard() {
   const [testing, setTesting] = useState(false);
 
   function handleSave() {
-    if (!host.trim() || !port.trim() || !username.trim() || !password.trim() || !fromEmail.trim()) {
+    const authOk = !requiresAuth || (username.trim() && password.trim());
+    if (!host.trim() || !port.trim() || !authOk || !fromEmail.trim()) {
       toast.error("Tüm zorunlu alanları doldurun");
       return;
     }
@@ -307,8 +412,9 @@ function MailSettingsCard() {
       connected: true,
       host: host.trim(),
       port: port.trim(),
-      username: username.trim(),
-      password,
+      requiresAuth,
+      username: requiresAuth ? username.trim() : "",
+      password: requiresAuth ? password : "",
       encryption,
       fromName: fromName.trim(),
       fromEmail: fromEmail.trim(),
@@ -325,6 +431,7 @@ function MailSettingsCard() {
     setConnection(getSmtpMailConnection());
     setHost("");
     setPort("587");
+    setRequiresAuth(true);
     setUsername("");
     setPassword("");
     setEncryption("tls");
@@ -347,6 +454,7 @@ function MailSettingsCard() {
         body: JSON.stringify({
           host: connection.host,
           port: connection.port,
+          requiresAuth: connection.requiresAuth,
           username: connection.username,
           password: connection.password,
           encryption: connection.encryption,
@@ -404,6 +512,14 @@ function MailSettingsCard() {
                 <p className="font-semibold text-muted-foreground uppercase">Gönderen</p>
                 <p className="mt-0.5 truncate text-foreground">{connection.fromName ? `${connection.fromName} · ` : ""}{connection.fromEmail}</p>
               </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-xs">
+                <p className="font-semibold text-muted-foreground uppercase">Güvenlik</p>
+                <p className="mt-0.5 truncate text-foreground">{ENCRYPTION_OPTIONS.find((o) => o.value === connection.encryption)?.label}</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-xs">
+                <p className="font-semibold text-muted-foreground uppercase">Kimlik Doğrulaması</p>
+                <p className="mt-0.5 truncate text-foreground">{connection.requiresAuth ? `Var (${connection.username})` : "Yok"}</p>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">Bağlantı tarihi: {formatDate(connection.connectedAt)}</p>
 
@@ -441,14 +557,25 @@ function MailSettingsCard() {
                 <Input value={port} onChange={(e) => setPort(e.target.value)} placeholder="587" className="h-11 rounded-xl px-3.5 font-mono text-sm" />
               </div>
             </div>
-            <div>
-              <Label className="mb-1.5">Kullanıcı Adı</Label>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ornek@firma.com" className="h-11 rounded-xl px-3.5" />
+            <div className="flex items-center justify-between rounded-xl border border-border/60 p-3.5">
+              <div>
+                <Label className="mb-0.5">Kimlik Doğrulaması</Label>
+                <p className="text-xs text-muted-foreground">Sunucu kullanıcı adı/şifre gerektiriyorsa açık bırakın.</p>
+              </div>
+              <Switch checked={requiresAuth} onCheckedChange={setRequiresAuth} />
             </div>
-            <div>
-              <Label className="mb-1.5">Şifre</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••••" className="h-11 rounded-xl px-3.5" />
-            </div>
+            {requiresAuth && (
+              <>
+                <div>
+                  <Label className="mb-1.5">Kullanıcı Adı</Label>
+                  <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ornek@firma.com" className="h-11 rounded-xl px-3.5" />
+                </div>
+                <div>
+                  <Label className="mb-1.5">Şifre</Label>
+                  <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••••" className="h-11 rounded-xl px-3.5" />
+                </div>
+              </>
+            )}
             <div>
               <Label className="mb-1.5">Şifreleme</Label>
               <Select value={encryption} onValueChange={(v) => setEncryption(v as SmtpEncryption)}>
