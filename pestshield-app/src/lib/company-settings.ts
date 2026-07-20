@@ -12,19 +12,43 @@ const STORAGE_KEY = "pestshield.company.settings";
 
 export interface CompanySettings {
   companyName: string;
+  shortName: string;
   authorizedName: string;
   address: string;
+  country: string;
+  city: string;
+  district: string;
   phone: string;
+  authorizedPhone: string;
   logo: string | null;
+  permitDate: string;
+  permitNumber: string;
+  activityField: string;
+  taxNumber: string;
+  taxOffice: string;
+  iban: string;
+  currency: string;
   updatedAt: string | null;
 }
 
 const DEFAULT_SETTINGS: CompanySettings = {
   companyName: "",
+  shortName: "",
   authorizedName: "",
   address: "",
+  country: "Türkiye",
+  city: "",
+  district: "",
   phone: "",
+  authorizedPhone: "",
   logo: null,
+  permitDate: "",
+  permitNumber: "",
+  activityField: "",
+  taxNumber: "",
+  taxOffice: "",
+  iban: "",
+  currency: "TRY",
   updatedAt: null,
 };
 

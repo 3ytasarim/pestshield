@@ -25,7 +25,7 @@ function buildDefaultForm(): BiyosidalRaporFormValues {
     mesulMudur: "",
     uygulayicilar: "",
     telefon: company.phone || "",
-    izinTarihSayisi: "",
+    izinTarihSayisi: [company.permitDate, company.permitNumber].filter(Boolean).join(" / "),
     ekipSorumlusu: "",
     urunTicariAdi: "",
     urunUygulamaSekli: "",

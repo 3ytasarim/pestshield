@@ -57,7 +57,7 @@ export function buildDefaultEk1Form(occurrence: PeriyotOccurrence, customerId: s
     mesulMudur: "",
     uygulayicilar: occurrence.personnelName || "",
     telefon: company.phone || "",
-    izinTarihSayisi: "",
+    izinTarihSayisi: [company.permitDate, company.permitNumber].filter(Boolean).join(" / "),
     ekipSorumlusu: occurrence.personnelName || "",
     urunTicariAdi: summarizeBiocidalUsages(occurrence),
     urunUygulamaSekli: "",

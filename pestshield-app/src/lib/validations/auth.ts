@@ -62,10 +62,22 @@ export type OtpFormValues = z.infer<typeof otpSchema>;
 
 export const companySettingsSchema = z.object({
   companyName: z.string().min(1, "Firma adı zorunludur"),
+  shortName: z.string().optional(),
   authorizedName: z.string().optional(),
   address: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  district: z.string().optional(),
   phone: z.string().optional(),
+  authorizedPhone: z.string().optional(),
   logo: z.string().nullable().optional(),
+  permitDate: z.string().optional(),
+  permitNumber: z.string().optional(),
+  activityField: z.string().optional(),
+  taxNumber: z.string().optional(),
+  taxOffice: z.string().optional(),
+  iban: z.string().optional(),
+  currency: z.string().optional(),
 });
 
 export type CompanySettingsFormValues = z.infer<typeof companySettingsSchema>;

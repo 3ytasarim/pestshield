@@ -247,10 +247,27 @@ model User {
   /// Firma kaydı akışıyla oluşturulan müşteri hesapları için serbest metin
   /// firma adı. Tam ilişkisel Company modeli sonraki bir sprintte eklenecek.
   companyName String?
+  shortName   String?
   address     String?
+  country     String?
+  city        String?
+  district    String?
   phone       String?
+  authorizedPhone String?
   /// Firma logosu — base64 data URL (bkz. src/lib/file-utils.ts readImageFile).
   logoUrl     String?
+
+  /// Biyosidal ürün uygulama ruhsatı - EK-1 formunun "Uygulamayı Yapana Ait
+  /// Bilgiler" bölümüne otomatik yazılır.
+  permitDate     String?
+  permitNumber   String?
+  activityField  String?
+
+  /// Faturalama bilgileri.
+  taxNumber String?
+  taxOffice String?
+  iban      String?
+  currency  String? @default("TRY")
 
   /// Firma kaydı sırasında otomatik atanır (bkz. /api/company-register).
   /// Ödeme/yükseltme akışı henüz bağlanmadı - sadece kayıt anındaki durumu tutar.

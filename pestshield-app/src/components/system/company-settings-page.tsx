@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Award, Building2, CheckCircle2, ImagePlus, KeyRound, MapPin, Phone, Save, Stamp, Trash2, UserRound } from "lucide-react";
+import { Award, Building2, CheckCircle2, CreditCard, Globe, ImagePlus, KeyRound, Landmark, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,10 +33,22 @@ const CERTIFICATE_STYLES: { value: CertificateStyle; label: string; preview: str
 export function CompanySettingsPage() {
   const [settings, setSettings] = useState<CompanySettings>(() => getCompanySettings());
   const [companyName, setCompanyName] = useState(() => getCompanySettings().companyName);
+  const [shortName, setShortName] = useState(() => getCompanySettings().shortName);
   const [authorizedName, setAuthorizedName] = useState(() => getCompanySettings().authorizedName);
   const [address, setAddress] = useState(() => getCompanySettings().address);
+  const [country, setCountry] = useState(() => getCompanySettings().country);
+  const [city, setCity] = useState(() => getCompanySettings().city);
+  const [district, setDistrict] = useState(() => getCompanySettings().district);
   const [phone, setPhone] = useState(() => getCompanySettings().phone);
+  const [authorizedPhone, setAuthorizedPhone] = useState(() => getCompanySettings().authorizedPhone);
   const [logo, setLogo] = useState<string | null>(() => getCompanySettings().logo);
+  const [permitDate, setPermitDate] = useState(() => getCompanySettings().permitDate);
+  const [permitNumber, setPermitNumber] = useState(() => getCompanySettings().permitNumber);
+  const [activityField, setActivityField] = useState(() => getCompanySettings().activityField);
+  const [taxNumber, setTaxNumber] = useState(() => getCompanySettings().taxNumber);
+  const [taxOffice, setTaxOffice] = useState(() => getCompanySettings().taxOffice);
+  const [iban, setIban] = useState(() => getCompanySettings().iban);
+  const [currency, setCurrency] = useState(() => getCompanySettings().currency);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,19 +75,43 @@ export function CompanySettingsPage() {
         if (!data || cancelled) return;
         const next: CompanySettings = {
           companyName: data.companyName ?? "",
+          shortName: data.shortName ?? "",
           authorizedName: data.authorizedName ?? "",
           address: data.address ?? "",
+          country: data.country || "Türkiye",
+          city: data.city ?? "",
+          district: data.district ?? "",
           phone: data.phone ?? "",
+          authorizedPhone: data.authorizedPhone ?? "",
           logo: data.logo ?? null,
+          permitDate: data.permitDate ?? "",
+          permitNumber: data.permitNumber ?? "",
+          activityField: data.activityField ?? "",
+          taxNumber: data.taxNumber ?? "",
+          taxOffice: data.taxOffice ?? "",
+          iban: data.iban ?? "",
+          currency: data.currency || "TRY",
           updatedAt: (data.updatedAt as unknown as string) ?? null,
         };
         saveCompanySettings(next);
         setSettings(next);
         setCompanyName(next.companyName);
+        setShortName(next.shortName);
         setAuthorizedName(next.authorizedName);
         setAddress(next.address);
+        setCountry(next.country);
+        setCity(next.city);
+        setDistrict(next.district);
         setPhone(next.phone);
+        setAuthorizedPhone(next.authorizedPhone);
         setLogo(next.logo);
+        setPermitDate(next.permitDate);
+        setPermitNumber(next.permitNumber);
+        setActivityField(next.activityField);
+        setTaxNumber(next.taxNumber);
+        setTaxOffice(next.taxOffice);
+        setIban(next.iban);
+        setCurrency(next.currency);
       })
       .catch(() => {
         // Sunucudan çekilemezse localStorage'daki (varsa) son bilinen değerler kalır.
@@ -116,10 +152,22 @@ export function CompanySettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyName: companyName.trim(),
+          shortName: shortName.trim(),
           authorizedName: authorizedName.trim(),
           address: address.trim(),
+          country: country.trim(),
+          city: city.trim(),
+          district: district.trim(),
           phone: phone.trim(),
+          authorizedPhone: authorizedPhone.trim(),
           logo,
+          permitDate: permitDate.trim(),
+          permitNumber: permitNumber.trim(),
+          activityField: activityField.trim(),
+          taxNumber: taxNumber.trim(),
+          taxOffice: taxOffice.trim(),
+          iban: iban.trim(),
+          currency: currency.trim(),
         }),
       });
       if (!res.ok) {
@@ -129,10 +177,22 @@ export function CompanySettingsPage() {
       const data = await res.json();
       const next: CompanySettings = {
         companyName: data.companyName ?? "",
+        shortName: data.shortName ?? "",
         authorizedName: data.authorizedName ?? "",
         address: data.address ?? "",
+        country: data.country || "Türkiye",
+        city: data.city ?? "",
+        district: data.district ?? "",
         phone: data.phone ?? "",
+        authorizedPhone: data.authorizedPhone ?? "",
         logo: data.logo ?? null,
+        permitDate: data.permitDate ?? "",
+        permitNumber: data.permitNumber ?? "",
+        activityField: data.activityField ?? "",
+        taxNumber: data.taxNumber ?? "",
+        taxOffice: data.taxOffice ?? "",
+        iban: data.iban ?? "",
+        currency: data.currency || "TRY",
         updatedAt: data.updatedAt ?? new Date().toISOString(),
       };
       saveCompanySettings(next);
@@ -282,9 +342,13 @@ export function CompanySettingsPage() {
             </div>
 
             <div className="grid flex-1 grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <div className="sm:col-span-2">
+              <div>
                 <Label className="mb-1.5">Firma Adı</Label>
                 <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Örn. ABC Liman A.Ş." className="h-11 rounded-xl px-3.5" />
+              </div>
+              <div>
+                <Label className="mb-1.5">Firma Kısa Adı</Label>
+                <Input value={shortName} onChange={(e) => setShortName(e.target.value)} placeholder="Örn. ABC Liman" className="h-11 rounded-xl px-3.5" />
               </div>
               <div className="sm:col-span-2">
                 <Label className="mb-1.5 flex items-center gap-1.5">
@@ -301,7 +365,7 @@ export function CompanySettingsPage() {
                   PDF belgelerinizin imza bölümünde bu isim yazılır.
                 </p>
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <Label className="mb-1.5 flex items-center gap-1.5">
                   <MapPin className="size-3.5 text-muted-foreground" />
                   Açık Adres
@@ -315,14 +379,116 @@ export function CompanySettingsPage() {
               </div>
               <div>
                 <Label className="mb-1.5 flex items-center gap-1.5">
+                  <Globe className="size-3.5 text-muted-foreground" />
+                  Ülke
+                </Label>
+                <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Türkiye" className="h-11 rounded-xl px-3.5" />
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <Label className="mb-1.5">Şehir</Label>
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Örn. İstanbul" className="h-11 rounded-xl px-3.5" />
+                </div>
+                <div>
+                  <Label className="mb-1.5">İlçe</Label>
+                  <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Örn. Tuzla" className="h-11 rounded-xl px-3.5" />
+                </div>
+              </div>
+              <div>
+                <Label className="mb-1.5 flex items-center gap-1.5">
                   <Phone className="size-3.5 text-muted-foreground" />
                   Telefon
                 </Label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(532) 000-0000" className="h-11 rounded-xl px-3.5" />
               </div>
+              <div>
+                <Label className="mb-1.5 flex items-center gap-1.5">
+                  <Phone className="size-3.5 text-muted-foreground" />
+                  Yetkili Telefon
+                </Label>
+                <Input value={authorizedPhone} onChange={(e) => setAuthorizedPhone(e.target.value)} placeholder="(532) 000-0000" className="h-11 rounded-xl px-3.5" />
+              </div>
               <p className="text-[11px] text-muted-foreground sm:col-span-2">
                 Adres ve telefon, EK-1 Biyosidal Ürün Uygulama İşlem Formu&apos;nda &quot;Uygulamayı Yapana Ait Bilgiler&quot; bölümüne otomatik yazılır.
               </p>
+            </div>
+          </div>
+
+          <Button onClick={handleSave} loading={saving} className="w-fit">
+            <Save className="size-4" />
+            Kaydet
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ShieldCheck className="size-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Ruhsat Bilgileri</p>
+              <p className="text-xs text-muted-foreground">Biyosidal ürün uygulama ruhsatınıza ait bilgiler.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+            <div>
+              <Label className="mb-1.5">Müdürlük İzin Tarihi</Label>
+              <Input value={permitDate} onChange={(e) => setPermitDate(e.target.value)} placeholder="Örn. 21.06.2019" className="h-11 rounded-xl px-3.5" />
+            </div>
+            <div>
+              <Label className="mb-1.5">Müdürlük İzin Sayısı</Label>
+              <Input value={permitNumber} onChange={(e) => setPermitNumber(e.target.value)} placeholder="Örn. 32971/487" className="h-11 rounded-xl px-3.5" />
+            </div>
+            <div>
+              <Label className="mb-1.5">Faaliyet Alanı</Label>
+              <Input value={activityField} onChange={(e) => setActivityField(e.target.value)} placeholder="Örn. İlaçlama" className="h-11 rounded-xl px-3.5" />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            EK-1 Biyosidal Ürün Uygulama İşlem Formu&apos;nun ruhsat/onay bölümüne otomatik yazılır.
+          </p>
+
+          <Button onClick={handleSave} loading={saving} className="w-fit">
+            <Save className="size-4" />
+            Kaydet
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Landmark className="size-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Fatura Bilgileri</p>
+              <p className="text-xs text-muted-foreground">Vergi ve banka bilgileriniz.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div>
+              <Label className="mb-1.5">Vergi Numarası</Label>
+              <Input value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} className="h-11 rounded-xl px-3.5" />
+            </div>
+            <div>
+              <Label className="mb-1.5">Vergi Dairesi</Label>
+              <Input value={taxOffice} onChange={(e) => setTaxOffice(e.target.value)} className="h-11 rounded-xl px-3.5" />
+            </div>
+            <div>
+              <Label className="mb-1.5 flex items-center gap-1.5">
+                <CreditCard className="size-3.5 text-muted-foreground" />
+                IBAN
+              </Label>
+              <Input value={iban} onChange={(e) => setIban(e.target.value)} placeholder="TR00 0000 0000 0000 0000 0000 00" className="h-11 rounded-xl px-3.5" />
+            </div>
+            <div>
+              <Label className="mb-1.5">Para Birimi</Label>
+              <Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="TRY" className="h-11 rounded-xl px-3.5" />
             </div>
           </div>
 
