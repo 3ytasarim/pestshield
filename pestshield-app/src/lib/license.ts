@@ -1,4 +1,4 @@
-import type { LicenseType } from "@/generated/prisma/enums";
+import type { LicenseType } from "@/generated/prisma";
 
 export interface LicensePreset {
   type: LicenseType;

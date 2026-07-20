@@ -34,7 +34,7 @@ import {
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { LICENSE_PRESETS, computeDaysRemaining, computeLicenseStatus } from "@/lib/license";
 import { readImageFile } from "@/lib/file-utils";
-import type { LicenseType } from "@/generated/prisma/enums";
+import type { LicenseType } from "@/generated/prisma";
 
 interface CompanyRow {
   id: string;

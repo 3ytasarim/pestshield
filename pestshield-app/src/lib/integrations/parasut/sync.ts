@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { parasutClient, type ParasutContact } from "./client";
-import type { ParasutIntegration } from "@/generated/prisma/client";
+import type { ParasutIntegration } from "@/generated/prisma";
 
 export interface ParasutSyncResult {
   created: number;

@@ -5,7 +5,7 @@ import type {
   Station as PrismaStation,
   StationCheck as PrismaStationCheck,
   Warehouse as PrismaWarehouse,
-} from "@/generated/prisma/client";
+} from "@/generated/prisma";
 import type { Technician, Vehicle, ChecklistTemplate, Station, StationCheck } from "@/lib/mock/operations";
 
 export function serializeTechnician(technician: PrismaTechnician & { vehicles: PrismaVehicle[] }): Technician {

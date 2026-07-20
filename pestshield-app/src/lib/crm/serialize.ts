@@ -11,7 +11,7 @@ import type {
   ServiceOrderItem as PrismaServiceOrderItem,
   WorkOrder as PrismaWorkOrder,
   Technician as PrismaTechnician,
-} from "@/generated/prisma/client";
+} from "@/generated/prisma";
 import type {
   Customer,
   Branch,

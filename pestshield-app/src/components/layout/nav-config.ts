@@ -52,7 +52,7 @@ import {
   Wind,
   type LucideIcon,
 } from "lucide-react";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "@/generated/prisma";
 import { getCustomerById } from "@/lib/mock/crm";
 
 export interface NavItem {

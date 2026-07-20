@@ -8,7 +8,7 @@ import { CommandPaletteProvider } from "@/components/layout/command-palette-cont
 import { NotificationsProvider } from "@/components/notifications/notifications-context";
 import { AiCommandCenter } from "@/components/ai-assistant/ai-command-center";
 import { AiPanelProvider } from "@/components/ai-assistant/ai-panel-context";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "@/generated/prisma";
 
 interface DashboardShellProps {
   role: Role;

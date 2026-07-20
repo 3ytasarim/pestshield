@@ -2,7 +2,7 @@ import type {
   PeriyotBatch as PrismaPeriyotBatch,
   PeriyotOccurrence as PrismaPeriyotOccurrence,
   PeriyotBiocidalProductUsage as PrismaBiocidalUsage,
-} from "@/generated/prisma/client";
+} from "@/generated/prisma";
 import type { PeriyotBatch, PeriyotOccurrence, BiocidalProductUsage, PeriyotDonem } from "@/lib/mock/crm";
 
 export function serializePeriyotBatch(batch: PrismaPeriyotBatch): PeriyotBatch {

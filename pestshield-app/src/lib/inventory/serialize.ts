@@ -2,7 +2,7 @@ import type {
   Warehouse as PrismaWarehouse,
   Product as PrismaProduct,
   StockTransaction as PrismaStockTransaction,
-} from "@/generated/prisma/client";
+} from "@/generated/prisma";
 import type { Warehouse, Product, StockTransaction } from "@/lib/mock/inventory";
 
 export function serializeWarehouse(warehouse: PrismaWarehouse): Warehouse {

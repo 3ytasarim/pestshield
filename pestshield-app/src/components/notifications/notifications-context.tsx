@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Notification } from "@/lib/mock/notifications";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "@/generated/prisma";
 
 interface NotificationsContextValue {
   notifications: Notification[];

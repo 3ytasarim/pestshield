@@ -6,7 +6,7 @@ import type {
   StationCheck as PrismaStationCheck,
   WorkOrder as PrismaWorkOrder,
   Technician as PrismaTechnician,
-} from "@/generated/prisma/client";
+} from "@/generated/prisma";
 import type {
   TodayServicesSummary,
   OpenJobsSummary,

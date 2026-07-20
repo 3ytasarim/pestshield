@@ -4,7 +4,7 @@ import type {
   CorrectiveAction as PrismaCorrectiveAction,
   Risk as PrismaRisk,
   PrismaClient,
-} from "@/generated/prisma/client";
+} from "@/generated/prisma";
 import { todayStr } from "@/lib/date-utils";
 import {
   STANDARD_SECTIONS,

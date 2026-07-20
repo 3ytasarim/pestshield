@@ -1,4 +1,4 @@
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "@/generated/prisma";
 
 const ROLE_DASHBOARD_PATH: Record<Role, string> = {
   ADMIN: "/dashboard/admin",

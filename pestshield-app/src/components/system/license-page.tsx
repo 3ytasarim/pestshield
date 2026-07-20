@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import type { LicenseStatus } from "@/lib/license";
-import type { LicenseType } from "@/generated/prisma/enums";
+import type { LicenseType } from "@/generated/prisma";
 
 interface LicenseStatusResponse {
   licenseType: LicenseType | null;

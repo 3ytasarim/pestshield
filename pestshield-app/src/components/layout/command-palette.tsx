@@ -9,7 +9,7 @@ import { CornerDownLeft, LogOut, Moon, Plus, Search, Sun, Users } from "lucide-r
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS_BY_ROLE } from "@/components/layout/nav-config";
 import { useCommandPalette } from "@/components/layout/command-palette-context";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "@/generated/prisma";
 
 interface CommandItem {
   id: string;

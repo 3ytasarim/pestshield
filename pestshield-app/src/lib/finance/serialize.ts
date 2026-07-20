@@ -3,7 +3,7 @@ import type {
   Collection as PrismaCollection,
   BankAccount as PrismaBankAccount,
   BankTransaction as PrismaBankTransaction,
-} from "@/generated/prisma/client";
+} from "@/generated/prisma";
 import type { Invoice, PaymentMethod, InvoiceStatus, BankAccount, BankTransaction } from "@/lib/mock/finance";
 
 export function serializeInvoice(invoice: PrismaInvoice): Invoice {

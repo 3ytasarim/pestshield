@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import { getDashboardPathForRole } from "@/lib/dashboard-path";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "@/generated/prisma";
 
 /**
  * Edge-safe config: middleware bunu kullanır. Prisma (Node.js) burada

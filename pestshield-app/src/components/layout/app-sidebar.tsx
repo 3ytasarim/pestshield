@@ -31,7 +31,7 @@ import { useCommandPalette } from "@/components/layout/command-palette-context";
 import { getDashboardPathForRole } from "@/lib/dashboard-path";
 import { getCompanySettings } from "@/lib/company-settings";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "@/generated/prisma";
 
 const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Yönetici",
