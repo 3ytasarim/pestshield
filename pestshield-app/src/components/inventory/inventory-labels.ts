@@ -38,3 +38,23 @@ export const WAREHOUSE_TYPE_LABELS: Record<WarehouseType, string> = {
   vehicle: "Araç Stoğu",
   branch: "Şube Deposu",
 };
+
+/** Biyosidal ürün için kullanım yeri / hedef alan seçenekleri (çoklu seçim). */
+export const USAGE_AREA_OPTIONS: string[] = [
+  "Kemirgen",
+  "Yürüyen",
+  "Uçkun",
+  "Larvasit",
+  "Dezenfeksiyon",
+  "Depo Ürün Böcekleri",
+  "Tekstil Zararlıları",
+  "Haşeresiz Koşullar",
+  "İstila",
+  "Kuş",
+  "Pire",
+  "Sıçan",
+  "Fare",
+  "Haşere Koruma",
+  "Hamam Böceği",
+  "Karınca",
+];

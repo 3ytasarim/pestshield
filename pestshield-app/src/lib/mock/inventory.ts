@@ -34,6 +34,13 @@ export interface Product {
   activeIngredient?: string;
   defaultDose?: string;
   targetOrganisms?: string;
+  packageAmount?: string;
+  antidote?: string;
+  usageAreas?: string[];
+  licenseFileDataUrl?: string;
+  licenseFileName?: string;
+  msdsFileDataUrl?: string;
+  msdsFileName?: string;
 }
 
 export type StockTransactionType = "add" | "use";

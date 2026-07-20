@@ -1008,10 +1008,20 @@ model Product {
   criticalLevel Decimal         @default(0) @db.Decimal(12, 2)
   createdAt     String
 
+  /// "Ruhsat Tarihi ve Sayısı" (örn. 2024/123) olarak gösterilir.
   licenseNumber    String?
   activeIngredient String?
   defaultDose      String?
   targetOrganisms  String?
+
+  packageAmount String? // Ürün Ambalaj Miktarı (örn. "5 LT")
+  antidote      String? // Ürün Antidotu
+  usageAreas    String[] @default([]) // Ürün Kullanım Yeri (çoklu seçim)
+
+  licenseFileDataUrl String? @db.Text // Ürün Ruhsatı (belge/görsel)
+  licenseFileName    String?
+  msdsFileDataUrl    String? @db.Text // Ürün MSDS (belge/görsel)
+  msdsFileName       String?
 
   transactions   StockTransaction[]
   biocidalUsages PeriyotBiocidalProductUsage[]

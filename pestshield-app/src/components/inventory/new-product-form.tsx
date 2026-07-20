@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
-import { PackagePlus, ShieldCheck } from "lucide-react";
+import { FileText, PackagePlus, ShieldCheck, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -24,9 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TechnicianMultiSelect } from "@/components/crm/technician-multiselect";
 import { cn } from "@/lib/utils";
+import { readImageFile } from "@/lib/file-utils";
 import { newProductFormSchema, type NewProductFormValues } from "@/lib/validations/inventory";
-import { CATEGORY_OPTIONS, UNIT_OPTIONS } from "@/components/inventory/inventory-labels";
+import { CATEGORY_OPTIONS, UNIT_OPTIONS, USAGE_AREA_OPTIONS } from "@/components/inventory/inventory-labels";
 import type { ProductCategory, ProductUnit, Warehouse } from "@/lib/mock/inventory";
 
 interface NewProductFormProps {
@@ -67,6 +70,65 @@ function PillGroup<T extends string>({
   );
 }
 
+interface FileDropzoneProps {
+  label: string;
+  fileName: string | null;
+  onFileSelect: (dataUrl: string, fileName: string) => void;
+}
+
+/** PDF/JPG/PNG belge yükleme alanı — sürükle-bırak veya "Dosya Seç". Bkz. belge-tanimlama-dialog.tsx için aynı desen. */
+function FileDropzone({ label, fileName, onFileSelect }: FileDropzoneProps) {
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleSelect(selected: File | undefined) {
+    if (!selected) return;
+    try {
+      const dataUrl = await readImageFile(selected, 8);
+      onFileSelect(dataUrl, selected.name);
+    } catch {
+      // readImageFile zaten anlaşılır bir hata fırlatır; burada sessizce yut, kullanıcı dosyayı tekrar seçebilir.
+    }
+  }
+
+  return (
+    <div>
+      <Label className="mb-1.5">{label}</Label>
+      <div
+        className={cn(
+          "flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border p-3 text-center transition-colors",
+          dragOver && "border-primary bg-primary/5",
+          fileName && "border-solid border-primary/20 bg-muted/30",
+        )}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          handleSelect(e.dataTransfer.files?.[0]);
+        }}
+      >
+        {fileName ? <FileText className="size-5 text-primary" /> : <Upload className="size-5 text-muted-foreground" />}
+        {fileName && <p className="max-w-full truncate text-xs font-medium text-foreground">{fileName}</p>}
+        <Button type="button" size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
+          {fileName ? "Değiştir" : "Dosya Seç"}
+        </Button>
+        <p className="text-[11px] text-muted-foreground">Sürükle &amp; Bırak · PDF/JPG/PNG, maks. 8MB</p>
+        <input
+          ref={inputRef}
+          type="file"
+          className="hidden"
+          accept="image/jpeg,image/png,application/pdf"
+          onChange={(e) => handleSelect(e.target.files?.[0])}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, warehouses }: NewProductFormProps) {
   const EMPTY: NewProductFormValues = useMemo(
     () => ({
@@ -82,6 +144,13 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
       activeIngredient: "",
       defaultDose: "",
       targetOrganisms: "",
+      packageAmount: "",
+      antidote: "",
+      usageAreas: [],
+      licenseFileDataUrl: null,
+      licenseFileName: null,
+      msdsFileDataUrl: null,
+      msdsFileName: null,
     }),
     [warehouses],
   );
@@ -252,29 +321,81 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
                 className="overflow-hidden"
               >
                 <div className="flex flex-col gap-3.5 border-l-2 border-success/30 pl-4">
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <Controller
+                      control={control}
+                      name="licenseFileDataUrl"
+                      render={({ field: dataUrlField }) => (
+                        <Controller
+                          control={control}
+                          name="licenseFileName"
+                          render={({ field: nameField }) => (
+                            <FileDropzone
+                              label="Ürün Ruhsatı"
+                              fileName={nameField.value}
+                              onFileSelect={(dataUrl, fileName) => {
+                                dataUrlField.onChange(dataUrl);
+                                nameField.onChange(fileName);
+                              }}
+                            />
+                          )}
+                        />
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="msdsFileDataUrl"
+                      render={({ field: dataUrlField }) => (
+                        <Controller
+                          control={control}
+                          name="msdsFileName"
+                          render={({ field: nameField }) => (
+                            <FileDropzone
+                              label="Ürün MSDS"
+                              fileName={nameField.value}
+                              onFileSelect={(dataUrl, fileName) => {
+                                dataUrlField.onChange(dataUrl);
+                                nameField.onChange(fileName);
+                              }}
+                            />
+                          )}
+                        />
+                      )}
+                    />
+                  </div>
                   <div>
-                    <Label className="mb-1.5">Ruhsat No</Label>
+                    <Label className="mb-1.5">Ruhsat Tarihi ve Sayısı</Label>
                     <Input
-                      placeholder="2009/12-789"
+                      placeholder="Örn: 2024/123"
                       className="h-11 rounded-xl px-3.5"
                       {...register("licenseNumber")}
                     />
                   </div>
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <div>
+                      <Label className="mb-1.5">Ürün Ambalaj Miktarı (Kg / LT)</Label>
+                      <Input placeholder="Örn: 5 LT" className="h-11 rounded-xl px-3.5" {...register("packageAmount")} />
+                    </div>
+                    <div>
+                      <Label className="mb-1.5">Varsayılan Doz</Label>
+                      <Input
+                        placeholder="25 g / 5 lt su"
+                        className="h-11 rounded-xl px-3.5"
+                        {...register("defaultDose")}
+                      />
+                    </div>
+                  </div>
                   <div>
-                    <Label className="mb-1.5">Aktif Madde</Label>
-                    <Input
-                      placeholder="Deltamethrin %25"
-                      className="h-11 rounded-xl px-3.5"
+                    <Label className="mb-1.5">Ürün Aktif Maddeleri</Label>
+                    <Textarea
+                      placeholder="Örn: Deltamethrin %25, Piperonil Bütoksit %5"
+                      className="min-h-20 rounded-xl px-3.5 py-2.5"
                       {...register("activeIngredient")}
                     />
                   </div>
                   <div>
-                    <Label className="mb-1.5">Varsayılan Doz</Label>
-                    <Input
-                      placeholder="25 g / 5 lt su"
-                      className="h-11 rounded-xl px-3.5"
-                      {...register("defaultDose")}
-                    />
+                    <Label className="mb-1.5">Ürün Antidotu</Label>
+                    <Input placeholder="Örn: Yok" className="h-11 rounded-xl px-3.5" {...register("antidote")} />
                   </div>
                   <div>
                     <Label className="mb-1.5">Hedef Organizmalar</Label>
@@ -284,6 +405,25 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
                       {...register("targetOrganisms")}
                     />
                   </div>
+                  <Controller
+                    control={control}
+                    name="usageAreas"
+                    render={({ field }) => (
+                      <TechnicianMultiSelect
+                        label="Ürün Kullanım Yeri"
+                        value={field.value.join(", ")}
+                        onChange={(v) =>
+                          field.onChange(
+                            v
+                              .split(",")
+                              .map((s) => s.trim())
+                              .filter(Boolean),
+                          )
+                        }
+                        options={USAGE_AREA_OPTIONS}
+                      />
+                    )}
+                  />
                   <div>
                     <Label className="mb-1.5">Üretici</Label>
                     <Input

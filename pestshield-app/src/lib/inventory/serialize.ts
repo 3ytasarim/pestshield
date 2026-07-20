@@ -22,6 +22,13 @@ export function serializeProduct(product: PrismaProduct): Product {
     activeIngredient: product.activeIngredient ?? undefined,
     defaultDose: product.defaultDose ?? undefined,
     targetOrganisms: product.targetOrganisms ?? undefined,
+    packageAmount: product.packageAmount ?? undefined,
+    antidote: product.antidote ?? undefined,
+    usageAreas: product.usageAreas,
+    licenseFileDataUrl: product.licenseFileDataUrl ?? undefined,
+    licenseFileName: product.licenseFileName ?? undefined,
+    msdsFileDataUrl: product.msdsFileDataUrl ?? undefined,
+    msdsFileName: product.msdsFileName ?? undefined,
   };
 }
 

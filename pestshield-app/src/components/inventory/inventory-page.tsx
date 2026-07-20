@@ -352,6 +352,13 @@ export function InventoryPage({
                 activeIngredient: editingProduct.activeIngredient ?? "",
                 defaultDose: editingProduct.defaultDose ?? "",
                 targetOrganisms: editingProduct.targetOrganisms ?? "",
+                packageAmount: editingProduct.packageAmount ?? "",
+                antidote: editingProduct.antidote ?? "",
+                usageAreas: editingProduct.usageAreas ?? [],
+                licenseFileDataUrl: editingProduct.licenseFileDataUrl ?? null,
+                licenseFileName: editingProduct.licenseFileName ?? null,
+                msdsFileDataUrl: editingProduct.msdsFileDataUrl ?? null,
+                msdsFileName: editingProduct.msdsFileName ?? null,
               }
             : undefined
         }

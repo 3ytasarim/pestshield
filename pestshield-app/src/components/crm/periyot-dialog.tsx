@@ -432,7 +432,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     const ek1Data = ek1Res.ok ? await ek1Res.json() : null;
     const capaData = capaRes.ok ? await capaRes.json() : null;
 
-    const base = ek1Data?.ek1Form ?? buildDefaultEk1Form(normalizedOccurrence, customer);
+    const base = ek1Data?.ek1Form ?? buildDefaultEk1Form(normalizedOccurrence, customer, biocidalProductOptions);
     setEditingEk1({
       ...base,
       uygulamaAlaniBirimi: base.uygulamaAlaniBirimi || "m2",
@@ -679,8 +679,14 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     const product = biocidalProductOptions.find((p) => p.id === productId);
     if (!product) return;
     updateProductRow(rowId, { productId, productName: product.name, unit: product.unit });
-    if (editingEk1 && !editingEk1.urunAktifMaddesi && product.activeIngredient) {
-      setEditingEk1({ ...editingEk1, urunAktifMaddesi: product.activeIngredient });
+    if (editingEk1) {
+      setEditingEk1({
+        ...editingEk1,
+        urunTicariAdi: editingEk1.urunTicariAdi || [product.name, product.licenseNumber].filter(Boolean).join(" — "),
+        urunAktifMaddesi: editingEk1.urunAktifMaddesi || product.activeIngredient || "",
+        urunAntidotu: editingEk1.urunAntidotu || product.antidote || "",
+        urunAmbalajMiktari: editingEk1.urunAmbalajMiktari || product.packageAmount || "",
+      });
     }
   }
 

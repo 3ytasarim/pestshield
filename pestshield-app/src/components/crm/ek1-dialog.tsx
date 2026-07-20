@@ -21,6 +21,7 @@ import { TechnicianMultiSelect } from "@/components/crm/technician-multiselect";
 import { printEk1Form } from "@/lib/pdf/ek1-report";
 import { getCompanySettings } from "@/lib/company-settings";
 import type { Ek1Form, PeriyotOccurrence } from "@/lib/mock/crm";
+import type { Product } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
 
 export interface Ek1CustomerInfo {
@@ -47,11 +48,29 @@ export function summarizeBiocidalUsages(occurrence: PeriyotOccurrence): string {
     .join(", ");
 }
 
-export function buildDefaultEk1Form(occurrence: PeriyotOccurrence, customer: Ek1CustomerInfo | null): Ek1Form {
+/** Bir periyot uygulamasında seçilen biyosidal ürünlerin Ürünler modülündeki kayıtlarından
+ * aktif madde/antidot/ambalaj miktarı bilgilerini toplar (birden fazla ürün varsa virgülle birleştirir). */
+export function productDetailsForUsages(
+  usages: PeriyotOccurrence["biocidalProductUsages"],
+  products: Product[],
+): { aktifMadde: string; antidot: string; ambalaj: string } {
+  const matched = (usages ?? [])
+    .map((u) => products.find((p) => p.id === u.productId))
+    .filter((p): p is Product => !!p);
+  const unique = (values: (string | undefined)[]) => Array.from(new Set(values.filter(Boolean))).join(", ");
+  return {
+    aktifMadde: unique(matched.map((p) => p.activeIngredient)),
+    antidot: unique(matched.map((p) => p.antidote)),
+    ambalaj: unique(matched.map((p) => p.packageAmount)),
+  };
+}
+
+export function buildDefaultEk1Form(occurrence: PeriyotOccurrence, customer: Ek1CustomerInfo | null, products: Product[] = []): Ek1Form {
   const company = getCompanySettings();
   const address = customer
     ? [customer.addressLine, customer.district, customer.city].filter(Boolean).join(", ")
     : "";
+  const details = productDetailsForUsages(occurrence.biocidalProductUsages, products);
   return {
     id: `ek1-${occurrence.id}`,
     periyotOccurrenceId: occurrence.id,
@@ -64,9 +83,9 @@ export function buildDefaultEk1Form(occurrence: PeriyotOccurrence, customer: Ek1
     ekipSorumlusu: occurrence.personnelName || "",
     urunTicariAdi: summarizeBiocidalUsages(occurrence),
     urunUygulamaSekli: "",
-    urunAktifMaddesi: "",
-    urunAntidotu: "",
-    urunAmbalajMiktari: "",
+    urunAktifMaddesi: details.aktifMadde,
+    urunAntidotu: details.antidot,
+    urunAmbalajMiktari: details.ambalaj,
     uygulamaYeriAdresi: address,
     hedefZararliTuru: "",
     meskenIsyeriVb: "İşyeri",
@@ -91,6 +110,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
   const [printing, setPrinting] = useState(false);
   const [customer, setCustomer] = useState<Ek1CustomerInfo | null>(null);
   const [technicianOptions, setTechnicianOptions] = useState<string[]>([]);
+  const [biocidalProducts, setBiocidalProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -100,6 +120,12 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
         setTechnicianOptions((data?.technicians ?? []).filter((t) => t.status === "active").map((t) => t.name));
       })
       .catch(() => setTechnicianOptions([]));
+    fetch("/api/inventory/products")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { products?: Product[] } | null) => {
+        setBiocidalProducts((data?.products ?? []).filter((p) => p.type === "biosidal"));
+      })
+      .catch(() => setBiocidalProducts([]));
   }, [open]);
 
   useEffect(() => {
@@ -123,7 +149,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { ek1Form?: Ek1Form | null } | null) => {
         if (cancelled) return;
-        const base = data?.ek1Form ?? buildDefaultEk1Form(occurrence, customer);
+        const base = data?.ek1Form ?? buildDefaultEk1Form(occurrence, customer, biocidalProducts);
         setForm({
           ...base,
           ekipSorumlusuImzaData: base.ekipSorumlusuImzaData ?? null,
@@ -131,13 +157,13 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
         });
       })
       .catch(() => {
-        if (!cancelled) setForm(buildDefaultEk1Form(occurrence, customer));
+        if (!cancelled) setForm(buildDefaultEk1Form(occurrence, customer, biocidalProducts));
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, occurrence?.id, customer]);
+  }, [open, occurrence?.id, customer, biocidalProducts]);
 
   function update(patch: Partial<Ek1Form>) {
     setForm((prev) => (prev ? { ...prev, ...patch } : prev));

@@ -21,6 +21,13 @@ export const newProductFormSchema = z.object({
   activeIngredient: z.string(),
   defaultDose: z.string(),
   targetOrganisms: z.string(),
+  packageAmount: z.string(),
+  antidote: z.string(),
+  usageAreas: z.array(z.string()),
+  licenseFileDataUrl: z.string().nullable(),
+  licenseFileName: z.string().nullable(),
+  msdsFileDataUrl: z.string().nullable(),
+  msdsFileName: z.string().nullable(),
 });
 
 export type NewProductFormValues = z.infer<typeof newProductFormSchema>;

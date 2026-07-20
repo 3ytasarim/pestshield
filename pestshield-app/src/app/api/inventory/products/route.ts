@@ -21,7 +21,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Geçersiz istek" }, { status: 400 });
   }
 
-  const { isBiosidal, startingStock, licenseNumber, activeIngredient, defaultDose, targetOrganisms, ...rest } = parsed.data;
+  const {
+    isBiosidal,
+    startingStock,
+    licenseNumber,
+    activeIngredient,
+    defaultDose,
+    targetOrganisms,
+    packageAmount,
+    antidote,
+    usageAreas,
+    licenseFileDataUrl,
+    licenseFileName,
+    msdsFileDataUrl,
+    msdsFileName,
+    ...rest
+  } = parsed.data;
   const warehouse = await prisma.warehouse.findFirst({ where: { id: rest.warehouseId, ownerId } });
   if (!warehouse) {
     return NextResponse.json({ message: "Depo bulunamadı." }, { status: 404 });
@@ -38,6 +53,13 @@ export async function POST(request: Request) {
       activeIngredient: isBiosidal ? activeIngredient : null,
       defaultDose: isBiosidal ? defaultDose : null,
       targetOrganisms: isBiosidal ? targetOrganisms : null,
+      packageAmount: isBiosidal ? packageAmount : null,
+      antidote: isBiosidal ? antidote : null,
+      usageAreas: isBiosidal ? usageAreas : [],
+      licenseFileDataUrl: isBiosidal ? licenseFileDataUrl : null,
+      licenseFileName: isBiosidal ? licenseFileName : null,
+      msdsFileDataUrl: isBiosidal ? msdsFileDataUrl : null,
+      msdsFileName: isBiosidal ? msdsFileName : null,
     },
   });
   return NextResponse.json({ product: serializeProduct(product) }, { status: 201 });
