@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { ArrowUpDown, Eye, FileText, Search, Trash2, Upload } from "lucide-react";
+import { ArrowUpDown, Eye, FileText, Loader2, Plus, Search, Trash2, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { RainbowButton } from "@/components/ui/rainbow-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -319,9 +320,10 @@ export function DocumentsPage() {
                   </div>
                 </div>
 
-                <Button type="button" loading={saving} onClick={handleSave} className="w-fit">
+                <RainbowButton type="button" disabled={saving} onClick={handleSave} className="w-fit">
+                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
                   Kaydet
-                </Button>
+                </RainbowButton>
               </div>
             </TabsContent>
           </Tabs>
