@@ -179,7 +179,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md sm:max-w-md">
+      <DialogContent className="max-w-md sm:max-w-lg lg:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PackagePlus className="size-4.5 text-primary" />
