@@ -40,10 +40,16 @@ export function CustomerManagementPage({
   initialCustomers,
   contractStatusByCustomer,
   pendingOfferCustomerIds,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: {
   initialCustomers: Customer[];
   contractStatusByCustomer: Record<string, ContractStatus>;
   pendingOfferCustomerIds: string[];
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -174,15 +180,17 @@ export function CustomerManagementPage({
             Müşteriler, şubeler, lokasyonlar, sözleşmeler, teklifler ve geçmiş işlemleri tek merkezden yönetin.
           </p>
         </div>
-        <RainbowButton
-          onClick={() => {
-            setEditingCustomer(null);
-            setFormOpen(true);
-          }}
-        >
-          <Plus className="size-4" />
-          Yeni Müşteri
-        </RainbowButton>
+        {canCreate && (
+          <RainbowButton
+            onClick={() => {
+              setEditingCustomer(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="size-4" />
+            Yeni Müşteri
+          </RainbowButton>
+        )}
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -259,6 +267,8 @@ export function CustomerManagementPage({
           onSelect={setSelectedId}
           onEdit={handleEdit}
           onDelete={setDeletingCustomer}
+          canEdit={canEdit}
+          canDelete={canDelete}
           onCreateOffer={(c) => goToTab(c, "offers")}
           onCreateContract={(c) => goToTab(c, "contracts")}
           onCreateWorkOrder={(c) => goToTab(c, "work-history")}

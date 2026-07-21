@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOwner, getSessionPermissions } from "@/lib/api-auth";
 import { customerFormSchema } from "@/lib/validations/crm";
 import { serializeCustomer } from "@/lib/crm/serialize";
 
@@ -20,6 +20,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { ownerId, error } = await requireClientOwner();
   if (error) return error;
   const { id } = await params;
+
+  const permissions = await getSessionPermissions();
+  if (!permissions?.can("/dashboard/client/customers", "edit")) {
+    return NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 });
+  }
 
   const existing = await prisma.customer.findFirst({ where: { id, ownerId } });
   if (!existing) {
@@ -78,6 +83,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const { ownerId, error } = await requireClientOwner();
   if (error) return error;
   const { id } = await params;
+
+  const permissions = await getSessionPermissions();
+  if (!permissions?.can("/dashboard/client/customers", "delete")) {
+    return NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 });
+  }
 
   const existing = await prisma.customer.findFirst({ where: { id, ownerId } });
   if (!existing) {

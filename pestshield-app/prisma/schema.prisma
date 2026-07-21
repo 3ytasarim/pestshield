@@ -335,6 +335,9 @@ model User {
   parasutIntegration ParasutIntegration?
   googleCalendarIntegration GoogleCalendarIntegration?
   documents          Document[]
+  companyRolesOwned  CompanyRole[] @relation("CompanyRoleOwner")
+  companyUsersOwned  CompanyUser[] @relation("CompanyUserOwner")
+  companyUserProfile CompanyUser?  @relation("CompanyUserLogin")
 
   @@map("users")
 }
@@ -1435,6 +1438,57 @@ model GoogleCalendarIntegration {
   lastSyncCount  Int       @default(0)
 
   @@map("google_calendar_integrations")
+}
+
+/// Firma sahibinin kendi bünyesinde tanımladığı özel rol — sidebar
+/// görünürlüğü ve modül bazlı eylem izinlerini taşır. Kullanıcı tercihiyle
+/// hiçbir öğe (Kullanıcılar/Roller/Yetkiler, Şirket Ayarları, Entegrasyonlar,
+/// Genel grup dahil) sabit/kilitli değildir — hepsi buradan açılıp kapanır.
+model CompanyRole {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation("CompanyRoleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name String
+
+  /// nav-config.ts NAV_GROUPS_BY_ROLE.CLIENT içindeki item.href değerleri —
+  /// bu role sahip kullanıcıların sidebar'da göreceği öğeler.
+  visibleNavHrefs String[] @default([])
+
+  /// Record<href, {view,create,edit,delete}> — modül bazlı eylem izinleri.
+  permissions Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyUsers CompanyUser[]
+
+  @@index([ownerId])
+  @@map("company_roles")
+}
+
+/// Bir firmanın kendi bünyesinde oluşturduğu ek giriş hesabı (alt kullanıcı).
+/// userId'deki User satırı gerçek girişi temsil eder (role: CLIENT), ownerId
+/// ise kiracının kendisidir — Technician'daki TECH ikili-FK deseninin aynısı.
+model CompanyUser {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation("CompanyUserOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  userId String @unique
+  user   User   @relation("CompanyUserLogin", fields: [userId], references: [id], onDelete: Cascade)
+
+  roleId String
+  role   CompanyRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  name  String
+  email String
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([roleId])
+  @@map("company_users")
 }
 
 /// PestShield tarafından üretilip yeni müşteri firmalara iletilen katılım kodu.

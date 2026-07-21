@@ -45,6 +45,8 @@ interface AppSidebarProps {
   role: Role;
   userName: string;
   userEmail: string;
+  /** `null` = kısıtlama yok. Alt kullanıcı için sidebar'da görünecek href listesi — bunun dışındaki öğeler ve boşalan gruplar gizlenir. */
+  visibleNavHrefs?: string[] | null;
 }
 
 function initialsOf(name: string) {
@@ -63,11 +65,16 @@ function getInitialOpenState(groups: NavGroup[], pathname: string): Record<strin
   return state;
 }
 
-export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
+export function AppSidebar({ role, userName, userEmail, visibleNavHrefs = null }: AppSidebarProps) {
   const pathname = usePathname();
   const { state: sidebarState } = useSidebar();
   const { openPalette } = useCommandPalette();
-  const groups = NAV_GROUPS_BY_ROLE[role];
+  const groups =
+    visibleNavHrefs === null
+      ? NAV_GROUPS_BY_ROLE[role]
+      : NAV_GROUPS_BY_ROLE[role]
+          .map((group) => ({ ...group, items: group.items.filter((item) => visibleNavHrefs.includes(item.href)) }))
+          .filter((group) => group.items.length > 0);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
     getInitialOpenState(groups, pathname),
   );

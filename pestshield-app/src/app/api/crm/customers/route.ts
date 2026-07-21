@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOwner, getSessionPermissions } from "@/lib/api-auth";
 import { customerFormSchema } from "@/lib/validations/crm";
 import { serializeCustomer } from "@/lib/crm/serialize";
 
@@ -18,6 +18,11 @@ export async function GET() {
 export async function POST(request: Request) {
   const { ownerId, error } = await requireClientOwner();
   if (error) return error;
+
+  const permissions = await getSessionPermissions();
+  if (!permissions?.can("/dashboard/client/customers", "create")) {
+    return NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 });
+  }
 
   const body = await request.json();
   const parsed = customerFormSchema.safeParse(body);

@@ -14,16 +14,18 @@ interface DashboardShellProps {
   role: Role;
   userName: string;
   userEmail: string;
+  /** `null` = kısıtlama yok (kiracı sahibi / ADMIN / TECH). Alt kullanıcı için sidebar'da görünecek href listesi. */
+  visibleNavHrefs?: string[] | null;
   children: React.ReactNode;
 }
 
-export function DashboardShell({ role, userName, userEmail, children }: DashboardShellProps) {
+export function DashboardShell({ role, userName, userEmail, visibleNavHrefs = null, children }: DashboardShellProps) {
   return (
     <NotificationsProvider role={role}>
       <AiPanelProvider>
         <CommandPaletteProvider>
           <SidebarProvider style={{ "--sidebar-width": "18.75rem" } as React.CSSProperties}>
-            <AppSidebar role={role} userName={userName} userEmail={userEmail} />
+            <AppSidebar role={role} userName={userName} userEmail={userEmail} visibleNavHrefs={visibleNavHrefs} />
             <SidebarInset>
               <DashboardHeader />
               <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</main>

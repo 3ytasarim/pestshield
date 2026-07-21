@@ -225,9 +225,9 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Sistem",
       icon: Settings,
       items: [
-        { label: "Kullanıcılar", href: "/dashboard/client/users", icon: Users, comingSoon: true },
-        { label: "Roller", href: "/dashboard/client/roles", icon: Shield, comingSoon: true },
-        { label: "Yetkiler", href: "/dashboard/client/permissions", icon: Key, comingSoon: true },
+        { label: "Kullanıcılar", href: "/dashboard/client/users", icon: Users },
+        { label: "Roller", href: "/dashboard/client/roles", icon: Shield },
+        { label: "Yetkiler", href: "/dashboard/client/permissions", icon: Key },
         { label: "Entegrasyonlar", href: "/dashboard/client/integrations", icon: Plug },
         { label: "Şirket Ayarları", href: "/dashboard/client/settings", icon: Settings },
         { label: "Belgeler", href: "/dashboard/client/documents", icon: FileText },
@@ -239,6 +239,20 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
 const ALL_NAV_ITEMS = Object.values(NAV_GROUPS_BY_ROLE)
   .flat()
   .flatMap((group) => group.items);
+
+/**
+ * CLIENT dashboard'ının tam bilgi mimarisini { group, href, label } olarak
+ * düzleştirir — Roller (görünürlük checklist'i) ve Yetkiler (modül matrisi)
+ * sayfaları bunu tek doğruluk kaynağı olarak kullanır, hiçbir öğe hariç
+ * tutulmaz (Genel grup, Kullanıcılar/Roller/Yetkiler dahil).
+ */
+export function getClientNavHrefs(): { group: string; href: string; label: string }[] {
+  return NAV_GROUPS_BY_ROLE.CLIENT.flatMap((group) =>
+    group.items
+      .filter((item) => !item.comingSoon)
+      .map((item) => ({ group: group.label, href: item.href, label: item.label })),
+  );
+}
 
 /** Bir path'in müşteri detay sayfası olup olmadığını ve varsa ID'sini döndürür. */
 export function matchCustomerDetailPath(pathname: string): string | null {

@@ -61,8 +61,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
 
+        const companyUser = await prisma.companyUser.findUnique({
+          where: { userId: user.id },
+        });
+        if (companyUser) {
+          return {
+            id: companyUser.ownerId,
+            actingUserId: user.id,
+            companyRoleId: companyUser.roleId,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+        }
+
         return {
           id: user.id,
+          actingUserId: user.id,
+          companyRoleId: null,
           email: user.email,
           name: user.name,
           role: user.role,

@@ -55,6 +55,8 @@ interface CustomerTableProps {
   onCreateWorkOrder: (customer: Customer) => void;
   onCreateService: (customer: Customer) => void;
   onViewAccount: (customer: Customer) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const ROW_VARIANTS = {
@@ -91,6 +93,8 @@ export function CustomerTable({
   onCreateWorkOrder,
   onCreateService,
   onViewAccount,
+  canEdit = true,
+  canDelete = true,
 }: CustomerTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -196,24 +200,28 @@ export function CustomerTable({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onSelect(customer.id)}>Detay</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit(customer)}>Düzenle</DropdownMenuItem>
+                {canEdit && <DropdownMenuItem onClick={() => onEdit(customer)}>Düzenle</DropdownMenuItem>}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onCreateOffer(customer)}>Teklif Oluştur</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onCreateContract(customer)}>Sözleşme Ekle</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onCreateWorkOrder(customer)}>İş Emri Oluştur</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onCreateService(customer)}>Hizmet Ekle</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onViewAccount(customer)}>Cari Hesap Görüntüle</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => onDelete(customer)}>
-                  Sil
-                </DropdownMenuItem>
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => onDelete(customer)}>
+                      Sil
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           );
         },
       },
     ],
-    [onSelect, onEdit, onDelete, onCreateOffer, onCreateContract, onCreateWorkOrder, onCreateService, onViewAccount, contractStatusByCustomer],
+    [onSelect, onEdit, onDelete, onCreateOffer, onCreateContract, onCreateWorkOrder, onCreateService, onViewAccount, contractStatusByCustomer, canEdit, canDelete],
   );
 
   const table = useReactTable({

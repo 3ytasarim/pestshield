@@ -1,5 +1,9 @@
+import { redirect } from "next/navigation";
+import { ShieldAlert } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { getSessionPermissions } from "@/lib/api-auth";
+import { EmptyState } from "@/components/crm/detail/empty-state";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import {
   computeTodayServices,
@@ -15,6 +19,22 @@ import {
 } from "@/lib/dashboard/compute";
 
 export default async function ClientDashboardPage() {
+  const permissions = await getSessionPermissions();
+  if (permissions?.visibleNavHrefs) {
+    if (permissions.visibleNavHrefs.length === 0) {
+      return (
+        <EmptyState
+          icon={ShieldAlert}
+          title="Yetkiniz bulunmuyor"
+          description="Hesabınıza henüz bir bölüm ataması yapılmamış. Firma yöneticinizle iletişime geçin."
+        />
+      );
+    }
+    if (!permissions.visibleNavHrefs.includes("/dashboard/client")) {
+      redirect(permissions.visibleNavHrefs[0]);
+    }
+  }
+
   const session = await auth();
   const ownerId = session!.user.id;
 

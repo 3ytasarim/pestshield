@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.actingUserId } });
   if (!user?.password) {
     return NextResponse.json(
       { message: "Bu hesap için şifre değişikliği desteklenmiyor." },

@@ -49,3 +49,72 @@ export async function requireClientOrTechOwner(): Promise<
   }
   return { ownerId: null, error: NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 }) };
 }
+
+export type CompanyPermissionAction = "view" | "create" | "edit" | "delete";
+
+export interface SessionPermissions {
+  ownerId: string;
+  actingUserId: string;
+  /** Alt kullanıcının atanmış CompanyRole id'si, kiracı sahibi için `null`. */
+  companyRoleId: string | null;
+  isOwner: boolean;
+  /** `null` = kiracı sahibi, her şeyi görür. */
+  visibleNavHrefs: string[] | null;
+  can(href: string, action: CompanyPermissionAction): boolean;
+}
+
+/**
+ * CLIENT oturumunun (sahip veya alt kullanıcı) sidebar görünürlüğünü ve modül
+ * bazlı eylem izinlerini çözer. `companyRoleId` her zaman CANLI DB'den okunur
+ * (JWT'de önbelleklenmez) — böylece bir rol düzenlendiğinde zaten oturum açmış
+ * alt kullanıcılara bir sonraki istekte hemen yansır.
+ */
+export async function getSessionPermissions(): Promise<SessionPermissions | null> {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "CLIENT") {
+    return null;
+  }
+
+  const { id: ownerId, actingUserId, companyRoleId } = session.user;
+
+  if (!companyRoleId) {
+    return {
+      ownerId,
+      actingUserId,
+      companyRoleId: null,
+      isOwner: true,
+      visibleNavHrefs: null,
+      can: () => true,
+    };
+  }
+
+  const role = await prisma.companyRole.findUnique({ where: { id: companyRoleId } });
+  if (!role) {
+    return {
+      ownerId,
+      actingUserId,
+      companyRoleId,
+      isOwner: false,
+      visibleNavHrefs: [],
+      can: () => false,
+    };
+  }
+
+  const permissions = role.permissions as Record<
+    string,
+    Partial<Record<CompanyPermissionAction, boolean>>
+  >;
+
+  return {
+    ownerId,
+    actingUserId,
+    companyRoleId,
+    isOwner: false,
+    visibleNavHrefs: role.visibleNavHrefs,
+    can(href, action) {
+      if (!role.visibleNavHrefs.includes(href)) return false;
+      if (action === "view") return true;
+      return permissions[href]?.[action] ?? true;
+    },
+  };
+}
