@@ -1,59 +1,11 @@
-// WhatsApp entegrasyonu — mesaj şablonları ve gönderim bağlantısı üretimi.
+// WhatsApp mesaj şablonları ve wa.me "click-to-chat" bağlantı üretimi.
 //
-// ÖNEMLİ: WhatsApp Business Cloud API (Meta) ile OTOMATİK, kullanıcı onayı olmadan
-// mesaj göndermek için sunucu tarafında saklanan kalıcı bir Access Token ile
-// Meta'nın Graph API'sine POST isteği atmak gerekir. Bu token'ı tarayıcıda
-// (client-side) kullanmak/saklamak ciddi bir güvenlik açığı olur — bu yüzden bu
-// ortamda gerçek otomatik gönderim YAPILMAZ.
-//
-// Bunun yerine gerçek ve güvenli çalışan yöntem kullanılır: WhatsApp'ın herkese
-// açık "click-to-chat" bağlantısı (wa.me). Bu, mesaj içeriği önceden doldurulmuş
-// olarak WhatsApp'ı (uygulama veya web) açar; gönderme işlemini kullanıcı kendi
-// WhatsApp hesabından son adımda onaylar. Token/API anahtarı gerekmez, hiçbir
-// güvenlik riski taşımaz ve bugün gerçekten çalışır.
-//
-// Şirket gerçek Meta Cloud API kimlik bilgilerini (Phone Number ID + Access
-// Token) Entegrasyonlar sayfasından girip "bağlı" hale getirebilir — bu, ileride
-// bir backend eklendiğinde otomatik gönderime geçişi kolaylaştırmak için veriyi
-// hazır tutar; şu an için gönderim yöntemini değiştirmez.
-
-const STORAGE_KEY = "pestshield.integrations.whatsapp";
-
-export interface WhatsAppConnection {
-  connected: boolean;
-  phoneNumberId: string;
-  accessToken: string;
-  businessPhone: string;
-  connectedAt: string | null;
-}
-
-const DEFAULT_CONNECTION: WhatsAppConnection = {
-  connected: false,
-  phoneNumberId: "",
-  accessToken: "",
-  businessPhone: "",
-  connectedAt: null,
-};
-
-export function getWhatsAppConnection(): WhatsAppConnection {
-  if (typeof window === "undefined") return DEFAULT_CONNECTION;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONNECTION;
-    return { ...DEFAULT_CONNECTION, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_CONNECTION;
-  }
-}
-
-export function saveWhatsAppConnection(conn: WhatsAppConnection) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(conn));
-}
-
-export function disconnectWhatsApp() {
-  saveWhatsAppConnection(DEFAULT_CONNECTION);
-}
+// Bu yardımcılar İş Emirleri, Ödeme Takibi ve Cari Hesap sayfalarındaki hızlı
+// "WhatsApp ile Gönder" butonları için kullanılır: mesaj içeriği önceden
+// doldurulmuş olarak WhatsApp'ı açar, gönderimi kullanıcı kendi hesabından
+// onaylar. Gerçek otomatik (onaysız) Meta Cloud API gönderimi ayrı bir sistemdir
+// — bkz. `src/lib/whatsapp/get-whatsapp-provider.ts` (kiracı başına DB'de
+// şifreli saklanan Access Token, Entegrasyonlar sayfasından bağlanır).
 
 /** Türkiye telefon numaralarını wa.me formatına çevirir: "0532 100 10 20" -> "905321001020" */
 export function formatPhoneForWhatsApp(phone: string): string {

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { prisma } from "@/lib/db";
+import { decryptSecret } from "@/lib/crypto";
 import { MetaWhatsAppCloudProvider } from "@/lib/whatsapp/providers/meta-whatsapp-cloud-provider";
 import type { WhatsAppProvider, WhatsAppSendResult, WhatsAppTemplateMessageParams } from "@/lib/whatsapp/types";
 
@@ -13,14 +15,11 @@ class UnconfiguredWhatsAppProvider implements WhatsAppProvider {
   }
 }
 
-export function getWhatsAppProvider(): WhatsAppProvider {
-  const provider = process.env.WHATSAPP_PROVIDER || "meta";
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const apiVersion = process.env.WHATSAPP_API_VERSION || "v21.0";
+/** Kiracı başına DB'de şifreli saklanan WhatsApp (Meta Cloud API) bilgilerinden bir sağlayıcı kurar. */
+export async function getWhatsAppProvider(ownerId: string): Promise<WhatsAppProvider> {
+  const integration = await prisma.whatsAppIntegration.findUnique({ where: { ownerId } });
+  if (!integration) return new UnconfiguredWhatsAppProvider();
 
-  if (provider === "meta" && accessToken && phoneNumberId) {
-    return new MetaWhatsAppCloudProvider(accessToken, phoneNumberId, apiVersion);
-  }
-  return new UnconfiguredWhatsAppProvider();
+  const accessToken = decryptSecret(integration.accessTokenEnc);
+  return new MetaWhatsAppCloudProvider(accessToken, integration.phoneNumberId, integration.apiVersion);
 }

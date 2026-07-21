@@ -223,3 +223,10 @@ export const workOrderPatchSchema = z.object({
   status: z.enum(["planned", "in_progress", "completed", "delayed", "cancelled"]).optional(),
   plannedDate: z.string().optional(),
 });
+
+export const portalAccessFormSchema = z.object({
+  email: z.string().email("Geçerli bir e-posta girin"),
+  password: z.string().min(8, "Şifre en az 8 karakter olmalıdır"),
+});
+
+export type PortalAccessFormValues = z.infer<typeof portalAccessFormSchema>;

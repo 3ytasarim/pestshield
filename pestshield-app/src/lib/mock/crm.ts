@@ -90,6 +90,8 @@ export interface Customer {
   pendingCollection: number;
   contractEndDate: string | null;
   parasutContactId: string | null;
+  /** Müşteri portalına giriş yapabilen bağlı User hesabının id'si — null ise portal erişimi kapalı. */
+  userId: string | null;
   createdAt: string;
 }
 
@@ -518,6 +520,7 @@ export const customers: Customer[] = CUSTOMER_SEED.map((seed, i) => {
     pendingCollection: [0, 18400, 4200, 62500, 0, 9800, 31200][i],
     contractEndDate: contractEndDays > 0 ? daysFromNow(contractEndDays) : contractEndDays === 0 ? null : daysFromNow(contractEndDays),
     parasutContactId: null,
+    userId: null,
     createdAt: daysFromNow(-[400, 220, 610, 900, 150, 730, 500][i]),
   };
 });

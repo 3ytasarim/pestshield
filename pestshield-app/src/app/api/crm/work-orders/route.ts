@@ -6,6 +6,7 @@ import { requireClientOwner, requireClientOrTechOwner } from "@/lib/api-auth";
 import { workOrderFormSchema } from "@/lib/validations/crm";
 import { serializeWorkOrder } from "@/lib/crm/serialize";
 import { syncWorkOrderToCalendar } from "@/lib/integrations/google-calendar/sync";
+import { sendWorkOrderTemplates } from "@/lib/messaging/send-work-order-templates";
 
 const createSchema = workOrderFormSchema.extend({ customerId: z.string().min(1) });
 
@@ -71,6 +72,12 @@ export async function POST(request: Request) {
     await syncWorkOrderToCalendar(ownerId, order.id);
   } catch {
     // Takvim senkronu iş emri oluşturmayı asla engellemez — bkz. sync.ts.
+  }
+
+  try {
+    await sendWorkOrderTemplates(ownerId, order.id, "work_order_created");
+  } catch {
+    // Mail/WhatsApp gönderimi iş emri oluşturmayı asla engellemez — bkz. send-work-order-templates.ts.
   }
 
   return NextResponse.json({ workOrder: serializeWorkOrder(order) }, { status: 201 });

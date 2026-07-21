@@ -26,10 +26,12 @@ import {
   Key,
   Landmark,
   LayoutDashboard,
+  LifeBuoy,
   Lightbulb,
   ListChecks,
   MapPin,
   MapPinned,
+  MessageSquareText,
   Package,
   PieChart,
   Plug,
@@ -94,6 +96,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { label: "Firmalar", href: "/dashboard/admin/companies", icon: Building2 },
         { label: "Kullanıcılar", href: "/dashboard/admin/users", icon: Users },
+        { label: "Destek Talepleri", href: "/dashboard/admin/support", icon: LifeBuoy },
       ],
     },
   ],
@@ -124,6 +127,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: "Genel Bakış", href: "/dashboard/client", icon: LayoutDashboard },
         { label: "Bildirim Merkezi", href: "/dashboard/client/notifications", icon: Bell },
         { label: "Takvim", href: "/dashboard/client/calendar", icon: Calendar },
+        { label: "Destek Mesajları", href: "/dashboard/client/support", icon: LifeBuoy },
       ],
     },
     {
@@ -231,6 +235,24 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: "Entegrasyonlar", href: "/dashboard/client/integrations", icon: Plug },
         { label: "Şirket Ayarları", href: "/dashboard/client/settings", icon: Settings },
         { label: "Belgeler", href: "/dashboard/client/documents", icon: FileText },
+        { label: "İçerik Şablonları", href: "/dashboard/client/message-templates", icon: MessageSquareText },
+      ],
+    },
+  ],
+  /// Müşteri portalı kendi hafif shell'inde (src/app/dashboard/customer/layout.tsx)
+  /// sabit bir sekme çubuğu kullanır — bu liste sadece Record<Role, NavGroup[]>
+  /// tip tamlığı için var, DashboardShell/AppSidebar tarafından okunmaz.
+  CUSTOMER: [
+    {
+      label: "Genel",
+      icon: LayoutDashboard,
+      defaultOpen: true,
+      items: [
+        { label: "Genel Bakış", href: "/dashboard/customer", icon: LayoutDashboard },
+        { label: "Hizmet Geçmişi", href: "/dashboard/customer/work-orders", icon: ListChecks },
+        { label: "Faturalar", href: "/dashboard/customer/invoices", icon: FileClock },
+        { label: "Sözleşmeler", href: "/dashboard/customer/contracts", icon: FileSignature },
+        { label: "Destek", href: "/dashboard/customer/support", icon: LifeBuoy },
       ],
     },
   ],

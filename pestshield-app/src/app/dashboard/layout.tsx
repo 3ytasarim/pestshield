@@ -13,7 +13,7 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  if (session.user.role === "TECH") {
+  if (session.user.role === "TECH" || session.user.role === "CUSTOMER") {
     return <>{children}</>;
   }
 

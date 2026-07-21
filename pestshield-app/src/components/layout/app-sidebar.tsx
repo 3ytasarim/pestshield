@@ -37,6 +37,7 @@ const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Yönetici",
   TECH: "Saha Personeli",
   CLIENT: "Müşteri",
+  CUSTOMER: "Müşteri Portalı",
 };
 
 const STORAGE_KEY = "pestshield.sidebar.open-groups";

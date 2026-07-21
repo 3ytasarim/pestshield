@@ -4,6 +4,7 @@ const ROLE_DASHBOARD_PATH: Record<Role, string> = {
   ADMIN: "/dashboard/admin",
   TECH: "/dashboard/tech",
   CLIENT: "/dashboard/client",
+  CUSTOMER: "/dashboard/customer",
 };
 
 export function getDashboardPathForRole(role: Role): string {

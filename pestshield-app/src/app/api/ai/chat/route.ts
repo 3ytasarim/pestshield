@@ -31,6 +31,9 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ message: "Oturum bulunamadı." }, { status: 401 });
   }
+  if (session.user.role === "CUSTOMER") {
+    return NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 });
+  }
 
   let body: { messages?: unknown[] };
   try {

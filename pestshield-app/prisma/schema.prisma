@@ -12,6 +12,7 @@ enum Role {
   ADMIN
   TECH
   CLIENT
+  CUSTOMER
 }
 
 enum LicenseType {
@@ -338,6 +339,16 @@ model User {
   companyRolesOwned  CompanyRole[] @relation("CompanyRoleOwner")
   companyUsersOwned  CompanyUser[] @relation("CompanyUserOwner")
   companyUserProfile CompanyUser?  @relation("CompanyUserLogin")
+  customerProfile    Customer?     @relation("CustomerUser")
+
+  supportTicketsOwned   SupportTicket[]        @relation("SupportTicketOwner")
+  supportTicketsOpened  SupportTicket[]        @relation("SupportTicketOpener")
+  supportTicketMessages SupportTicketMessage[]
+
+  messageTemplatesOwned MessageTemplate[]
+  messageSendLogs       MessageSendLog[]
+  smtpIntegration       SmtpIntegration?
+  whatsAppIntegration   WhatsAppIntegration?
 
   @@map("users")
 }
@@ -479,6 +490,13 @@ model Customer {
   fax              String  @default("")
   parasutContactId String? @unique
 
+  /// Bu müşterinin kendi portalına giriş yaptığı gerçek (role: CUSTOMER)
+  /// kullanıcı hesabı — Technician'daki TECH ikili-FK deseninin aynısı.
+  /// "Portal Erişimi Ver" aksiyonuyla oluşturulur; portalEmail/portalPassword
+  /// alanları sadece form/eski veri, gerçek kimlik doğrulama bunun üzerinden.
+  userId String? @unique
+  user   User?   @relation("CustomerUser", fields: [userId], references: [id], onDelete: SetNull)
+
   branches           Branch[]
   contacts           Contact[]
   addresses          Address[]
@@ -494,6 +512,7 @@ model Customer {
   correctiveActions  CorrectiveAction[]
   risks              Risk[]
   periyotOccurrences PeriyotOccurrence[]
+  supportTickets     SupportTicket[]
 
   @@index([ownerId])
   @@map("customers")
@@ -1489,6 +1508,166 @@ model CompanyUser {
   @@index([ownerId])
   @@index([roleId])
   @@map("company_users")
+}
+
+enum SupportTicketOpenerRole {
+  CUSTOMER
+  CLIENT
+}
+
+enum SupportTicketStatus {
+  open
+  answered
+  closed
+}
+
+/// İki katmanlı destek hiyerarşisini tek modelde taşır: openedByRole=CUSTOMER
+/// ise bir müşterinin kendi firmasına (ownerId) açtığı talep; openedByRole=CLIENT
+/// ise firmanın (ownerId = kendisi) doğrudan Superadmin'e açtığı talep.
+model SupportTicket {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation("SupportTicketOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  openedByRole   SupportTicketOpenerRole
+  openedByUserId String
+  openedByUser   User                    @relation("SupportTicketOpener", fields: [openedByUserId], references: [id], onDelete: Cascade)
+
+  /// Sadece openedByRole=CUSTOMER iken dolu.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  subject String
+  status  SupportTicketStatus @default(open)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages SupportTicketMessage[]
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@index([openedByUserId])
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id       String        @id @default(uuid())
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorUserId String
+  author       User @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  /// Gönderim anındaki rol (ADMIN/CLIENT/CUSTOMER) — geçmişte kimin yazdığını göstermek için sabitlenir.
+  authorRole   Role
+
+  body String
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([authorUserId])
+  @@map("support_ticket_messages")
+}
+
+enum MessageTemplateChannel {
+  email
+  whatsapp
+}
+
+enum MessageTemplateTrigger {
+  work_order_created
+}
+
+/// Firmanın İş Emri gibi olaylarda müşterisine otomatik gönderilecek mail/WhatsApp
+/// içeriğini kendi yazıp düzenlediği şablon. (ownerId, channel, trigger) başına tek satır.
+model MessageTemplate {
+  id       String                  @id @default(uuid())
+  ownerId  String
+  owner    User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  channel  MessageTemplateChannel
+  trigger  MessageTemplateTrigger
+  isActive Boolean                 @default(true)
+
+  /// Sadece channel=email.
+  subject String?
+  /// email: düz metin gövde. whatsapp: {{degisken}} içeren önizleme/referans metni.
+  body    String
+
+  /// whatsapp: Meta Business Manager'da onaylı template'in tam adı — gerçek
+  /// gönderim Meta'nın "type: template" kısıtı nedeniyle bu ada bağımlıdır.
+  metaTemplateName String?
+  metaLanguageCode String? @default("tr")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, channel, trigger])
+  @@map("message_templates")
+}
+
+/// Firma başına tek SMTP mail sunucusu bağlantısı — şifre AES-256-GCM ile
+/// sunucu tarafında şifreli tutulur (bkz. src/lib/crypto.ts), ParasutIntegration
+/// ile aynı desen. Önceki tarayıcı localStorage tabanlı saklamanın yerini alır.
+model SmtpIntegration {
+  id      String @id @default(uuid())
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  host        String
+  port        Int
+  /// "none" | "ssl" | "tls"
+  encryption  String
+  username    String?
+  passwordEnc String?
+  fromName    String?
+  fromEmail   String
+
+  connectedAt    DateTime?
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+
+  @@map("smtp_integrations")
+}
+
+/// Firma başına tek Meta WhatsApp Cloud API bağlantısı — access token AES-256-GCM
+/// ile şifreli tutulur. ParasutIntegration/GoogleCalendarIntegration ile aynı desen.
+model WhatsAppIntegration {
+  id      String @id @default(uuid())
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  accessTokenEnc    String
+  phoneNumberId     String
+  businessAccountId String?
+  apiVersion        String  @default("v21.0")
+
+  connectedAt    DateTime?
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+
+  @@map("whatsapp_integrations")
+}
+
+/// İş emri gibi olaylarda tetiklenen otomatik mail/WhatsApp gönderimlerinin
+/// denetim kaydı — firma "neden gitmedi" sorusuna buradan cevap bulur.
+model MessageSendLog {
+  id          String                 @id @default(uuid())
+  ownerId     String
+  owner       User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  channel     MessageTemplateChannel
+  trigger     MessageTemplateTrigger
+  workOrderId String?
+
+  recipient String
+  /// "sent" | "failed" | "skipped_no_recipient" | "skipped_not_configured"
+  status       String
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@map("message_send_logs")
 }
 
 /// PestShield tarafından üretilip yeni müşteri firmalara iletilen katılım kodu.

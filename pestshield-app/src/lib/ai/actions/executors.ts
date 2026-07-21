@@ -16,7 +16,6 @@ import type { PeriyotOccurrence } from "@/lib/mock/crm";
 import { addFollowupTask } from "@/lib/ai/actions/followup-task-store";
 import { tryConsumeProposal, saveProposal, getProposal } from "@/lib/ai/actions/proposal-store";
 import { logAiAction } from "@/lib/ai/actions/audit";
-import { getSmtpMailConnection } from "@/lib/integrations/smtp-mail";
 import { saveWhatsAppMessage } from "@/lib/whatsapp/message-store";
 import { WHATSAPP_TEMPLATES } from "@/lib/whatsapp/templates";
 import type {
@@ -198,25 +197,12 @@ async function runSendEmail(proposal: AiActionProposal<PrepareEmailParams>): Pro
     };
   }
 
-  const smtp = getSmtpMailConnection();
-  if (!smtp.connected || !smtp.host || !smtp.fromEmail) {
-    return { success: false, resultSummary: "", errorMessage: "SMTP bağlantısı artık yapılandırılı değil, e-posta gönderilemedi." };
-  }
-
   let res: Response;
   try {
     res = await fetch("/api/ai/actions/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        host: smtp.host,
-        port: smtp.port,
-        requiresAuth: smtp.requiresAuth,
-        username: smtp.username,
-        password: smtp.password,
-        encryption: smtp.encryption,
-        fromName: smtp.fromName,
-        fromEmail: smtp.fromEmail,
         toEmail: p.recipientEmail,
         subject: p.subject,
         body: p.body,

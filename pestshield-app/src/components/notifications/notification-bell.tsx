@@ -44,7 +44,7 @@ export function NotificationBell() {
         <div className="border-b border-border/60">
           <p className="px-3.5 pt-2.5 text-[10px] font-semibold text-muted-foreground uppercase">Proaktif Uyarılar</p>
           <div className="max-h-64 overflow-y-auto">
-            <AlertPanel userId={session?.user?.id} role={session?.user?.role} maxItems={4} />
+            <AlertPanel userId={session?.user?.id} role={session?.user?.role === "CUSTOMER" ? undefined : session?.user?.role} maxItems={4} />
           </div>
         </div>
         <div className="flex items-center justify-between border-b border-border/60 px-3.5 py-2.5">

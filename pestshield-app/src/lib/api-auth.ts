@@ -50,6 +50,21 @@ export async function requireClientOrTechOwner(): Promise<
   return { ownerId: null, error: NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 }) };
 }
 
+/** CUSTOMER rolündeki müşteri portalı girişleri için API route yetkilendirmesi — gerçek Customer kaydına (ve onun firma ownerId'sine) çözümler. */
+export async function requireCustomerOwner(): Promise<
+  { customerId: string; ownerId: string; error: null } | { customerId: null; ownerId: null; error: NextResponse }
+> {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "CUSTOMER") {
+    return { customerId: null, ownerId: null, error: NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 }) };
+  }
+  const customer = await prisma.customer.findUnique({ where: { userId: session.user.id } });
+  if (!customer) {
+    return { customerId: null, ownerId: null, error: NextResponse.json({ message: "Müşteri kaydı bulunamadı." }, { status: 403 }) };
+  }
+  return { customerId: customer.id, ownerId: customer.ownerId, error: null };
+}
+
 export type CompanyPermissionAction = "view" | "create" | "edit" | "delete";
 
 export interface SessionPermissions {

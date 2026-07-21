@@ -21,3 +21,26 @@ export const googleCalendarSelectCalendarSchema = z.object({
 });
 
 export type GoogleCalendarSelectCalendarValues = z.infer<typeof googleCalendarSelectCalendarSchema>;
+
+export type SmtpEncryption = "none" | "ssl" | "tls";
+
+export const smtpConnectSchema = z.object({
+  host: z.string().min(1, "Sunucu adresi zorunludur"),
+  port: z.coerce.number().int().min(1).max(65535),
+  encryption: z.enum(["none", "ssl", "tls"] satisfies SmtpEncryption[]),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  fromName: z.string().optional(),
+  fromEmail: z.string().email("Geçerli bir e-posta adresi girin"),
+});
+
+export type SmtpConnectValues = z.infer<typeof smtpConnectSchema>;
+
+export const whatsAppConnectSchema = z.object({
+  accessToken: z.string().min(1, "Erişim jetonu (access token) zorunludur"),
+  phoneNumberId: z.string().min(1, "Telefon Numarası ID'si zorunludur"),
+  businessAccountId: z.string().optional(),
+  apiVersion: z.string().optional(),
+});
+
+export type WhatsAppConnectValues = z.infer<typeof whatsAppConnectSchema>;

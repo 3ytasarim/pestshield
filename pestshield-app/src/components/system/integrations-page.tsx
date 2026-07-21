@@ -28,20 +28,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
-import {
-  disconnectWhatsApp,
-  getWhatsAppConnection,
-  saveWhatsAppConnection,
-  type WhatsAppConnection,
-} from "@/lib/integrations/whatsapp";
-import {
-  disconnectSmtpMail,
-  getSmtpMailConnection,
-  saveSmtpMailConnection,
-  type SmtpEncryption,
-  type SmtpMailConnection,
-} from "@/lib/integrations/smtp-mail";
 import { cn } from "@/lib/utils";
+import type { SmtpEncryption } from "@/lib/validations/integrations";
 
 const COMING_SOON = [
   { icon: FileSpreadsheet, title: "e-Fatura / e-Arşiv", description: "GİB entegrasyonu ile faturalar otomatik e-Fatura/e-Arşiv olarak kesilsin." },
@@ -266,39 +254,80 @@ function GoogleCalendarCard() {
   );
 }
 
+interface WhatsAppStatus {
+  connected: boolean;
+  phoneNumberId?: string;
+  businessAccountId?: string | null;
+  apiVersion?: string;
+  connectedAt?: string | null;
+}
+
 function WhatsAppCard() {
-  const [connection, setConnection] = useState<WhatsAppConnection>(() => getWhatsAppConnection());
+  const [status, setStatus] = useState<WhatsAppStatus>({ connected: false });
+  const [loading, setLoading] = useState(true);
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [accessToken, setAccessToken] = useState("");
-  const [businessPhone, setBusinessPhone] = useState("");
+  const [businessAccountId, setBusinessAccountId] = useState("");
   const [connecting, setConnecting] = useState(false);
 
-  function handleConnect() {
-    if (!phoneNumberId.trim() || !accessToken.trim() || !businessPhone.trim()) {
-      toast.error("Tüm alanları doldurun");
+  async function loadStatus() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/integrations/whatsapp");
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      toast.error("WhatsApp bağlantı durumu alınamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadStatus();
+  }, []);
+
+  async function handleConnect() {
+    if (!phoneNumberId.trim() || !accessToken.trim()) {
+      toast.error("Phone Number ID ve Access Token zorunludur");
       return;
     }
     setConnecting(true);
-    const next: WhatsAppConnection = {
-      connected: true,
-      phoneNumberId: phoneNumberId.trim(),
-      accessToken: accessToken.trim(),
-      businessPhone: businessPhone.trim(),
-      connectedAt: new Date().toISOString(),
-    };
-    saveWhatsAppConnection(next);
-    setConnection(next);
-    setConnecting(false);
-    toast.success("WhatsApp Business bağlantısı kaydedildi");
+    try {
+      const res = await fetch("/api/integrations/whatsapp/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumberId: phoneNumberId.trim(),
+          accessToken: accessToken.trim(),
+          businessAccountId: businessAccountId.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "WhatsApp'a bağlanılamadı");
+        return;
+      }
+      toast.success("WhatsApp Business API bağlantısı kuruldu");
+      setPhoneNumberId("");
+      setAccessToken("");
+      setBusinessAccountId("");
+      await loadStatus();
+    } catch {
+      toast.error("WhatsApp'a bağlanılamadı — sunucuya ulaşılamadı");
+    } finally {
+      setConnecting(false);
+    }
   }
 
-  function handleDisconnect() {
-    disconnectWhatsApp();
-    setConnection(getWhatsAppConnection());
-    setPhoneNumberId("");
-    setAccessToken("");
-    setBusinessPhone("");
-    toast.success("Bağlantı kesildi");
+  async function handleDisconnect() {
+    try {
+      await fetch("/api/integrations/whatsapp", { method: "DELETE" });
+      toast.success("Bağlantı kesildi");
+      await loadStatus();
+    } catch {
+      toast.error("Bağlantı kesilemedi");
+    }
   }
 
   return (
@@ -311,10 +340,10 @@ function WhatsAppCard() {
             </div>
             <div>
               <p className="font-semibold text-foreground">WhatsApp Business API</p>
-              <p className="text-xs text-muted-foreground">İş emri bildirimleri ve tahsilat hatırlatmaları WhatsApp ile gönderilsin.</p>
+              <p className="text-xs text-muted-foreground">İş emri bildirimleri Meta WhatsApp Cloud API ile otomatik gönderilsin.</p>
             </div>
           </div>
-          {connection.connected ? (
+          {status.connected ? (
             <Badge variant="outline" className="gap-1 rounded-full border-success/20 bg-success/10 text-success">
               <CheckCircle2 className="size-3" />
               Bağlı
@@ -329,28 +358,26 @@ function WhatsAppCard() {
         <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs text-foreground/80">
           <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
           <p className="min-w-0">
-            Meta&apos;nın WhatsApp Cloud API&apos;si ile <span className="font-medium">otomatik</span> (onaysız) mesaj göndermek
-            için sunucu tarafında saklanan kalıcı bir Access Token gerekir — bu token tarayıcıda güvenli şekilde tutulamaz.
-            Bu yüzden İş Emirleri, Ödeme Takibi ve Cari Hesap sayfalarındaki <span className="font-medium">&quot;WhatsApp&quot;</span>{" "}
-            butonları, mesaj metni hazır şekilde WhatsApp&apos;ı açan güvenli <span className="font-medium">wa.me</span> bağlantısını
-            kullanır; gönderimi siz WhatsApp üzerinden son adımda onaylarsınız. Aşağıya gerçek Meta kimlik bilgilerinizi
-            girmeniz, ileride bir backend eklendiğinde tam otomatik gönderime geçişi hazırlar.
+            Meta yalnızca <span className="font-medium">önceden onaylanmış şablon mesajları</span> göndermeye izin verir —
+            serbest metin gönderilemez. Aşağıya bağladığınız Access Token sunucu tarafında şifreli saklanır; İçerik
+            Şablonları sayfasında yazacağınız WhatsApp metni bir önizlemedir, gerçek gönderim için o metnin Meta Business
+            Manager&apos;da aynı adla onaylı bir şablon olarak da tanımlı olması gerekir.
           </p>
         </div>
 
-        {connection.connected ? (
+        {loading ? null : status.connected ? (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
                 <p className="font-semibold text-muted-foreground uppercase">Phone Number ID</p>
-                <p className="mt-0.5 truncate font-mono text-foreground">{connection.phoneNumberId}</p>
+                <p className="mt-0.5 truncate font-mono text-foreground">{status.phoneNumberId}</p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
-                <p className="font-semibold text-muted-foreground uppercase">İşletme Numarası</p>
-                <p className="mt-0.5 truncate font-mono text-foreground">{connection.businessPhone}</p>
+                <p className="font-semibold text-muted-foreground uppercase">API Sürümü</p>
+                <p className="mt-0.5 truncate font-mono text-foreground">{status.apiVersion}</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Bağlantı tarihi: {formatDate(connection.connectedAt)}</p>
+            <p className="text-xs text-muted-foreground">Bağlantı tarihi: {formatDate(status.connectedAt ?? null)}</p>
             <Button variant="outline" onClick={handleDisconnect} className="w-fit">
               <Unlink className="size-4" />
               Bağlantıyı Kes
@@ -367,8 +394,8 @@ function WhatsAppCard() {
               <Input type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="••••••••••••" className="h-11 rounded-xl px-3.5" />
             </div>
             <div>
-              <Label className="mb-1.5">İşletme WhatsApp Numarası</Label>
-              <Input value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} placeholder="0532 000 00 00" className="h-11 rounded-xl px-3.5 font-mono text-sm" />
+              <Label className="mb-1.5">Business Account ID (opsiyonel)</Label>
+              <Input value={businessAccountId} onChange={(e) => setBusinessAccountId(e.target.value)} placeholder="1234567890" className="h-11 rounded-xl px-3.5 font-mono text-sm" />
             </div>
             <Button onClick={handleConnect} loading={connecting} className="w-fit">
               <Plug className="size-4" />
@@ -387,8 +414,20 @@ const ENCRYPTION_OPTIONS: { value: SmtpEncryption; label: string }[] = [
   { value: "none", label: "Yok" },
 ];
 
+interface SmtpStatus {
+  connected: boolean;
+  host?: string;
+  port?: number;
+  encryption?: SmtpEncryption;
+  username?: string | null;
+  fromName?: string | null;
+  fromEmail?: string;
+  connectedAt?: string | null;
+}
+
 function MailSettingsCard() {
-  const [connection, setConnection] = useState<SmtpMailConnection>(() => getSmtpMailConnection());
+  const [status, setStatus] = useState<SmtpStatus>({ connected: false });
+  const [loading, setLoading] = useState(true);
   const [host, setHost] = useState("");
   const [port, setPort] = useState("587");
   const [requiresAuth, setRequiresAuth] = useState(true);
@@ -401,44 +440,73 @@ function MailSettingsCard() {
   const [testEmail, setTestEmail] = useState("");
   const [testing, setTesting] = useState(false);
 
-  function handleSave() {
+  async function loadStatus() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/integrations/smtp");
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      toast.error("SMTP bağlantı durumu alınamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadStatus();
+  }, []);
+
+  async function handleSave() {
     const authOk = !requiresAuth || (username.trim() && password.trim());
     if (!host.trim() || !port.trim() || !authOk || !fromEmail.trim()) {
       toast.error("Tüm zorunlu alanları doldurun");
       return;
     }
     setSaving(true);
-    const next: SmtpMailConnection = {
-      connected: true,
-      host: host.trim(),
-      port: port.trim(),
-      requiresAuth,
-      username: requiresAuth ? username.trim() : "",
-      password: requiresAuth ? password : "",
-      encryption,
-      fromName: fromName.trim(),
-      fromEmail: fromEmail.trim(),
-      connectedAt: new Date().toISOString(),
-    };
-    saveSmtpMailConnection(next);
-    setConnection(next);
-    setSaving(false);
-    toast.success("Mail ayarları kaydedildi");
+    try {
+      const res = await fetch("/api/integrations/smtp/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: host.trim(),
+          port: Number(port),
+          encryption,
+          username: requiresAuth ? username.trim() : undefined,
+          password: requiresAuth ? password : undefined,
+          fromName: fromName.trim() || undefined,
+          fromEmail: fromEmail.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Mail ayarları kaydedilemedi");
+        return;
+      }
+      toast.success("Mail ayarları kaydedildi");
+      setHost("");
+      setPort("587");
+      setUsername("");
+      setPassword("");
+      setFromName("");
+      setFromEmail("");
+      await loadStatus();
+    } catch {
+      toast.error("Mail ayarları kaydedilemedi — sunucuya ulaşılamadı");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleDisconnect() {
-    disconnectSmtpMail();
-    setConnection(getSmtpMailConnection());
-    setHost("");
-    setPort("587");
-    setRequiresAuth(true);
-    setUsername("");
-    setPassword("");
-    setEncryption("tls");
-    setFromName("");
-    setFromEmail("");
-    setTestEmail("");
-    toast.success("Bağlantı kesildi");
+  async function handleDisconnect() {
+    try {
+      await fetch("/api/integrations/smtp", { method: "DELETE" });
+      setTestEmail("");
+      toast.success("Bağlantı kesildi");
+      await loadStatus();
+    } catch {
+      toast.error("Bağlantı kesilemedi");
+    }
   }
 
   async function handleSendTestMail() {
@@ -448,20 +516,10 @@ function MailSettingsCard() {
     }
     setTesting(true);
     try {
-      const res = await fetch("/api/integrations/test-mail", {
+      const res = await fetch("/api/integrations/smtp/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          host: connection.host,
-          port: connection.port,
-          requiresAuth: connection.requiresAuth,
-          username: connection.username,
-          password: connection.password,
-          encryption: connection.encryption,
-          fromName: connection.fromName,
-          fromEmail: connection.fromEmail,
-          toEmail: testEmail.trim(),
-        }),
+        body: JSON.stringify({ toEmail: testEmail.trim() }),
       });
       const data: { message: string } = await res.json();
       if (res.ok) {
@@ -489,7 +547,7 @@ function MailSettingsCard() {
               <p className="text-xs text-muted-foreground">Servis raporları, hatırlatma ve bildirim e-postaları bu SMTP sunucusu üzerinden gönderilsin.</p>
             </div>
           </div>
-          {connection.connected ? (
+          {status.connected ? (
             <Badge variant="outline" className="gap-1 rounded-full border-success/20 bg-success/10 text-success">
               <CheckCircle2 className="size-3" />
               Bağlı
@@ -501,27 +559,27 @@ function MailSettingsCard() {
           )}
         </div>
 
-        {connection.connected ? (
+        {loading ? null : status.connected ? (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
                 <p className="font-semibold text-muted-foreground uppercase">SMTP Sunucu</p>
-                <p className="mt-0.5 truncate font-mono text-foreground">{connection.host}:{connection.port}</p>
+                <p className="mt-0.5 truncate font-mono text-foreground">{status.host}:{status.port}</p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
                 <p className="font-semibold text-muted-foreground uppercase">Gönderen</p>
-                <p className="mt-0.5 truncate text-foreground">{connection.fromName ? `${connection.fromName} · ` : ""}{connection.fromEmail}</p>
+                <p className="mt-0.5 truncate text-foreground">{status.fromName ? `${status.fromName} · ` : ""}{status.fromEmail}</p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
                 <p className="font-semibold text-muted-foreground uppercase">Güvenlik</p>
-                <p className="mt-0.5 truncate text-foreground">{ENCRYPTION_OPTIONS.find((o) => o.value === connection.encryption)?.label}</p>
+                <p className="mt-0.5 truncate text-foreground">{ENCRYPTION_OPTIONS.find((o) => o.value === status.encryption)?.label}</p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-xs">
                 <p className="font-semibold text-muted-foreground uppercase">Kimlik Doğrulaması</p>
-                <p className="mt-0.5 truncate text-foreground">{connection.requiresAuth ? `Var (${connection.username})` : "Yok"}</p>
+                <p className="mt-0.5 truncate text-foreground">{status.username ? `Var (${status.username})` : "Yok"}</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Bağlantı tarihi: {formatDate(connection.connectedAt)}</p>
+            <p className="text-xs text-muted-foreground">Bağlantı tarihi: {formatDate(status.connectedAt ?? null)}</p>
 
             <div className="flex flex-col gap-2 rounded-xl border border-border/60 p-3.5 sm:flex-row sm:items-end sm:gap-3">
               <div className="flex-1">

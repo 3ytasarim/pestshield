@@ -15,7 +15,6 @@
 
 import type { Customer, ServiceOrder } from "@/lib/mock/crm";
 import { getCompanySettings } from "@/lib/company-settings";
-import { getSmtpMailConnection } from "@/lib/integrations/smtp-mail";
 import {
   resolveCustomerForAction,
   resolveTechnicianForAction,
@@ -420,8 +419,10 @@ export async function buildPrepareEmailProposal(params: Record<string, unknown>,
   }
 
   const company = getCompanySettings();
-  const smtp = getSmtpMailConnection();
-  const canSend = smtp.connected && Boolean(smtp.host) && Boolean(smtp.fromEmail);
+  const smtpStatus = await fetch("/api/integrations/smtp")
+    .then((res) => (res.ok ? res.json() : { connected: false }))
+    .catch(() => ({ connected: false }));
+  const canSend = Boolean(smtpStatus.connected);
 
   let subject = "";
   let body = "";

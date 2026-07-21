@@ -177,7 +177,7 @@ export function DashboardHeader() {
               <ShieldCheck className="size-3.5" />
               Lisans
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast.info("Destek merkezi yakında eklenecek")}>
+            <DropdownMenuItem onClick={() => router.push("/dashboard/client/support")}>
               <LifeBuoy className="size-3.5" />
               Destek
             </DropdownMenuItem>

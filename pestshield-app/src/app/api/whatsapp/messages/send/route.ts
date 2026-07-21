@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireClientOwner } from "@/lib/api-auth";
 import { getWhatsAppProvider } from "@/lib/whatsapp/get-whatsapp-provider";
 
 // PestShield AI Command Center — Faz 4 WhatsApp gönderim uç noktası.
@@ -11,15 +11,15 @@ import { getWhatsAppProvider } from "@/lib/whatsapp/get-whatsapp-provider";
 // etmez (spesifikasyon kural 47: "Do not simulate delivery success").
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ message: "Oturum bulunamadı." }, { status: 401 });
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
 
   const body = (await request.json().catch(() => null)) as { to?: string; templateName?: string; languageCode?: string; bodyVariables?: string[] } | null;
   if (!body?.to || !body.templateName) {
     return NextResponse.json({ message: "Alıcı numarası ve şablon adı zorunludur." }, { status: 400 });
   }
 
-  const provider = getWhatsAppProvider();
+  const provider = await getWhatsAppProvider(ownerId);
   if (!provider.isConfigured) {
     return NextResponse.json({ message: "WhatsApp entegrasyonu henüz yapılandırılmadı." }, { status: 503 });
   }

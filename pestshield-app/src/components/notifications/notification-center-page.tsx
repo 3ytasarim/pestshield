@@ -69,7 +69,7 @@ export function NotificationCenterPage() {
           <p className="text-xs text-muted-foreground">Deterministik kurallardan (gecikmiş servis, gecikmiş tahsilat, kritik risk vb.) üretilen, onaylanabilir/ertelenebilir uyarılar.</p>
         </CardHeader>
         <CardContent className="p-0">
-          <AlertPanel userId={session?.user?.id} role={session?.user?.role} />
+          <AlertPanel userId={session?.user?.id} role={session?.user?.role === "CUSTOMER" ? undefined : session?.user?.role} />
         </CardContent>
       </Card>
 

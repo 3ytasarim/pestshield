@@ -48,3 +48,15 @@ export const companyRoleUpdateSchema = z.object({
 });
 
 export type CompanyRoleUpdateValues = z.infer<typeof companyRoleUpdateSchema>;
+
+export const messageTemplateFormSchema = z.object({
+  channel: z.enum(["email", "whatsapp"]),
+  trigger: z.enum(["work_order_created"]),
+  isActive: z.boolean().default(true),
+  subject: z.string().max(200).optional(),
+  body: z.string().min(1, "Mesaj içeriği zorunludur").max(4000),
+  metaTemplateName: z.string().max(200).optional(),
+  metaLanguageCode: z.string().max(10).optional(),
+});
+
+export type MessageTemplateFormValues = z.infer<typeof messageTemplateFormSchema>;

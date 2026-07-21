@@ -8,7 +8,13 @@ import { CommandPaletteProvider } from "@/components/layout/command-palette-cont
 import { NotificationsProvider } from "@/components/notifications/notifications-context";
 import { AiCommandCenter } from "@/components/ai-assistant/ai-command-center";
 import { AiPanelProvider } from "@/components/ai-assistant/ai-panel-context";
+import { SupportNotifier } from "@/components/support/support-notifier";
 import type { Role } from "@/generated/prisma";
+
+const SUPPORT_HREF_BY_ROLE: Partial<Record<Role, string>> = {
+  CLIENT: "/dashboard/client/support",
+  ADMIN: "/dashboard/admin/support",
+};
 
 interface DashboardShellProps {
   role: Role;
@@ -20,8 +26,10 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ role, userName, userEmail, visibleNavHrefs = null, children }: DashboardShellProps) {
+  const supportHref = SUPPORT_HREF_BY_ROLE[role];
   return (
     <NotificationsProvider role={role}>
+      {supportHref && <SupportNotifier href={supportHref} />}
       <AiPanelProvider>
         <CommandPaletteProvider>
           <SidebarProvider style={{ "--sidebar-width": "18.75rem" } as React.CSSProperties}>
