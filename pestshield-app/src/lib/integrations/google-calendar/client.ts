@@ -35,6 +35,8 @@ export interface GoogleCalendarEventEntry {
   start: string;
   end: string;
   allDay: boolean;
+  /** Etkinliğin Google Calendar'daki kendi sayfası — salt-okunur görünümde tıklanınca yeni sekmede açılır. */
+  htmlLink?: string;
 }
 
 export interface GoogleCalendarEventInput {
@@ -141,7 +143,13 @@ async function listEvents(accessToken: string, calendarId: string, timeMinISO: s
   if (!res.ok) {
     throw new GoogleApiError(data?.error?.message ?? "Google Takvim etkinlikleri alınamadı.", res.status);
   }
-  const items: Array<{ id: string; summary?: string; start?: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string } }> = data?.items ?? [];
+  const items: Array<{
+    id: string;
+    summary?: string;
+    start?: { date?: string; dateTime?: string };
+    end?: { date?: string; dateTime?: string };
+    htmlLink?: string;
+  }> = data?.items ?? [];
   return items
     .filter((item) => item.start && item.end)
     .map((item) => ({
@@ -150,6 +158,7 @@ async function listEvents(accessToken: string, calendarId: string, timeMinISO: s
       start: item.start!.date ?? item.start!.dateTime!,
       end: item.end!.date ?? item.end!.dateTime!,
       allDay: Boolean(item.start!.date),
+      htmlLink: item.htmlLink,
     }));
 }
 

@@ -13,7 +13,10 @@ export interface MergedGoogleEvent {
   start: string;
   end: string;
   allDay: boolean;
+  htmlLink?: string;
 }
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Google Calendar'a doğrudan (PestShield dışında) girilmiş etkinlikleri
 // Takvim sayfasında salt-okunur göstermek içindir — senkronizasyon değil,
@@ -23,9 +26,10 @@ export async function GET(request: Request) {
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
-  const month = searchParams.get("month");
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-    return NextResponse.json({ message: "Geçersiz ay parametresi (YYYY-MM bekleniyor)." }, { status: 400 });
+  const start = searchParams.get("start");
+  const end = searchParams.get("end");
+  if (!start || !end || !DATE_RE.test(start) || !DATE_RE.test(end)) {
+    return NextResponse.json({ message: "Geçersiz tarih aralığı (start/end YYYY-MM-DD bekleniyor)." }, { status: 400 });
   }
 
   const integration = await prisma.googleCalendarIntegration.findUnique({ where: { ownerId } });
@@ -35,9 +39,8 @@ export async function GET(request: Request) {
 
   try {
     const accessToken = await ensureFreshAccessToken(integration);
-    const [year, monthNum] = month.split("-").map(Number);
-    const timeMin = new Date(Date.UTC(year, monthNum - 1, 1)).toISOString();
-    const timeMax = new Date(Date.UTC(year, monthNum, 1)).toISOString();
+    const timeMin = new Date(`${start}T00:00:00.000Z`).toISOString();
+    const timeMax = new Date(`${end}T00:00:00.000Z`).toISOString();
 
     const calendars = await googleCalendarClient.listCalendars(accessToken);
     const events: MergedGoogleEvent[] = [];
