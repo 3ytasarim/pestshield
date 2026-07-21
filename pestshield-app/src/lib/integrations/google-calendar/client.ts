@@ -25,6 +25,16 @@ export interface GoogleCalendarListEntry {
   id: string;
   summary: string;
   primary?: boolean;
+  backgroundColor?: string;
+}
+
+export interface GoogleCalendarEventEntry {
+  id: string;
+  summary: string;
+  /** Tüm gün etkinlikte "YYYY-MM-DD", saatli etkinlikte tam ISO 8601. */
+  start: string;
+  end: string;
+  allDay: boolean;
 }
 
 export interface GoogleCalendarEventInput {
@@ -111,8 +121,36 @@ async function listCalendars(accessToken: string): Promise<GoogleCalendarListEnt
   if (!res.ok) {
     throw new GoogleApiError(data?.error?.message ?? "Google takvim listesi alınamadı.", res.status);
   }
-  const items: Array<{ id: string; summary: string; primary?: boolean }> = data?.items ?? [];
-  return items.map((item) => ({ id: item.id, summary: item.summary, primary: item.primary }));
+  const items: Array<{ id: string; summary: string; primary?: boolean; backgroundColor?: string }> = data?.items ?? [];
+  return items.map((item) => ({ id: item.id, summary: item.summary, primary: item.primary, backgroundColor: item.backgroundColor }));
+}
+
+/** Bir takvimdeki [timeMinISO, timeMaxISO) aralığındaki etkinlikleri okur — salt-okunur görüntüleme içindir, senkronizasyonu etkilemez. */
+async function listEvents(accessToken: string, calendarId: string, timeMinISO: string, timeMaxISO: string): Promise<GoogleCalendarEventEntry[]> {
+  const params = new URLSearchParams({
+    timeMin: timeMinISO,
+    timeMax: timeMaxISO,
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "2500",
+  });
+  const res = await fetch(`${API_BASE}/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new GoogleApiError(data?.error?.message ?? "Google Takvim etkinlikleri alınamadı.", res.status);
+  }
+  const items: Array<{ id: string; summary?: string; start?: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string } }> = data?.items ?? [];
+  return items
+    .filter((item) => item.start && item.end)
+    .map((item) => ({
+      id: item.id,
+      summary: item.summary?.trim() || "(Başlıksız)",
+      start: item.start!.date ?? item.start!.dateTime!,
+      end: item.end!.date ?? item.end!.dateTime!,
+      allDay: Boolean(item.start!.date),
+    }));
 }
 
 /** `eventId` verilirse günceller (PUT), yoksa yeni etkinlik oluşturur (POST). */
@@ -162,6 +200,7 @@ export const googleCalendarClient = {
   refreshAccessToken,
   revokeToken,
   listCalendars,
+  listEvents,
   upsertEvent,
   deleteEvent,
 };

@@ -19,12 +19,28 @@ interface GoogleCalendarStatus {
   calendarName?: string | null;
 }
 
+interface MergedGoogleEvent {
+  id: string;
+  calendarId: string;
+  calendarName: string;
+  color?: string;
+  summary: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+}
+
 type CalendarOrder = WorkOrder & { customerName: string | undefined };
 
 const DAY_LABELS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 function toKey(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/** Google'ın döndürdüğü ISO/tarih değerini grid hücreleriyle aynı anahtar biçimine çevirir (toKey ile tutarlı). */
+function googleEventDayKey(iso: string): string {
+  return toKey(new Date(iso));
 }
 
 function monthGrid(year: number, month: number): Date[] {
@@ -42,6 +58,7 @@ export function CalendarPage() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [connection, setConnection] = useState<GoogleCalendarStatus | null>(null);
   const [orders, setOrders] = useState<CalendarOrder[]>([]);
+  const [googleEvents, setGoogleEvents] = useState<MergedGoogleEvent[]>([]);
 
   useEffect(() => {
     fetch("/api/integrations/google-calendar")
@@ -77,6 +94,37 @@ export function CalendarPage() {
   }, [monthOffset]);
 
   const days = useMemo(() => monthGrid(baseDate.getFullYear(), baseDate.getMonth()), [baseDate]);
+
+  useEffect(() => {
+    if (!connection?.connected) {
+      setGoogleEvents([]);
+      return;
+    }
+    let cancelled = false;
+    const monthKey = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, "0")}`;
+    fetch(`/api/integrations/google-calendar/events?month=${monthKey}`)
+      .then((res) => (res.ok ? res.json() : { events: [] }))
+      .then((data: { events?: MergedGoogleEvent[] }) => {
+        if (!cancelled) setGoogleEvents(data.events ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setGoogleEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connection?.connected, baseDate]);
+
+  const googleEventsByDay = useMemo(() => {
+    const map = new Map<string, MergedGoogleEvent[]>();
+    googleEvents.forEach((e) => {
+      const key = googleEventDayKey(e.start);
+      const list = map.get(key) ?? [];
+      list.push(e);
+      map.set(key, list);
+    });
+    return map;
+  }, [googleEvents]);
 
   const ordersByDay = useMemo(() => {
     const map = new Map<string, typeof orders>();
@@ -152,11 +200,25 @@ export function CalendarPage() {
             <ChevronRight className="size-4" />
           </Button>
         </div>
-        {monthOffset !== 0 && (
-          <Button variant="ghost" size="sm" onClick={() => setMonthOffset(0)}>
-            Bu Ay
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {monthOffset !== 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setMonthOffset(0)}>
+              Bu Ay
+            </Button>
+          )}
+          {connection?.connected && (
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-sm bg-primary/40" />
+                PestShield İş Emri
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-sm border border-dashed border-border" />
+                Google Calendar (salt-okunur)
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       <Card className="gap-0 overflow-hidden rounded-2xl border-border/60 p-0 shadow-sm">
@@ -172,6 +234,7 @@ export function CalendarPage() {
             const inMonth = day.getMonth() === baseDate.getMonth();
             const isToday = toKey(day) === toKey(new Date());
             const dayOrders = ordersByDay.get(toKey(day)) ?? [];
+            const dayGoogleEvents = googleEventsByDay.get(toKey(day)) ?? [];
             return (
               <div
                 key={i}
@@ -191,6 +254,16 @@ export function CalendarPage() {
                     </div>
                   ))}
                   {dayOrders.length > 2 && <span className="text-[10px] text-muted-foreground">+{dayOrders.length - 2} daha</span>}
+                  {dayGoogleEvents.slice(0, 2).map((event) => (
+                    <div
+                      key={event.id}
+                      className="truncate rounded border border-dashed border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                      title={`${event.summary} — Google Calendar (${event.calendarName})`}
+                    >
+                      {event.summary}
+                    </div>
+                  ))}
+                  {dayGoogleEvents.length > 2 && <span className="text-[10px] text-muted-foreground">+{dayGoogleEvents.length - 2} Google</span>}
                 </div>
               </div>
             );

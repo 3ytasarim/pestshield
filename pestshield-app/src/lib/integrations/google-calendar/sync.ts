@@ -15,7 +15,7 @@ export interface GoogleCalendarBulkSyncResult {
 }
 
 /** Access token süresi dolmuşsa (veya hiç yoksa) refresh_token ile yeniler ve DB'yi günceller. */
-async function ensureFreshAccessToken(integration: GoogleCalendarIntegration): Promise<string> {
+export async function ensureFreshAccessToken(integration: GoogleCalendarIntegration): Promise<string> {
   const expiresAt = integration.tokenExpiresAt?.getTime() ?? 0;
   if (integration.accessTokenEnc && expiresAt > Date.now() + 60_000) {
     return decryptSecret(integration.accessTokenEnc);
