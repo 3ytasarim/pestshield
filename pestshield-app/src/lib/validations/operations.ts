@@ -31,6 +31,13 @@ export const technicianFormSchema = z.object({
 
 export type TechnicianFormValues = z.infer<typeof technicianFormSchema>;
 
+/** Düzenlemede şifre opsiyoneldir — boş bırakılırsa mevcut şifre korunur. */
+export const technicianEditFormSchema = technicianFormSchema.extend({
+  password: z.union([z.string().min(8, "Şifre en az 8 karakter olmalıdır"), z.literal("")]),
+});
+
+export type TechnicianEditFormValues = z.infer<typeof technicianEditFormSchema>;
+
 export const vehicleFormSchema = z.object({
   plate: z.string().min(5, "Geçerli bir plaka girin"),
   brand: z.string().min(2, "Marka zorunludur"),

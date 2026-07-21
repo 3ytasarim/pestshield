@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
-import { technicianFormSchema, type TechnicianFormValues } from "@/lib/validations/operations";
+import { technicianFormSchema, technicianEditFormSchema, type TechnicianFormValues } from "@/lib/validations/operations";
+import type { Technician } from "@/lib/mock/operations";
 
 const EMPTY: TechnicianFormValues = {
   name: "",
@@ -36,20 +37,38 @@ interface TechnicianFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: TechnicianFormValues) => void;
+  editing?: Technician | null;
 }
 
-export function TechnicianForm({ open, onOpenChange, onSubmit }: TechnicianFormProps) {
+export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: TechnicianFormProps) {
+  const isEditing = !!editing;
   const {
     register,
     control,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<TechnicianFormValues>({ resolver: zodResolver(technicianFormSchema), defaultValues: EMPTY });
+  } = useForm<TechnicianFormValues>({
+    resolver: zodResolver(isEditing ? technicianEditFormSchema : technicianFormSchema),
+    defaultValues: EMPTY,
+  });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (!open) return;
+    reset(
+      editing
+        ? {
+            name: editing.name,
+            phone: editing.phone,
+            email: editing.email,
+            password: "",
+            licenseNumber: editing.licenseNumber,
+            licenseExpiry: editing.licenseExpiry,
+            status: editing.status,
+          }
+        : EMPTY,
+    );
+  }, [open, editing, reset]);
 
   function submit(values: TechnicianFormValues) {
     onSubmit(values);
@@ -62,9 +81,11 @@ export function TechnicianForm({ open, onOpenChange, onSubmit }: TechnicianFormP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HardHat className="size-4.5 text-primary" />
-            Yeni Teknisyen Ekle
+            {isEditing ? "Teknisyeni Düzenle" : "Yeni Teknisyen Ekle"}
           </DialogTitle>
-          <DialogDescription>Saha ekibine yeni bir teknisyen ekleyin.</DialogDescription>
+          <DialogDescription>
+            {isEditing ? "Teknisyenin bilgilerini, durumunu veya şifresini güncelleyin." : "Saha ekibine yeni bir teknisyen ekleyin."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3.5">
@@ -74,16 +95,25 @@ export function TechnicianForm({ open, onOpenChange, onSubmit }: TechnicianFormP
             <TextField label="E-posta" type="email" required registration={register("email")} error={errors.email?.message} />
           </div>
           <div>
-            <TextField label="Şifre" type="password" required registration={register("password")} error={errors.password?.message} />
+            <TextField
+              label={isEditing ? "Yeni Şifre (opsiyonel)" : "Şifre"}
+              type="password"
+              required={!isEditing}
+              registration={register("password")}
+              error={errors.password?.message}
+            />
             <p className="mt-1 text-xs text-muted-foreground">
-              Teknisyen bu e-posta ve şifreyle mobil panele giriş yapabilecek.
+              {isEditing ? "Boş bırakılırsa şifre değişmez." : "Teknisyen bu e-posta ve şifreyle mobil panele giriş yapabilecek."}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <TextField label="Ehliyet No" required registration={register("licenseNumber")} error={errors.licenseNumber?.message} />
             <TextField label="Geçerlilik Tarihi" type="date" required registration={register("licenseExpiry")} error={errors.licenseExpiry?.message} />
           </div>
-          <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
+          <div>
+            <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
+            {isEditing && <p className="mt-1 text-xs text-muted-foreground">&quot;Pasif&quot; seçilirse teknisyen mobil panele giriş yapamaz.</p>}
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -91,7 +121,7 @@ export function TechnicianForm({ open, onOpenChange, onSubmit }: TechnicianFormP
             </Button>
             <Button type="submit" loading={isSubmitting}>
               <HardHat className="size-4" />
-              Teknisyeni Kaydet
+              {isEditing ? "Değişiklikleri Kaydet" : "Teknisyeni Kaydet"}
             </Button>
           </DialogFooter>
         </form>

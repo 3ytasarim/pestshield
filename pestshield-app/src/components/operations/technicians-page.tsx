@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { AlertTriangle, HardHat, Mail, Phone, Plus, ShieldCheck, Truck } from "lucide-react";
+import { AlertTriangle, HardHat, Mail, Pencil, Phone, Plus, ShieldCheck, Truck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
@@ -28,6 +28,7 @@ export function TechniciansPage({
   const [technicians, setTechnicians] = useState<Technician[]>(initialTechnicians);
   const [vehicles] = useState<Vehicle[]>(initialVehicles);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingTechnician, setEditingTechnician] = useState<Technician | null>(null);
 
   const activeCount = useMemo(() => technicians.filter((t) => t.status === "active").length, [technicians]);
   const expiringCount = useMemo(() => technicians.filter(isLicenseExpiringSoon).length, [technicians]);
@@ -53,6 +54,33 @@ export function TechniciansPage({
     toast.success("Teknisyen eklendi — mobil panele giriş yapabilir");
   }
 
+  async function handleUpdate(values: TechnicianFormValues) {
+    if (!editingTechnician) return;
+    const res = await fetch(`/api/operations/technicians/${editingTechnician.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Teknisyen güncellenemedi");
+      return;
+    }
+
+    setTechnicians((prev) => prev.map((t) => (t.id === data.technician.id ? data.technician : t)));
+    toast.success("Teknisyen güncellendi");
+  }
+
+  function openEdit(technician: Technician) {
+    setEditingTechnician(technician);
+    setFormOpen(true);
+  }
+
+  function handleFormOpenChange(open: boolean) {
+    setFormOpen(open);
+    if (!open) setEditingTechnician(null);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <motion.div
@@ -65,7 +93,12 @@ export function TechniciansPage({
           <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Teknisyenler</h1>
           <p className="max-w-xl text-sm text-muted-foreground">Saha ekibi, ehliyet durumu ve iş yükü takibi.</p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingTechnician(null);
+            setFormOpen(true);
+          }}
+        >
           <Plus className="size-4" />
           Yeni Teknisyen Ekle
         </Button>
@@ -101,7 +134,12 @@ export function TechniciansPage({
                       </div>
                       <p className="font-semibold leading-tight text-foreground">{tech.name}</p>
                     </div>
-                    <TechnicianStatusBadge status={tech.status} />
+                    <div className="flex items-center gap-1.5">
+                      <TechnicianStatusBadge status={tech.status} />
+                      <Button variant="ghost" size="icon-sm" onClick={() => openEdit(tech)} title="Düzenle">
+                        <Pencil className="size-3.5" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
@@ -140,7 +178,12 @@ export function TechniciansPage({
         })}
       </div>
 
-      <TechnicianForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <TechnicianForm
+        open={formOpen}
+        onOpenChange={handleFormOpenChange}
+        onSubmit={editingTechnician ? handleUpdate : handleCreate}
+        editing={editingTechnician}
+      />
     </div>
   );
 }
