@@ -192,7 +192,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit(submit)} className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
           <div>
             <Label className="mb-1.5">
               Ürün Adı <span className="text-destructive">*</span>
