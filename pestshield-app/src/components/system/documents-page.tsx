@@ -28,6 +28,22 @@ interface CompanyDocument {
 
 type SortKey = "name" | "fileSizeKb";
 
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
+
+function isAllowedDocumentFile(file: File): boolean {
+  if (ALLOWED_MIME_TYPES.has(file.type)) return true;
+  // Bazı tarayıcılar/işletim sistemleri eski .doc/.xls dosyaları için MIME type döndürmez — uzantıya da bakılır.
+  const lowerName = file.name.toLowerCase();
+  return ALLOWED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
+}
+
 function formatSize(kb: number): string {
   if (kb >= 1024) return `${(kb / 1024).toFixed(2)} MB`;
   return `${kb.toFixed(2)} KB`;
@@ -91,8 +107,8 @@ export function DocumentsPage() {
 
   async function handleFileSelect(selected: File | undefined) {
     if (!selected) return;
-    if (selected.type !== "application/pdf") {
-      toast.error("Lütfen bir PDF dosyası seçin");
+    if (!isAllowedDocumentFile(selected)) {
+      toast.error("Lütfen bir PDF, Word veya Excel dosyası seçin");
       return;
     }
     try {
@@ -287,7 +303,7 @@ export function DocumentsPage() {
                 </div>
 
                 <div>
-                  <Label className="mb-1.5">Belge * (*.PDF)</Label>
+                  <Label className="mb-1.5">Belge * (PDF, Word, Excel)</Label>
                   <div
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border p-6 text-center transition-colors",
@@ -314,7 +330,7 @@ export function DocumentsPage() {
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
-                      accept="application/pdf"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       onChange={(e) => handleFileSelect(e.target.files?.[0])}
                     />
                   </div>
