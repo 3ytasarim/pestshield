@@ -179,8 +179,8 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md sm:max-w-lg lg:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 max-w-md sm:max-w-lg lg:max-w-2xl">
+        <DialogHeader className="shrink-0 p-4 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <PackagePlus className="size-4.5 text-primary" />
             {defaultValues ? "Ürünü Düzenle" : "Yeni Ürün Ekle"}
@@ -192,7 +192,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(submit)} className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form onSubmit={handleSubmit(submit)} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
           <div>
             <Label className="mb-1.5">
               Ürün Adı <span className="text-destructive">*</span>
@@ -437,7 +437,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
             )}
           </AnimatePresence>
 
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 z-10">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Vazgeç
             </Button>
