@@ -1,25 +1,24 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
+import { prisma } from "@/lib/db";
 import { requireClientOwner } from "@/lib/api-auth";
-import { googleCalendarClient, isGoogleCalendarConfigured, GoogleApiError } from "@/lib/integrations/google-calendar/client";
+import { googleCalendarClient, GoogleApiError } from "@/lib/integrations/google-calendar/client";
 
 const STATE_COOKIE = "google_oauth_state";
 
 export async function GET() {
-  const { error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOwner();
   if (error) return error;
 
-  if (!isGoogleCalendarConfigured()) {
-    return NextResponse.json(
-      { message: "Google Calendar entegrasyonu yapılandırılmadı (GOOGLE_OAUTH_CLIENT_ID/SECRET eksik)." },
-      { status: 500 },
-    );
+  const integration = await prisma.googleCalendarIntegration.findUnique({ where: { ownerId } });
+  if (!integration?.clientId) {
+    return NextResponse.json({ message: "Önce Client ID/Secret girip kaydedin." }, { status: 400 });
   }
 
   const state = crypto.randomUUID();
 
   try {
-    const authorizeUrl = googleCalendarClient.buildAuthorizeUrl(state);
+    const authorizeUrl = googleCalendarClient.buildAuthorizeUrl(state, integration.clientId);
     const response = NextResponse.redirect(authorizeUrl);
     response.cookies.set(STATE_COOKIE, state, {
       httpOnly: true,

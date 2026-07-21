@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireClientOwner } from "@/lib/api-auth";
 import { googleCalendarClient } from "@/lib/integrations/google-calendar/client";
-import { encryptSecret } from "@/lib/crypto";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
 const STATE_COOKIE = "google_oauth_state";
 
@@ -28,26 +28,22 @@ export async function GET(request: Request) {
     return redirectWithStatus(request, "error", "state_mismatch");
   }
 
-  try {
-    const tokens = await googleCalendarClient.exchangeCode(code);
-    const existing = await prisma.googleCalendarIntegration.findUnique({ where: { ownerId } });
+  const existing = await prisma.googleCalendarIntegration.findUnique({ where: { ownerId } });
+  if (!existing?.clientId || !existing.clientSecretEnc) {
+    return redirectWithStatus(request, "error", "not_configured");
+  }
 
-    await prisma.googleCalendarIntegration.upsert({
+  try {
+    const tokens = await googleCalendarClient.exchangeCode(code, existing.clientId, decryptSecret(existing.clientSecretEnc));
+
+    await prisma.googleCalendarIntegration.update({
       where: { ownerId },
-      create: {
-        ownerId,
-        accessTokenEnc: encryptSecret(tokens.accessToken),
-        refreshTokenEnc: tokens.refreshToken ? encryptSecret(tokens.refreshToken) : null,
-        tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
-        calendarId: "primary",
-        connectedAt: new Date(),
-      },
-      update: {
+      data: {
         accessTokenEnc: encryptSecret(tokens.accessToken),
         // Google prompt=consent ile her seferinde yeni refresh_token döner; yine de gelmezse mevcut olanı koru.
         ...(tokens.refreshToken ? { refreshTokenEnc: encryptSecret(tokens.refreshToken) } : {}),
         tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
-        calendarId: existing?.calendarId ?? "primary",
+        calendarId: existing.calendarId ?? "primary",
         connectedAt: new Date(),
       },
     });

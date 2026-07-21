@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireClientOwner } from "@/lib/api-auth";
-import { googleCalendarClient, isGoogleCalendarConfigured } from "@/lib/integrations/google-calendar/client";
+import { googleCalendarClient } from "@/lib/integrations/google-calendar/client";
 import { decryptSecret } from "@/lib/crypto";
 
 export async function GET() {
@@ -9,13 +9,15 @@ export async function GET() {
   if (error) return error;
 
   const integration = await prisma.googleCalendarIntegration.findUnique({ where: { ownerId } });
+  const hasCredentials = !!integration?.clientId;
   if (!integration || !integration.accessTokenEnc) {
-    return NextResponse.json({ connected: false, configured: isGoogleCalendarConfigured() });
+    return NextResponse.json({ connected: false, hasCredentials, clientId: integration?.clientId ?? null });
   }
 
   return NextResponse.json({
     connected: true,
-    configured: true,
+    hasCredentials,
+    clientId: integration.clientId,
     calendarId: integration.calendarId,
     calendarName: integration.calendarName,
     connectedAt: integration.connectedAt,

@@ -3,12 +3,12 @@ import "server-only";
 // Google Calendar API v3 + OAuth2 için düşük seviyeli, framework'ten bağımsız
 // istemci. Kaynak: https://developers.google.com/calendar/api/v3/reference
 //
-// Paraşüt'ten farklı olarak PestShield burada TEK bir paylaşımlı OAuth
-// uygulaması olarak kayıtlıdır (GOOGLE_OAUTH_CLIENT_ID/SECRET), kiracı başına
-// client id/secret YOK — bkz. prisma/schema.prisma GoogleCalendarIntegration
-// yorumu. `access_type=offline&prompt=consent` her bağlantıda zorunludur,
-// aksi halde Google refresh_token'ı yalnızca kullanıcının UYGULAMAYI İLK KEZ
-// onayladığı anda döner.
+// Paraşüt ile AYNI desen: her kiracı kendi Google Cloud OAuth istemcisini
+// (Client ID/Secret) Entegrasyonlar sayfasından girer, DB'de şifreli saklanır
+// (bkz. prisma/schema.prisma GoogleCalendarIntegration.clientId/clientSecretEnc)
+// — paylaşımlı, .env tabanlı tek bir uygulama YOK. `access_type=offline&
+// prompt=consent` her bağlantıda zorunludur, aksi halde Google refresh_token'ı
+// yalnızca kullanıcının UYGULAMAYI İLK KEZ onayladığı anda döner.
 
 const OAUTH_BASE = "https://oauth2.googleapis.com";
 const AUTHORIZE_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -46,30 +46,15 @@ export class GoogleApiError extends Error {
   }
 }
 
-function getCredentials(): { clientId: string; clientSecret: string } | null {
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-  return { clientId, clientSecret };
-}
-
-export function isGoogleCalendarConfigured(): boolean {
-  return getCredentials() !== null;
-}
-
 function getRedirectUri(): string {
   const base = process.env.NEXTAUTH_URL ?? "http://localhost:3200";
   return `${base.replace(/\/$/, "")}/api/integrations/google-calendar/callback`;
 }
 
 /** Kullanıcının yönlendirileceği Google onay ekranı URL'i. `state`, callback'te CSRF doğrulaması için karşılaştırılır. */
-function buildAuthorizeUrl(state: string): string {
-  const credentials = getCredentials();
-  if (!credentials) {
-    throw new GoogleApiError("Google Calendar entegrasyonu yapılandırılmadı (GOOGLE_OAUTH_CLIENT_ID/SECRET eksik).", 500);
-  }
+function buildAuthorizeUrl(state: string, clientId: string): string {
   const params = new URLSearchParams({
-    client_id: credentials.clientId,
+    client_id: clientId,
     redirect_uri: getRedirectUri(),
     response_type: "code",
     scope: SCOPE,
@@ -90,30 +75,22 @@ async function requestToken(params: Record<string, string>): Promise<GoogleToken
   return { accessToken: data.access_token, refreshToken: data.refresh_token, expiresIn: data.expires_in };
 }
 
-function exchangeCode(code: string): Promise<GoogleTokenResponse> {
-  const credentials = getCredentials();
-  if (!credentials) {
-    throw new GoogleApiError("Google Calendar entegrasyonu yapılandırılmadı (GOOGLE_OAUTH_CLIENT_ID/SECRET eksik).", 500);
-  }
+function exchangeCode(code: string, clientId: string, clientSecret: string): Promise<GoogleTokenResponse> {
   return requestToken({
     grant_type: "authorization_code",
-    client_id: credentials.clientId,
-    client_secret: credentials.clientSecret,
+    client_id: clientId,
+    client_secret: clientSecret,
     code,
     redirect_uri: getRedirectUri(),
   });
 }
 
 /** Google refresh_token'ı rotate ETMEZ — yenileme yanıtında dönmeyebilir, mevcut refresh_token saklanmaya devam eder. */
-function refreshAccessToken(refreshToken: string): Promise<GoogleTokenResponse> {
-  const credentials = getCredentials();
-  if (!credentials) {
-    throw new GoogleApiError("Google Calendar entegrasyonu yapılandırılmadı (GOOGLE_OAUTH_CLIENT_ID/SECRET eksik).", 500);
-  }
+function refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string): Promise<GoogleTokenResponse> {
   return requestToken({
     grant_type: "refresh_token",
-    client_id: credentials.clientId,
-    client_secret: credentials.clientSecret,
+    client_id: clientId,
+    client_secret: clientSecret,
     refresh_token: refreshToken,
   });
 }

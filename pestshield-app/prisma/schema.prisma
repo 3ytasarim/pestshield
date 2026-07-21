@@ -1444,6 +1444,11 @@ model GoogleCalendarIntegration {
   ownerId String @unique
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  /// Kiracı kendi Google Cloud OAuth istemcisini kaydeder — Paraşüt ile aynı desen,
+  /// Google Calendar artık paylaşımlı tek bir uygulama değildir.
+  clientId        String?
+  clientSecretEnc String?
+
   accessTokenEnc  String?
   refreshTokenEnc String?
   tokenExpiresAt  DateTime?

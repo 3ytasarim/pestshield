@@ -23,8 +23,11 @@ async function ensureFreshAccessToken(integration: GoogleCalendarIntegration): P
   if (!integration.refreshTokenEnc) {
     throw new Error("Google Calendar bağlantısının yenileme token'ı yok — yeniden bağlanmanız gerekiyor.");
   }
+  if (!integration.clientId || !integration.clientSecretEnc) {
+    throw new Error("Google Calendar Client ID/Secret bilgisi eksik — yeniden bağlanmanız gerekiyor.");
+  }
   const refreshToken = decryptSecret(integration.refreshTokenEnc);
-  const tokens = await googleCalendarClient.refreshAccessToken(refreshToken);
+  const tokens = await googleCalendarClient.refreshAccessToken(refreshToken, integration.clientId, decryptSecret(integration.clientSecretEnc));
 
   await prisma.googleCalendarIntegration.update({
     where: { id: integration.id },

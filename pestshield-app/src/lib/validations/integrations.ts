@@ -15,6 +15,13 @@ export const parasutSelectCompanySchema = z.object({
 
 export type ParasutSelectCompanyValues = z.infer<typeof parasutSelectCompanySchema>;
 
+export const googleCalendarConnectSchema = z.object({
+  clientId: z.string().min(1, "Client ID zorunludur"),
+  clientSecret: z.string().min(1, "Client Secret zorunludur"),
+});
+
+export type GoogleCalendarConnectValues = z.infer<typeof googleCalendarConnectSchema>;
+
 export const googleCalendarSelectCalendarSchema = z.object({
   calendarId: z.string().min(1, "Takvim seçimi zorunludur"),
   calendarName: z.string().min(1),

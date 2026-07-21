@@ -38,7 +38,8 @@ const COMING_SOON = [
 
 interface GoogleCalendarStatus {
   connected: boolean;
-  configured?: boolean;
+  hasCredentials?: boolean;
+  clientId?: string | null;
   calendarId?: string;
   calendarName?: string | null;
   connectedAt?: string | null;
@@ -61,6 +62,9 @@ function GoogleCalendarCard() {
   const [calendars, setCalendars] = useState<GoogleCalendarEntry[]>([]);
   const [switching, setSwitching] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [savingCredentials, setSavingCredentials] = useState(false);
 
   async function loadStatus() {
     setLoading(true);
@@ -92,14 +96,40 @@ function GoogleCalendarCard() {
       loadStatus();
     } else if (result === "error") {
       const reason = searchParams.get("reason");
-      toast.error(reason === "state_mismatch" ? "Bağlantı doğrulanamadı, tekrar deneyin" : "Google Calendar bağlantısı kurulamadı");
+      const message =
+        reason === "state_mismatch"
+          ? "Bağlantı doğrulanamadı, tekrar deneyin"
+          : reason === "not_configured"
+            ? "Önce Client ID/Secret girip kaydedin"
+            : "Google Calendar bağlantısı kurulamadı";
+      toast.error(message);
     }
     router.replace("/dashboard/client/integrations");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  function handleConnect() {
-    window.location.href = "/api/integrations/google-calendar/authorize";
+  async function handleSaveCredentialsAndConnect() {
+    if (!clientId.trim() || !clientSecret.trim()) {
+      toast.error("Client ID ve Client Secret zorunludur");
+      return;
+    }
+    setSavingCredentials(true);
+    try {
+      const res = await fetch("/api/integrations/google-calendar/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: clientId.trim(), clientSecret: clientSecret.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Kimlik bilgileri kaydedilemedi");
+        return;
+      }
+      window.location.href = "/api/integrations/google-calendar/authorize";
+    } catch {
+      toast.error("Kimlik bilgileri kaydedilemedi — sunucuya ulaşılamadı");
+      setSavingCredentials(false);
+    }
   }
 
   async function handleSelectCalendar(calendarId: string) {
@@ -148,6 +178,8 @@ function GoogleCalendarCard() {
     try {
       await fetch("/api/integrations/google-calendar", { method: "DELETE" });
       setCalendars([]);
+      setClientId("");
+      setClientSecret("");
       toast.success("Bağlantı kesildi");
       await loadStatus();
     } catch {
@@ -234,18 +266,33 @@ function GoogleCalendarCard() {
             <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs text-foreground/80">
               <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
               <p className="min-w-0">
-                Google hesabınızla bağlanın — iş emirleri planlandığında/güncellendiğinde otomatik olarak seçtiğiniz Google
-                Takvim&apos;e yazılır.
+                Google Cloud Console&apos;da oluşturduğunuz OAuth istemcisinin Client ID/Secret&apos;ını girin — Authorized
+                redirect URI olarak <span className="font-mono">{`{NEXTAUTH_URL}/api/integrations/google-calendar/callback`}</span>{" "}
+                kayıtlı olmalı. Kaydettikten sonra Google onay ekranına yönlendirilirsiniz.
               </p>
             </div>
-            {!status.configured && (
-              <p className="text-xs text-destructive">
-                Sunucu tarafında Google OAuth henüz yapılandırılmadı (GOOGLE_OAUTH_CLIENT_ID/SECRET eksik).
-              </p>
-            )}
-            <Button onClick={handleConnect} disabled={!status.configured} className="w-fit">
+            <div>
+              <Label className="mb-1.5">Client ID</Label>
+              <Input
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder={status.hasCredentials ? status.clientId ?? "Kayıtlı" : "xxxxxxxx.apps.googleusercontent.com"}
+                className="h-11 rounded-xl px-3.5 font-mono text-sm"
+              />
+            </div>
+            <div>
+              <Label className="mb-1.5">Client Secret</Label>
+              <Input
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                placeholder={status.hasCredentials ? "Değiştirmek için yeniden girin" : "••••••••••••"}
+                className="h-11 rounded-xl px-3.5"
+              />
+            </div>
+            <Button onClick={handleSaveCredentialsAndConnect} loading={savingCredentials} className="w-fit">
               <Plug className="size-4" />
-              Google ile Bağlan
+              Kaydet ve Google ile Bağlan
             </Button>
           </div>
         )}

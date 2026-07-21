@@ -12,6 +12,9 @@ export async function GET() {
   if (!integration || !integration.accessTokenEnc) {
     return NextResponse.json({ message: "Google Calendar bağlantısı kurulmamış." }, { status: 400 });
   }
+  if (!integration.clientId || !integration.clientSecretEnc) {
+    return NextResponse.json({ message: "Google Calendar Client ID/Secret bilgisi eksik — yeniden bağlanmanız gerekiyor." }, { status: 400 });
+  }
 
   try {
     let accessToken = decryptSecret(integration.accessTokenEnc);
@@ -20,7 +23,11 @@ export async function GET() {
       if (!integration.refreshTokenEnc) {
         return NextResponse.json({ message: "Bağlantının yenileme token'ı yok — yeniden bağlanmanız gerekiyor." }, { status: 400 });
       }
-      const tokens = await googleCalendarClient.refreshAccessToken(decryptSecret(integration.refreshTokenEnc));
+      const tokens = await googleCalendarClient.refreshAccessToken(
+        decryptSecret(integration.refreshTokenEnc),
+        integration.clientId,
+        decryptSecret(integration.clientSecretEnc),
+      );
       accessToken = tokens.accessToken;
       await prisma.googleCalendarIntegration.update({
         where: { id: integration.id },

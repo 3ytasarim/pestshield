@@ -26,6 +26,8 @@ function baseIntegration(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: "integration-1",
     ownerId: OWNER_ID,
+    clientId: "gcal-client-id",
+    clientSecretEnc: "enc(gcal-client-secret)",
     accessTokenEnc: "enc(access-token)",
     refreshTokenEnc: "enc(refresh-token)",
     tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
@@ -97,7 +99,7 @@ describe("syncWorkOrderToCalendar", () => {
 
     await syncWorkOrderToCalendar(OWNER_ID, "order-1");
 
-    expect(mockClient.refreshAccessToken).toHaveBeenCalledWith("refresh-token");
+    expect(mockClient.refreshAccessToken).toHaveBeenCalledWith("refresh-token", "gcal-client-id", "gcal-client-secret");
     expect(mockClient.upsertEvent).toHaveBeenCalledWith("new-access-token", "primary", null, expect.any(Object));
     // Google refresh_token yanıtta yoksa mevcut refreshTokenEnc korunmalı.
     expect(mockPrisma.googleCalendarIntegration.update).toHaveBeenCalledWith(
