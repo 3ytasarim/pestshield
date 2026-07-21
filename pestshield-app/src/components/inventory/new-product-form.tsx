@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
-import { FileText, PackagePlus, ShieldCheck, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { FileText, PackagePlus, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -159,6 +160,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
     control,
     handleSubmit,
     watch,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<NewProductFormValues>({
@@ -171,6 +173,34 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
   }, [open, defaultValues, reset, EMPTY]);
 
   const isBiosidal = watch("isBiosidal");
+  const productName = watch("name");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  async function generateActiveIngredient() {
+    if (!productName || productName.trim().length < 2) {
+      toast.error("Önce Ürün Adı girin");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/inventory/products/ai-active-ingredient", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "AI içerik oluşturamadı");
+        return;
+      }
+      setValue("activeIngredient", data.activeIngredient, { shouldDirty: true });
+      toast.success("AI önerisi eklendi — lütfen doğrulayın");
+    } catch {
+      toast.error("AI içerik oluşturulamadı");
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   function submit(values: NewProductFormValues) {
     onSubmit(values);
@@ -179,7 +209,12 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 max-w-md sm:max-w-lg lg:max-w-2xl">
+      <DialogContent
+        className={cn(
+          "flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 transition-[max-width] duration-300 max-w-md sm:max-w-lg",
+          isBiosidal && "lg:max-w-4xl xl:max-w-5xl",
+        )}
+      >
         <DialogHeader className="shrink-0 p-4 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <PackagePlus className="size-4.5 text-primary" />
@@ -192,7 +227,9 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(submit)} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        <form onSubmit={handleSubmit(submit)} className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+          <div className={cn("grid grid-cols-1 gap-x-6 gap-y-4", isBiosidal && "lg:grid-cols-2")}>
+          <div className="flex flex-col gap-3.5">
           <div>
             <Label className="mb-1.5">
               Ürün Adı <span className="text-destructive">*</span>
@@ -310,6 +347,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
               </label>
             )}
           />
+          </div>
 
           <AnimatePresence initial={false}>
             {isBiosidal && (
@@ -320,7 +358,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                 className="overflow-hidden"
               >
-                <div className="flex flex-col gap-3.5 border-l-2 border-success/30 pl-4">
+                <div className="flex flex-col gap-3.5 border-t-2 border-success/30 pt-3.5 lg:border-t-0 lg:border-l-2 lg:pt-0 lg:pl-6">
                   <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                     <Controller
                       control={control}
@@ -392,6 +430,13 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
                       className="min-h-20 rounded-xl px-3.5 py-2.5"
                       {...register("activeIngredient")}
                     />
+                    <Button type="button" size="sm" variant="outline" className="mt-1.5" loading={aiLoading} onClick={generateActiveIngredient}>
+                      <Sparkles className="size-3.5" />
+                      AI ile İçerik Oluştur
+                    </Button>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      AI&apos;nin kendi bilgisine dayanır, internet taraması yapmaz — mutlaka doğrulayın.
+                    </p>
                   </div>
                   <div>
                     <Label className="mb-1.5">Ürün Antidotu</Label>
@@ -436,8 +481,9 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
 
-          <DialogFooter className="sticky bottom-0 z-10">
+          <DialogFooter className="sticky bottom-0 z-10 mt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Vazgeç
             </Button>
