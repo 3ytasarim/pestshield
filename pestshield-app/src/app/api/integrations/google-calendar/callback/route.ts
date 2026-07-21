@@ -7,7 +7,11 @@ import { encryptSecret, decryptSecret } from "@/lib/crypto";
 const STATE_COOKIE = "google_oauth_state";
 
 function redirectWithStatus(request: Request, status: "connected" | "error", reason?: string) {
-  const url = new URL("/dashboard/client/integrations", request.url);
+  // request.url ters proxy (LiteSpeed/Passenger) arkasında sunucunun kendi iç
+  // adresini (ör. localhost:3000) yansıtabilir — public yönlendirme için her
+  // zaman NEXTAUTH_URL kullanılır (bkz. client.ts getRedirectUri()).
+  const base = process.env.NEXTAUTH_URL ?? new URL(request.url).origin;
+  const url = new URL("/dashboard/client/integrations", base);
   url.searchParams.set("googleCalendar", status);
   if (reason) url.searchParams.set("reason", reason);
   const response = NextResponse.redirect(url);
