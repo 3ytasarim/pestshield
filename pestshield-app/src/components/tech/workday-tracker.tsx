@@ -7,7 +7,7 @@ import { AlertTriangle, MapPin, Play, RotateCw, Square } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GLASS_CARD } from "@/components/dashboard/shared";
-import { routeDistanceKm, type GeoPoint, type RouteStop } from "@/lib/mock/tracking";
+import { haversineKm, routeDistanceKm, type GeoPoint, type RouteStop } from "@/lib/mock/tracking";
 import { cn } from "@/lib/utils";
 
 const RouteMap = dynamic(() => import("@/components/tracking/route-map").then((m) => m.RouteMap), {
@@ -17,6 +17,13 @@ const RouteMap = dynamic(() => import("@/components/tracking/route-map").then((m
 
 const STORAGE_KEY = "pestshield.tech.workday.v1";
 const PING_INTERVAL_MS = 5000;
+// Wifi/hücre bazlı kaba konum tahminleri genelde 300m-birkaç km hata payı verir,
+// gerçek GPS kilidi genelde <50m'dir — 150m üstü noktalar sessizce atlanır.
+const MAX_ACCURACY_M = 150;
+// Bir önceki noktadan bu hızın üzerinde bir sıçrama (GPS gürültüsü/kaba konum
+// sıçraması) fiziksel olarak anlamsızdır — İstanbul trafiğinde otoyol dahil
+// cömert bir üst sınır.
+const MAX_PLAUSIBLE_SPEED_KMH = 150;
 
 type Status = "not_started" | "in_progress" | "completed";
 
@@ -65,6 +72,44 @@ export function WorkdayTracker() {
   const [, forceTick] = useState(0);
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // recordPoint() setInterval kapanışında state'i taze tutmak için — GPS
+  // sıçrama kontrolü "son nokta"yı senkron okumak zorunda.
+  const pointsRef = useRef<GeoPoint[]>(state.points);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  useEffect(() => {
+    pointsRef.current = state.points;
+  }, [state.points]);
+
+  async function requestWakeLock() {
+    if (!("wakeLock" in navigator)) return;
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request("screen");
+    } catch {
+      // Tarayıcı reddetmiş olabilir (ör. sekme arka planda) - konum takibi
+      // yine de devam eder, sadece ekran otomatik kilitlenebilir.
+    }
+  }
+
+  async function releaseWakeLock() {
+    try {
+      await wakeLockRef.current?.release();
+    } catch {
+      // yoksay
+    }
+    wakeLockRef.current = null;
+  }
+
+  // Wake lock sekme gizlenince tarayıcı tarafından otomatik serbest bırakılır -
+  // sekme tekrar görünür olduğunda (mesai hâlâ sürüyorsa) yeniden istenir.
+  useEffect(() => {
+    if (state.status !== "in_progress") return;
+    function handleVisibility() {
+      if (document.visibilityState === "visible") requestWakeLock();
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [state.status]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -87,6 +132,7 @@ export function WorkdayTracker() {
         });
         if (w.status === "in_progress" && intervalRef.current === null) {
           intervalRef.current = setInterval(recordPoint, PING_INTERVAL_MS);
+          requestWakeLock();
         }
       })
       .catch(() => {
@@ -107,6 +153,7 @@ export function WorkdayTracker() {
     () => () => {
       if (watchIdRef.current !== null) navigator.geolocation?.clearWatch(watchIdRef.current);
       if (intervalRef.current) clearInterval(intervalRef.current);
+      releaseWakeLock();
     },
     [],
   );
@@ -119,12 +166,27 @@ export function WorkdayTracker() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setGeoError(null);
+
+        // Wifi/hücre bazlı kaba konum tahmini — gerçek GPS kilidi gelene kadar
+        // sessizce atla, rotayı bozmasın.
+        if (pos.coords.accuracy && pos.coords.accuracy > MAX_ACCURACY_M) return;
+
         const point: GeoPoint = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           timestamp: new Date().toISOString(),
         };
-        setState((prev) => ({ ...prev, points: [...prev.points, point] }));
+
+        const last = pointsRef.current[pointsRef.current.length - 1];
+        if (last) {
+          const elapsedHours = (new Date(point.timestamp).getTime() - new Date(last.timestamp).getTime()) / 3_600_000;
+          const impliedSpeedKmh = elapsedHours > 0 ? haversineKm(last, point) / elapsedHours : 0;
+          // Fiziksel olarak imkansız bir sıçrama — GPS gürültüsü, reddedilir.
+          if (impliedSpeedKmh > MAX_PLAUSIBLE_SPEED_KMH) return;
+        }
+
+        pointsRef.current = [...pointsRef.current, point];
+        setState((prev) => ({ ...prev, points: pointsRef.current }));
         fetch("/api/tech/workday/ping", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -157,18 +219,23 @@ export function WorkdayTracker() {
       return;
     }
     const startedAt = new Date().toISOString();
+    // pointsRef senkron sıfırlanır - hemen aşağıda çağrılan recordPoint() henüz
+    // commit edilmemiş state'i değil, boş listeyi "son nokta" olarak görmeli.
+    pointsRef.current = [];
     setState({ status: "in_progress", startedAt, endedAt: null, points: [] });
     fetch("/api/tech/workday", { method: "POST" }).catch(() => {
       // Sunucuya ulasilamazsa mesai yerelde devam eder; ping'ler sonraki senkronda gonderilir.
     });
     recordPoint();
     intervalRef.current = setInterval(recordPoint, PING_INTERVAL_MS);
+    requestWakeLock();
     toast.success("İş günü başladı — konumunuz her 5 saniyede bir kaydediliyor");
   }
 
   function endWork() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (watchIdRef.current !== null) navigator.geolocation?.clearWatch(watchIdRef.current);
+    releaseWakeLock();
     setState((prev) => ({ ...prev, status: "completed", endedAt: new Date().toISOString() }));
     fetch("/api/tech/workday/end", { method: "POST" }).catch(() => {
       // Sunucuya ulasilamazsa yerel durum "completed" olarak kalir.
@@ -178,6 +245,8 @@ export function WorkdayTracker() {
 
   function resetDemo() {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    releaseWakeLock();
+    pointsRef.current = [];
     setState({ status: "not_started", startedAt: null, endedAt: null, points: [] });
     setGeoError(null);
   }

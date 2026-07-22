@@ -96,7 +96,7 @@ export function AddStockForm({ open, onOpenChange, products, defaultProductId, o
                       {(value: unknown) => products.find((p) => p.id === value)?.name ?? "Ürün seçin…"}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-64">
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
                         {product.name}

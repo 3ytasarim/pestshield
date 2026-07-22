@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, Truck, User, Warehouse as WarehouseIcon, Wrench } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Truck, User, Warehouse as WarehouseIcon, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
@@ -25,6 +25,7 @@ export function VehiclesPage({
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [technicians] = useState<Technician[]>(initialTechnicians);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
   const activeCount = useMemo(() => vehicles.filter((v) => v.status === "active").length, [vehicles]);
   const dueSoonCount = useMemo(() => vehicles.filter(isVehicleDueSoon).length, [vehicles]);
@@ -44,6 +45,32 @@ export function VehiclesPage({
     toast.success("Araç eklendi");
   }
 
+  async function handleUpdate(values: VehicleFormValues) {
+    if (!editingVehicle) return;
+    const res = await fetch(`/api/operations/vehicles/${editingVehicle.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Araç güncellenemedi");
+      return;
+    }
+    setVehicles((prev) => prev.map((v) => (v.id === data.vehicle.id ? data.vehicle : v)));
+    toast.success("Araç güncellendi");
+  }
+
+  function openEdit(vehicle: Vehicle) {
+    setEditingVehicle(vehicle);
+    setFormOpen(true);
+  }
+
+  function handleFormOpenChange(open: boolean) {
+    setFormOpen(open);
+    if (!open) setEditingVehicle(null);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <motion.div
@@ -56,7 +83,12 @@ export function VehiclesPage({
           <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Araçlar</h1>
           <p className="max-w-xl text-sm text-muted-foreground">Filo yönetimi: atama, muayene ve sigorta takibi.</p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingVehicle(null);
+            setFormOpen(true);
+          }}
+        >
           <Plus className="size-4" />
           Yeni Araç Ekle
         </Button>
@@ -93,7 +125,12 @@ export function VehiclesPage({
                         </p>
                       </div>
                     </div>
-                    <VehicleStatusBadge status={vehicle.status} />
+                    <div className="flex items-center gap-1.5">
+                      <VehicleStatusBadge status={vehicle.status} />
+                      <Button variant="ghost" size="icon-sm" onClick={() => openEdit(vehicle)} title="Düzenle">
+                        <Pencil className="size-3.5" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
@@ -126,7 +163,12 @@ export function VehiclesPage({
         })}
       </div>
 
-      <VehicleForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <VehicleForm
+        open={formOpen}
+        onOpenChange={handleFormOpenChange}
+        onSubmit={editingVehicle ? handleUpdate : handleCreate}
+        editing={editingVehicle}
+      />
     </div>
   );
 }

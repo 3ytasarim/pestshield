@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
 import { vehicleFormSchema, type VehicleFormValues } from "@/lib/validations/operations";
+import type { Vehicle } from "@/lib/mock/operations";
 
 const EMPTY: VehicleFormValues = {
   plate: "",
@@ -38,9 +39,11 @@ interface VehicleFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: VehicleFormValues) => void;
+  editing?: Vehicle | null;
 }
 
-export function VehicleForm({ open, onOpenChange, onSubmit }: VehicleFormProps) {
+export function VehicleForm({ open, onOpenChange, onSubmit, editing }: VehicleFormProps) {
+  const isEditing = !!editing;
   const {
     register,
     control,
@@ -52,8 +55,23 @@ export function VehicleForm({ open, onOpenChange, onSubmit }: VehicleFormProps) 
   const [technicianOptions, setTechnicianOptions] = useState<{ value: string; label: string }[]>([{ value: "none", label: "Atanmadı" }]);
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (!open) return;
+    reset(
+      editing
+        ? {
+            plate: editing.plate,
+            brand: editing.brand,
+            model: editing.model,
+            assignedTechnicianId: editing.assignedTechnicianId ?? "none",
+            registrationNumber: editing.registrationNumber,
+            registrationExpiry: editing.registrationExpiry,
+            inspectionDue: editing.inspectionDue,
+            insuranceDue: editing.insuranceDue,
+            status: editing.status,
+          }
+        : EMPTY,
+    );
+  }, [open, editing, reset]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,9 +97,9 @@ export function VehicleForm({ open, onOpenChange, onSubmit }: VehicleFormProps) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Truck className="size-4.5 text-primary" />
-            Yeni Araç Ekle
+            {isEditing ? "Aracı Düzenle" : "Yeni Araç Ekle"}
           </DialogTitle>
-          <DialogDescription>Filoya yeni bir araç ekleyin.</DialogDescription>
+          <DialogDescription>{isEditing ? "Araç bilgilerini ve teknisyen atamasını güncelleyin." : "Filoya yeni bir araç ekleyin."}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3.5">
@@ -107,7 +125,7 @@ export function VehicleForm({ open, onOpenChange, onSubmit }: VehicleFormProps) 
             </Button>
             <Button type="submit" loading={isSubmitting}>
               <Truck className="size-4" />
-              Aracı Kaydet
+              {isEditing ? "Değişiklikleri Kaydet" : "Aracı Kaydet"}
             </Button>
           </DialogFooter>
         </form>

@@ -227,17 +227,20 @@ export function getLatestWorkdayForTechnician(name: string): TechnicianWorkday |
   return [...technicianWorkdays].reverse().find((w) => w.technicianName === name);
 }
 
+/** İki nokta arası kuş uçuşu mesafe (km) — haversine formülü. */
+export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+}
+
 export function routeDistanceKm(breadcrumbs: GeoPoint[]): number {
   let total = 0;
   for (let i = 1; i < breadcrumbs.length; i++) {
-    const a = breadcrumbs[i - 1];
-    const b = breadcrumbs[i];
-    const R = 6371;
-    const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-    const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-    const h =
-      Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-    total += R * (2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+    total += haversineKm(breadcrumbs[i - 1], breadcrumbs[i]);
   }
   return Math.round(total * 10) / 10;
 }
