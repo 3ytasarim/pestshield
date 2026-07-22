@@ -435,7 +435,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
                       AI ile İçerik Oluştur
                     </Button>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      AI&apos;nin kendi bilgisine dayanır, internet taraması yapmaz — mutlaka doğrulayın.
+                      AI web&apos;de arama yaparak bulur — yine de mutlaka doğrulayın.
                     </p>
                   </div>
                   <div>

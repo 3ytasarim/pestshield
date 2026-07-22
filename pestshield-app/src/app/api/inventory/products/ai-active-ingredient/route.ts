@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
+import OpenAI from "openai";
 import { requireClientOwner } from "@/lib/api-auth";
-import { getAiModelProvider } from "@/lib/ai/providers/get-model-provider";
-import { AiProviderNotConfiguredError } from "@/lib/ai/providers/model-provider";
 
 export const runtime = "nodejs";
 
-const MODEL = process.env.AI_MODEL || "claude-sonnet-4-5";
-const MAX_TOKENS = 200;
-const REQUEST_TIMEOUT = Number(process.env.AI_REQUEST_TIMEOUT_MS || process.env.AI_REQUEST_TIMEOUT || 20000);
+const MODEL = process.env.AI_MODEL || "gpt-4o";
+// Web araması eklenince yanıt süresi düz bir tamamlamadan daha uzun sürebilir.
+const REQUEST_TIMEOUT = Number(process.env.AI_REQUEST_TIMEOUT_MS || process.env.AI_REQUEST_TIMEOUT || 30000);
 
-// Gerçek zamanlı internet araması YAPMAZ — sadece modelin kendi eğitim
-// verisindeki bilgiyi kullanır. Kullanıcı bunu bilerek onayladı (bkz. sohbet).
-const SYSTEM_PROMPT = `Sen bir biyosidal/pestisit ürün bilgi asistanısın. Kullanıcı bir ürün adı verecek; SADECE o ürünün bilinen aktif madde bileşimini kısa, tek satırlık bir metin olarak döndür (ör: "Deltamethrin %25, Piperonil Bütoksit %5"). Gerçek zamanlı internet araması yapamazsın, sadece eğitim verindeki bilgiyi kullan. Ürünü tanımıyorsan veya emin değilsen SADECE "BİLİNMİYOR" yaz, asla uydurma bilgi verme. Başka hiçbir açıklama, markdown veya ek metin ekleme — sadece istenen tek satırı döndür.`;
+function buildPrompt(productName: string): string {
+  return `"${productName}" adlı biyosidal/pestisit ürününü web'de araştır ve SADECE aktif madde bileşimini kısa, tek satırlık bir metin olarak döndür (ör: "Deltamethrin %25, Piperonil Bütoksit %5"). Başka hiçbir açıklama, kaynak linki, madde işareti veya ek metin ekleme — sadece istenen tek satırı döndür. Ürünü bulamazsan veya emin olamazsan SADECE "BİLİNMİYOR" yaz, asla uydurma bilgi verme.`;
+}
+
+/** Modelin bazen satır sonuna eklediği kaynak/dipnot işaretlerini (【1†...】, [1] vb.) temizler. */
+function stripCitationArtifacts(text: string): string {
+  return text
+    .replace(/【[^】]*】/g, "")
+    .replace(/\[\d+\]/g, "")
+    .trim();
+}
 
 export async function POST(request: Request) {
   const { error } = await requireClientOwner();
@@ -29,27 +36,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Ürün adı gerekli." }, { status: 400 });
   }
 
-  let modelProvider;
-  try {
-    modelProvider = getAiModelProvider();
-  } catch (err) {
-    if (err instanceof AiProviderNotConfiguredError) {
-      return NextResponse.json({ message: "AI özelliği yapılandırılmadı." }, { status: 503 });
-    }
-    throw err;
+  const provider = (process.env.AI_PROVIDER || "anthropic").toLowerCase();
+  const apiKey = process.env.AI_API_KEY;
+  if (!apiKey || provider !== "openai") {
+    return NextResponse.json(
+      { message: "Bu özellik gerçek web araması için OpenAI tabanlı bir yapılandırma (AI_PROVIDER=openai) gerektiriyor." },
+      { status: 503 },
+    );
   }
 
+  const client = new OpenAI({ apiKey, timeout: REQUEST_TIMEOUT });
+
   try {
-    const response = await modelProvider.createMessage({
+    const response = await client.responses.create({
       model: MODEL,
-      maxTokens: MAX_TOKENS,
-      timeoutMs: REQUEST_TIMEOUT,
-      system: SYSTEM_PROMPT,
-      tools: [],
-      messages: [{ role: "user", content: `Ürün adı: ${productName}` }],
+      input: buildPrompt(productName),
+      tools: [{ type: "web_search" }],
     });
 
-    const text = response.text.trim();
+    const text = stripCitationArtifacts(response.output_text ?? "");
     if (!text || text.toUpperCase().includes("BİLİNMİYOR")) {
       return NextResponse.json({ message: "Bu ürün için AI'nin bilgisi yok — lütfen elle girin." }, { status: 404 });
     }
