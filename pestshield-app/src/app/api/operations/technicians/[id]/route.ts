@@ -22,12 +22,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Geçersiz istek" }, { status: 400 });
   }
 
-  const { name, email, password, ...values } = parsed.data;
+  const { name, email, password, googleCalendarId, ...values } = parsed.data;
+  const resolvedGoogleCalendarId = googleCalendarId === "none" ? null : googleCalendarId;
 
   if (email !== existing.email) {
     const emailTaken = await prisma.user.findUnique({ where: { email } });
     if (emailTaken && emailTaken.id !== existing.userId) {
       return NextResponse.json({ message: "Bu e-posta adresi zaten kullanılıyor" }, { status: 409 });
+    }
+  }
+
+  if (resolvedGoogleCalendarId) {
+    const calendarTaken = await prisma.technician.findFirst({
+      where: { ownerId, googleCalendarId: resolvedGoogleCalendarId, id: { not: id } },
+    });
+    if (calendarTaken) {
+      return NextResponse.json({ message: `Bu takvim zaten ${calendarTaken.name} adlı teknisyene atanmış.` }, { status: 409 });
     }
   }
 
@@ -48,7 +58,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
     return tx.technician.update({
       where: { id },
-      data: { name, email, ...values },
+      data: { name, email, googleCalendarId: resolvedGoogleCalendarId, ...values },
       include: { vehicles: true },
     });
   });

@@ -34,6 +34,8 @@ export type TechnicianFormValues = z.infer<typeof technicianFormSchema>;
 /** Düzenlemede şifre opsiyoneldir — boş bırakılırsa mevcut şifre korunur. */
 export const technicianEditFormSchema = technicianFormSchema.extend({
   password: z.union([z.string().min(8, "Şifre en az 8 karakter olmalıdır"), z.literal("")]),
+  // "none" = eşleştirme yok. Google Calendar bağlı değilse alan hiç gösterilmez.
+  googleCalendarId: z.string().default("none"),
 });
 
 export type TechnicianEditFormValues = z.infer<typeof technicianEditFormSchema>;

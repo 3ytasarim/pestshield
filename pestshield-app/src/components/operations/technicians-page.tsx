@@ -13,7 +13,7 @@ import { TechnicianStatusBadge } from "@/components/operations/operations-badges
 import { TechnicianForm } from "@/components/operations/technician-form";
 import { isLicenseExpiringSoon, type Technician, type Vehicle } from "@/lib/mock/operations";
 import type { WorkOrder } from "@/lib/mock/crm";
-import type { TechnicianFormValues } from "@/lib/validations/operations";
+import type { TechnicianEditFormValues } from "@/lib/validations/operations";
 import { cn } from "@/lib/utils";
 
 export function TechniciansPage({
@@ -38,7 +38,7 @@ export function TechniciansPage({
     return openWorkOrders.filter((w) => w.technician === name).length;
   }
 
-  async function handleCreate(values: TechnicianFormValues) {
+  async function handleCreate(values: TechnicianEditFormValues) {
     const res = await fetch("/api/operations/technicians", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,7 +54,7 @@ export function TechniciansPage({
     toast.success("Teknisyen eklendi — mobil panele giriş yapabilir");
   }
 
-  async function handleUpdate(values: TechnicianFormValues) {
+  async function handleUpdate(values: TechnicianEditFormValues) {
     if (!editingTechnician) return;
     const res = await fetch(`/api/operations/technicians/${editingTechnician.id}`, {
       method: "PATCH",

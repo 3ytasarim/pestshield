@@ -749,6 +749,11 @@ model Technician {
   licenseExpiry String           @default("")
   status        TechnicianStatus @default(active)
 
+  /// Bu teknisyenin kişisel Google Takvim alt-takvimi — Google Calendar'da
+  /// bu takvime eklenen etkinlikler "Bekleyen İçe Aktarımlar"da bu teknisyene
+  /// önerilen İş Emri olarak listelenir (bkz. /api/integrations/google-calendar/pending-imports).
+  googleCalendarId String? @unique
+
   vehicles      Vehicle[]
   stationChecks StationCheck[]
   workOrders    WorkOrder[]

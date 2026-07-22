@@ -46,6 +46,7 @@ export interface Technician {
   licenseExpiry: string;
   status: TechnicianStatus;
   vehicleId: string | null;
+  googleCalendarId: string | null;
 }
 
 export type VehicleStatus = "active" | "maintenance" | "inactive";
@@ -217,6 +218,7 @@ export const technicians: Technician[] = [
     licenseExpiry: daysFromNow(45),
     status: "active",
     vehicleId: "veh-001",
+    googleCalendarId: null,
   },
   {
     id: "tech-002",
@@ -227,6 +229,7 @@ export const technicians: Technician[] = [
     licenseExpiry: daysFromNow(45),
     status: "active",
     vehicleId: "veh-002",
+    googleCalendarId: null,
   },
   {
     id: "tech-003",
@@ -237,6 +240,7 @@ export const technicians: Technician[] = [
     licenseExpiry: daysFromNow(200),
     status: "active",
     vehicleId: "veh-003",
+    googleCalendarId: null,
   },
   {
     id: "tech-004",
@@ -247,6 +251,7 @@ export const technicians: Technician[] = [
     licenseExpiry: daysFromNow(320),
     status: "on_leave",
     vehicleId: null,
+    googleCalendarId: null,
   },
 ];
 

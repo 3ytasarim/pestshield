@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { HardHat } from "lucide-react";
 import {
@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
-import { technicianFormSchema, technicianEditFormSchema, type TechnicianFormValues } from "@/lib/validations/operations";
+import { technicianFormSchema, technicianEditFormSchema, type TechnicianEditFormValues } from "@/lib/validations/operations";
 import type { Technician } from "@/lib/mock/operations";
 
-const EMPTY: TechnicianFormValues = {
+const EMPTY: TechnicianEditFormValues = {
   name: "",
   phone: "",
   email: "",
@@ -25,6 +25,7 @@ const EMPTY: TechnicianFormValues = {
   licenseNumber: "",
   licenseExpiry: new Date().toISOString().slice(0, 10),
   status: "active",
+  googleCalendarId: "none",
 };
 
 const STATUS_OPTIONS = [
@@ -36,7 +37,7 @@ const STATUS_OPTIONS = [
 interface TechnicianFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: TechnicianFormValues) => void;
+  onSubmit: (values: TechnicianEditFormValues) => void;
   editing?: Technician | null;
 }
 
@@ -48,10 +49,22 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<TechnicianFormValues>({
-    resolver: zodResolver(isEditing ? technicianEditFormSchema : technicianFormSchema),
+  } = useForm<TechnicianEditFormValues>({
+    resolver: zodResolver(isEditing ? technicianEditFormSchema : technicianFormSchema) as Resolver<TechnicianEditFormValues>,
     defaultValues: EMPTY,
   });
+
+  const [calendarOptions, setCalendarOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (!open || !isEditing) return;
+    fetch("/api/integrations/google-calendar/calendars")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { calendars?: { id: string; summary: string }[] } | null) => {
+        setCalendarOptions((data?.calendars ?? []).map((c) => ({ value: c.id, label: c.summary })));
+      })
+      .catch(() => setCalendarOptions([]));
+  }, [open, isEditing]);
 
   useEffect(() => {
     if (!open) return;
@@ -65,12 +78,13 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
             licenseNumber: editing.licenseNumber,
             licenseExpiry: editing.licenseExpiry,
             status: editing.status,
+            googleCalendarId: editing.googleCalendarId ?? "none",
           }
         : EMPTY,
     );
   }, [open, editing, reset]);
 
-  function submit(values: TechnicianFormValues) {
+  function submit(values: TechnicianEditFormValues) {
     onSubmit(values);
     onOpenChange(false);
   }
@@ -114,6 +128,21 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
             <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
             {isEditing && <p className="mt-1 text-xs text-muted-foreground">&quot;Pasif&quot; seçilirse teknisyen mobil panele giriş yapamaz.</p>}
           </div>
+
+          {isEditing && calendarOptions.length > 0 && (
+            <div>
+              <SelectField
+                label="Google Takvimi (opsiyonel)"
+                name="googleCalendarId"
+                control={control}
+                options={[{ value: "none", label: "Eşleştirilmedi" }, ...calendarOptions]}
+                error={errors.googleCalendarId?.message}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Bu teknisyenin kişisel Google alt-takvimini seçin — o takvime eklenen randevular &quot;Bekleyen İçe Aktarımlar&quot;da bu teknisyene önerilir.
+              </p>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

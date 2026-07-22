@@ -4,17 +4,32 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { toast } from "sonner";
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Download, ListChecks, Plug } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Download, Import, ListChecks, Plug } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
 import { CalendarTimeGrid } from "@/components/calendar/calendar-time-grid";
+import { SERVICE_TYPE_OPTIONS } from "@/components/crm/crm-labels";
 import type { WorkOrder } from "@/lib/mock/crm";
 import { downloadIcsFile, generateIcsContent } from "@/lib/integrations/google-calendar";
 import { toKey, googleEventDayKey, monthGrid, startOfWeek, addDays, startOfDay } from "@/lib/calendar/date-utils";
 import type { MergedGoogleEvent } from "@/lib/calendar/types";
 import { cn } from "@/lib/utils";
+
+interface PendingImportEvent {
+  googleEventId: string;
+  calendarId: string;
+  technicianId: string;
+  technicianName: string;
+  summary: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  suggestedCustomerId: string | null;
+  suggestedCustomerName: string | null;
+}
 
 interface GoogleCalendarStatus {
   connected: boolean;
@@ -45,6 +60,10 @@ export function CalendarPage() {
   const [connection, setConnection] = useState<GoogleCalendarStatus | null>(null);
   const [orders, setOrders] = useState<CalendarOrder[]>([]);
   const [googleEvents, setGoogleEvents] = useState<MergedGoogleEvent[]>([]);
+  const [customers, setCustomers] = useState<{ id: string; companyName: string }[]>([]);
+  const [pendingImports, setPendingImports] = useState<PendingImportEvent[]>([]);
+  const [importDrafts, setImportDrafts] = useState<Record<string, { customerId: string; serviceType: string }>>({});
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/integrations/google-calendar")
@@ -63,6 +82,7 @@ export function CalendarPage() {
         if (cancelled) return;
         const nameById = new Map(customersData.customers.map((c) => [c.id, c.companyName]));
         setOrders(workOrdersData.workOrders.map((o) => ({ ...o, customerName: nameById.get(o.customerId) })));
+        setCustomers(customersData.customers);
       })
       .catch(() => {
         if (!cancelled) setOrders([]);
@@ -119,6 +139,78 @@ export function CalendarPage() {
       cancelled = true;
     };
   }, [connection?.connected, rangeStart, rangeEnd]);
+
+  useEffect(() => {
+    if (!connection?.connected) {
+      setPendingImports([]);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/integrations/google-calendar/pending-imports")
+      .then((res) => (res.ok ? res.json() : { pending: [] }))
+      .then((data: { pending?: PendingImportEvent[] }) => {
+        if (cancelled) return;
+        const list = data.pending ?? [];
+        setPendingImports(list);
+        setImportDrafts((prev) => {
+          const next = { ...prev };
+          for (const item of list) {
+            if (!next[item.googleEventId]) {
+              next[item.googleEventId] = { customerId: item.suggestedCustomerId ?? "", serviceType: SERVICE_TYPE_OPTIONS[0] };
+            }
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setPendingImports([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connection?.connected]);
+
+  function updateDraft(googleEventId: string, patch: Partial<{ customerId: string; serviceType: string }>) {
+    setImportDrafts((prev) => {
+      const current = prev[googleEventId] ?? { customerId: "", serviceType: SERVICE_TYPE_OPTIONS[0] };
+      return { ...prev, [googleEventId]: { ...current, ...patch } };
+    });
+  }
+
+  async function confirmImport(item: PendingImportEvent) {
+    const draft = importDrafts[item.googleEventId];
+    if (!draft?.customerId) {
+      toast.error("Lütfen müşteri seçin");
+      return;
+    }
+    setConfirmingId(item.googleEventId);
+    try {
+      const res = await fetch("/api/integrations/google-calendar/pending-imports/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          googleEventId: item.googleEventId,
+          customerId: draft.customerId,
+          technicianId: item.technicianId,
+          serviceType: draft.serviceType,
+          plannedDate: googleEventDayKey(item.start),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "İş Emri oluşturulamadı");
+        return;
+      }
+      toast.success("İş Emri oluşturuldu");
+      setPendingImports((prev) => prev.filter((p) => p.googleEventId !== item.googleEventId));
+      const customerName = customers.find((c) => c.id === draft.customerId)?.companyName;
+      setOrders((prev) => [{ ...data.workOrder, customerName }, ...prev]);
+    } catch {
+      toast.error("İş Emri oluşturulamadı — sunucuya ulaşılamadı");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
 
   const googleEventsByDay = useMemo(() => {
     const map = new Map<string, MergedGoogleEvent[]>();
@@ -205,6 +297,66 @@ export function CalendarPage() {
             Bağlan
           </Button>
         </div>
+      )}
+
+      {pendingImports.length > 0 && (
+        <Card className="rounded-2xl border-primary/20 bg-primary/[0.03]">
+          <CardContent className="flex flex-col gap-3.5">
+            <div className="flex items-center gap-2">
+              <Import className="size-4 text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">Bekleyen İçe Aktarımlar ({pendingImports.length})</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Google Calendar&apos;da teknisyen takvimlerine eklenmiş, henüz İş Emri&apos;ne dönüştürülmemiş etkinlikler. Müşteriyi onaylayıp İş Emri oluşturun.
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {pendingImports.map((item) => {
+                const draft = importDrafts[item.googleEventId] ?? { customerId: item.suggestedCustomerId ?? "", serviceType: SERVICE_TYPE_OPTIONS[0] };
+                return (
+                  <div key={item.googleEventId} className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-background p-3 sm:flex-row sm:items-center">
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground" title={item.summary}>
+                        {item.summary}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.technicianName} · {new Date(item.start).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                    <Select value={draft.customerId} onValueChange={(v) => updateDraft(item.googleEventId, { customerId: String(v) })}>
+                      <SelectTrigger className="h-9 w-full rounded-lg px-3 sm:w-48">
+                        <SelectValue placeholder="Müşteri seçin…">
+                          {(value: unknown) => customers.find((c) => c.id === value)?.companyName ?? "Müşteri seçin…"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {customers.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.companyName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={draft.serviceType} onValueChange={(v) => updateDraft(item.googleEventId, { serviceType: String(v) })}>
+                      <SelectTrigger className="h-9 w-full rounded-lg px-3 sm:w-44">
+                        <SelectValue>{() => draft.serviceType}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_TYPE_OPTIONS.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" loading={confirmingId === item.googleEventId} onClick={() => confirmImport(item)}>
+                      İş Emri Oluştur
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
