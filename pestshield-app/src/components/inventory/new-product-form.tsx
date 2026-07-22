@@ -483,7 +483,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
           </AnimatePresence>
           </div>
 
-          <DialogFooter className="sticky bottom-0 z-10 mt-4">
+          <DialogFooter className="sticky bottom-0 z-10 mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Vazgeç
             </Button>
