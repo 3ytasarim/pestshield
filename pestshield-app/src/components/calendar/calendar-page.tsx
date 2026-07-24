@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { toast } from "sonner";
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Download, Import, ListChecks, Plug } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Download, Import, ListChecks, Plug, UserPlus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
+import { QuickCustomerDialog } from "@/components/calendar/quick-customer-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
 import { CalendarTimeGrid } from "@/components/calendar/calendar-time-grid";
@@ -64,6 +66,7 @@ export function CalendarPage() {
   const [pendingImports, setPendingImports] = useState<PendingImportEvent[]>([]);
   const [importDrafts, setImportDrafts] = useState<Record<string, { customerId: string; serviceType: string }>>({});
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [quickAddFor, setQuickAddFor] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/integrations/google-calendar")
@@ -212,6 +215,19 @@ export function CalendarPage() {
     }
   }
 
+  function handleCustomerCreated(customer: { id: string; companyName: string }) {
+    setCustomers((prev) => [customer, ...prev]);
+    if (quickAddFor) {
+      updateDraft(quickAddFor, { customerId: customer.id });
+    }
+    setQuickAddFor(null);
+  }
+
+  const customerItems = useMemo(
+    () => customers.map((c) => ({ value: c.id, label: c.companyName })),
+    [customers],
+  );
+
   const googleEventsByDay = useMemo(() => {
     const map = new Map<string, MergedGoogleEvent[]>();
     googleEvents.forEach((e) => {
@@ -322,20 +338,33 @@ export function CalendarPage() {
                         {item.technicianName} · {new Date(item.start).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}
                       </p>
                     </div>
-                    <Select value={draft.customerId} onValueChange={(v) => updateDraft(item.googleEventId, { customerId: String(v) })}>
-                      <SelectTrigger className="h-9 w-full rounded-lg px-3 sm:w-48">
-                        <SelectValue placeholder="Müşteri seçin…">
-                          {(value: unknown) => customers.find((c) => c.id === value)?.companyName ?? "Müşteri seçin…"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="max-h-64">
-                        {customers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.companyName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="outline"
+                        title="Yeni Müşteri Ekle"
+                        onClick={() => setQuickAddFor(item.googleEventId)}
+                      >
+                        <UserPlus className="size-4" />
+                      </Button>
+                      <Combobox
+                        items={customerItems}
+                        value={customerItems.find((c) => c.value === draft.customerId) ?? null}
+                        onValueChange={(selected) => updateDraft(item.googleEventId, { customerId: selected?.value ?? "" })}
+                      >
+                        <div className="w-full sm:w-56">
+                          <ComboboxInput placeholder="Müşteri seçin…" />
+                        </div>
+                        <ComboboxContent>
+                          {(option: { value: string; label: string }) => (
+                            <ComboboxItem key={option.value} value={option}>
+                              {option.label}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxContent>
+                      </Combobox>
+                    </div>
                     <Select value={draft.serviceType} onValueChange={(v) => updateDraft(item.googleEventId, { serviceType: String(v) })}>
                       <SelectTrigger className="h-9 w-full rounded-lg px-3 sm:w-44">
                         <SelectValue>{() => draft.serviceType}</SelectValue>
@@ -498,6 +527,8 @@ export function CalendarPage() {
           ))}
         </div>
       )}
+
+      <QuickCustomerDialog open={quickAddFor !== null} onOpenChange={(open) => !open && setQuickAddFor(null)} onCreated={handleCustomerCreated} />
     </div>
   );
 }

@@ -54,6 +54,17 @@ export const customerFormSchema = z
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
+// Google Calendar'dan içe aktarılan tek seferlik/günlük müşteriler için hızlı ekleme —
+// tam CustomerForm'un aksine sadece firma adı zorunlu, geri kalanı sonradan
+// müşteri detayından tamamlanabilir.
+export const quickCustomerSchema = z.object({
+  companyName: z.string().min(2, "Firma adı en az 2 karakter olmalıdır"),
+  contactPhone: z.string().optional(),
+  contactEmail: z.string().optional(),
+});
+
+export type QuickCustomerValues = z.infer<typeof quickCustomerSchema>;
+
 export const branchFormSchema = z.object({
   name: z.string().min(2, "Şube adı zorunludur"),
   code: z.string().min(1, "Şube kodu zorunludur"),
