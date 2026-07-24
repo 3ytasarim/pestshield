@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: "Giriş Yap · PestShield",
 };
 
+// Standalone dağıtımlarda firma logosunu okumak için DB'ye gidiyor — bu yüzden
+// build sırasında statik olarak önceden oluşturulamaz, her istekte render edilmeli.
+export const dynamic = "force-dynamic";
+
 const SELF_REGISTRATION_ENABLED = process.env.NEXT_PUBLIC_ENABLE_SELF_REGISTRATION !== "false";
 
 export default async function LoginPage() {
