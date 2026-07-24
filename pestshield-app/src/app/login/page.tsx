@@ -20,8 +20,11 @@ export default async function LoginPage() {
   let tenantLogoUrl: string | null = null;
   let tenantName: string | null = null;
   if (!SELF_REGISTRATION_ENABLED) {
+    // Aynı paylaşımlı DB'de eski demo/seed CLIENT kayıtları da olabilir —
+    // "ilk" değil, gerçekten logo yüklenmiş, en güncel firmayı hedef al.
     const owner = await prisma.user.findFirst({
-      where: { role: "CLIENT" },
+      where: { role: "CLIENT", logoUrl: { not: null } },
+      orderBy: { createdAt: "desc" },
       select: { logoUrl: true, companyName: true },
     });
     tenantLogoUrl = owner?.logoUrl ?? null;
