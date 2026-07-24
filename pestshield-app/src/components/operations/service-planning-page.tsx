@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Users } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
+import { WorkOrderEditDialog } from "@/components/operations/work-order-edit-dialog";
 import type { WorkOrder } from "@/lib/mock/crm";
 import type { Technician } from "@/lib/mock/operations";
 import { Calendar as CalendarIcon, ListChecks } from "lucide-react";
@@ -47,6 +48,8 @@ export function ServicePlanningPage({
 }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [technicianFilter, setTechnicianFilter] = useState<string>("all");
+  const [orders, setOrders] = useState(initialOrders);
+  const [editingOrder, setEditingOrder] = useState<WorkOrderWithCustomer | null>(null);
   const technicians = initialTechnicians;
 
   const techColors = useMemo(() => {
@@ -57,8 +60,6 @@ export function ServicePlanningPage({
 
   const weekStart = useMemo(() => addDays(startOfWeek(new Date()), weekOffset * 7), [weekOffset]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
-
-  const orders = initialOrders;
 
   const filteredOrders = useMemo(
     () => (technicianFilter === "all" ? orders : orders.filter((o) => o.technician === technicianFilter)),
@@ -83,6 +84,10 @@ export function ServicePlanningPage({
     return best;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOrders, weekDays]);
+
+  function handleOrderSaved(updated: WorkOrder) {
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -163,7 +168,12 @@ export function ServicePlanningPage({
                   <p className="py-4 text-center text-[11px] text-muted-foreground">Servis yok</p>
                 ) : (
                   dayOrders.map((order) => (
-                    <div key={order.id} className="rounded-lg border border-border/60 bg-background/60 p-2 text-[11px]">
+                    <button
+                      key={order.id}
+                      type="button"
+                      onClick={() => setEditingOrder(order)}
+                      className="rounded-lg border border-border/60 bg-background/60 p-2 text-left text-[11px] transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
+                    >
                       <div className="flex items-center gap-1.5">
                         <span className={cn("size-1.5 shrink-0 rounded-full", techColors.get(order.technician) ?? "bg-muted-foreground")} />
                         <span className="truncate font-medium text-foreground">{order.customer?.companyName}</span>
@@ -173,7 +183,7 @@ export function ServicePlanningPage({
                         <span className="text-muted-foreground">{order.technician.split(" ")[0]}</span>
                         <WorkOrderStatusBadge status={order.status} className="px-1.5 py-0 text-[9px]" />
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -181,6 +191,14 @@ export function ServicePlanningPage({
           );
         })}
       </div>
+
+      <WorkOrderEditDialog
+        open={editingOrder !== null}
+        onOpenChange={(open) => !open && setEditingOrder(null)}
+        order={editingOrder}
+        technicians={technicians}
+        onSaved={handleOrderSaved}
+      />
     </div>
   );
 }

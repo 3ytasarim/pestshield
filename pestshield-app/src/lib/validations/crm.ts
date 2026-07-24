@@ -233,6 +233,8 @@ export type WorkOrderFormValues = z.infer<typeof workOrderFormSchema>;
 export const workOrderPatchSchema = z.object({
   status: z.enum(["planned", "in_progress", "completed", "delayed", "cancelled"]).optional(),
   plannedDate: z.string().optional(),
+  technicianId: z.string().min(1, "Teknisyen seçiniz").optional(),
+  serviceType: z.string().min(1, "Hizmet türü seçiniz").optional(),
 });
 
 export const portalAccessFormSchema = z.object({
