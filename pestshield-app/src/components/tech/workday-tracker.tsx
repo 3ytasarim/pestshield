@@ -24,6 +24,9 @@ const MAX_ACCURACY_M = 150;
 // sıçraması) fiziksel olarak anlamsızdır — İstanbul trafiğinde otoyol dahil
 // cömert bir üst sınır.
 const MAX_PLAUSIBLE_SPEED_KMH = 150;
+// Bunun altındaki sapmalar duran bir teknisyende bile normal GPS gürültüsüdür
+// (birkaç metre) — rotaya "hareket" olarak eklenmez.
+const MIN_DISPLACEMENT_M = 15;
 
 type Status = "not_started" | "in_progress" | "completed";
 
@@ -75,6 +78,9 @@ export function WorkdayTracker() {
   // recordPoint() setInterval kapanışında state'i taze tutmak için — GPS
   // sıçrama kontrolü "son nokta"yı senkron okumak zorunda.
   const pointsRef = useRef<GeoPoint[]>(state.points);
+  // Tek okumalık GPS sıçramaları (multipath/yansıma hatası) bir sonraki
+  // okumada doğrulanana kadar rotaya eklenmez — bkz. recordPoint().
+  const pendingPointRef = useRef<GeoPoint | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   useEffect(() => {
@@ -177,23 +183,58 @@ export function WorkdayTracker() {
           timestamp: new Date().toISOString(),
         };
 
-        const last = pointsRef.current[pointsRef.current.length - 1];
-        if (last) {
-          const elapsedHours = (new Date(point.timestamp).getTime() - new Date(last.timestamp).getTime()) / 3_600_000;
-          const impliedSpeedKmh = elapsedHours > 0 ? haversineKm(last, point) / elapsedHours : 0;
-          // Fiziksel olarak imkansız bir sıçrama — GPS gürültüsü, reddedilir.
-          if (impliedSpeedKmh > MAX_PLAUSIBLE_SPEED_KMH) return;
+        function commit(p: GeoPoint) {
+          pointsRef.current = [...pointsRef.current, p];
+          setState((prev) => ({ ...prev, points: pointsRef.current }));
+          fetch("/api/tech/workday/ping", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat: p.lat, lng: p.lng }),
+          }).catch(() => {
+            // Baglanti yoksa nokta yerelde kalir; bir sonraki basarili ping'de senkron devam eder.
+          });
         }
 
-        pointsRef.current = [...pointsRef.current, point];
-        setState((prev) => ({ ...prev, points: pointsRef.current }));
-        fetch("/api/tech/workday/ping", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat: point.lat, lng: point.lng }),
-        }).catch(() => {
-          // Baglanti yoksa nokta yerelde kalir; bir sonraki basarili ping'de senkron devam eder.
-        });
+        const last = pointsRef.current[pointsRef.current.length - 1];
+        if (!last) {
+          commit(point);
+          return;
+        }
+
+        const elapsedHours = (new Date(point.timestamp).getTime() - new Date(last.timestamp).getTime()) / 3_600_000;
+        const impliedSpeedKmh = elapsedHours > 0 ? haversineKm(last, point) / elapsedHours : 0;
+        // Fiziksel olarak imkansız bir sıçrama — GPS gürültüsü, reddedilir.
+        if (impliedSpeedKmh > MAX_PLAUSIBLE_SPEED_KMH) {
+          pendingPointRef.current = null;
+          return;
+        }
+
+        const displacementFromLastM = haversineKm(last, point) * 1000;
+        if (displacementFromLastM < MIN_DISPLACEMENT_M) {
+          // Hâlâ aynı yerde — bekleyen adaydan bağımsız, bu tek okumalık bir
+          // sapmaydı, doğrulanmadı.
+          pendingPointRef.current = null;
+          return;
+        }
+
+        if (!pendingPointRef.current) {
+          // İlk kez bu kadar uzağa sıçradı — hemen rotaya çizme, bir sonraki
+          // okumada doğrulanmasını bekle.
+          pendingPointRef.current = point;
+          return;
+        }
+
+        const displacementFromPendingM = haversineKm(pendingPointRef.current, point) * 1000;
+        if (displacementFromPendingM < MIN_DISPLACEMENT_M) {
+          // İki ardışık okuma da aynı yeni konumda hemfikir — gerçek hareket.
+          commit(pendingPointRef.current);
+          commit(point);
+          pendingPointRef.current = null;
+        } else {
+          // Bekleyen aday doğrulanmadı (tek okumalık gürültüydü) — atılır,
+          // bu nokta yeni aday olarak tutulur.
+          pendingPointRef.current = point;
+        }
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED && typeof window !== "undefined" && !window.isSecureContext) {
@@ -222,6 +263,7 @@ export function WorkdayTracker() {
     // pointsRef senkron sıfırlanır - hemen aşağıda çağrılan recordPoint() henüz
     // commit edilmemiş state'i değil, boş listeyi "son nokta" olarak görmeli.
     pointsRef.current = [];
+    pendingPointRef.current = null;
     setState({ status: "in_progress", startedAt, endedAt: null, points: [] });
     fetch("/api/tech/workday", { method: "POST" }).catch(() => {
       // Sunucuya ulasilamazsa mesai yerelde devam eder; ping'ler sonraki senkronda gonderilir.
@@ -247,6 +289,7 @@ export function WorkdayTracker() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     releaseWakeLock();
     pointsRef.current = [];
+    pendingPointRef.current = null;
     setState({ status: "not_started", startedAt: null, endedAt: null, points: [] });
     setGeoError(null);
   }
