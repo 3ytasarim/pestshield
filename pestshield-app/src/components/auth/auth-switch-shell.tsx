@@ -48,25 +48,42 @@ import "@/components/auth/auth-switch.css";
  * çok-kiracılı ana SaaS dağıtımı hiçbir değişiklik gerektirmez. */
 const SELF_REGISTRATION_ENABLED = process.env.NEXT_PUBLIC_ENABLE_SELF_REGISTRATION !== "false";
 
-export function AuthSwitchShell() {
+interface AuthSwitchShellProps {
+  /** Standalone (tek firmalı) dağıtımlarda o firmanın kendi logosu — çok
+   * kiracılı SaaS'ta hiç kullanılmaz, her zaman PestShield logosu gösterilir. */
+  tenantLogoUrl?: string | null;
+  tenantName?: string | null;
+}
+
+export function AuthSwitchShell({ tenantLogoUrl, tenantName }: AuthSwitchShellProps = {}) {
   if (!SELF_REGISTRATION_ENABLED) {
-    return <LoginOnlyShell />;
+    return <LoginOnlyShell tenantLogoUrl={tenantLogoUrl} tenantName={tenantName} />;
   }
   return <AuthSwitchTabs />;
 }
 
-function LoginOnlyShell() {
+function LoginOnlyShell({ tenantLogoUrl, tenantName }: AuthSwitchShellProps) {
   return (
     <div className="auth-switch-scope">
       <div className="page">
         <div className="login-only-card">
-          <Image
-            src="/logo-wordmark.png"
-            alt="PestShield"
-            width={1113}
-            height={208}
-            className="login-only-logo"
-          />
+          {tenantLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={tenantLogoUrl}
+              alt={tenantName ?? "Firma logosu"}
+              className="login-only-logo"
+              style={{ objectFit: "contain" }}
+            />
+          ) : (
+            <Image
+              src="/logo-wordmark.png"
+              alt="PestShield"
+              width={1113}
+              height={208}
+              className="login-only-logo"
+            />
+          )}
           <LoginFormContent />
         </div>
       </div>
