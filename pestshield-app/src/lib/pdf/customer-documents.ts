@@ -253,8 +253,51 @@ export async function printApplicationCertificate(customer: Customer) {
   const cardHeight = isLandscape ? "calc(180mm - 24mm - 2px)" : "calc(275mm - 32mm - 2px)";
   const cardPadding = isLandscape ? "30px 56px 24px" : "48px 56px 40px";
   const bodyMaxWidth = isLandscape ? "680px" : "560px";
+  const cardInset = isLandscape ? "12mm 15mm 18mm" : "18mm 17mm 24mm";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
-  const html = `<!doctype html>
+  const html =
+    template.style === "green-frame"
+      ? `<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Ürün Uygulama Belgesi — ${escapeHtml(customer.companyName)}</title>
+<style>
+  @page { size: ${isLandscape ? "A4 landscape" : "A4"}; margin: 0; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", -apple-system, Inter, Arial, sans-serif; margin: 0; color: #1e293b; }
+  .cert-page {
+    position: relative;
+    width: ${isLandscape ? "297mm" : "210mm"};
+    height: ${isLandscape ? "200mm" : "275mm"};
+    background: url("${origin}/posters/cert-frame-green.png") center / 100% 100% no-repeat;
+    overflow: hidden;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .cert-card {
+    position: absolute;
+    inset: ${cardInset};
+    display: flex;
+    flex-direction: column;
+    padding: 10px 6px;
+    overflow: hidden;
+  }
+  .cert-title { color: #0f5132; }
+  ${sharedStyles}
+  .cert-body-block { max-width: ${bodyMaxWidth}; }
+</style>
+</head>
+<body>
+  <div class="cert-page">
+    <div class="cert-card">
+      <div class="cert-header">${bodyHtml}
+    </div>
+  </div>
+</body>
+</html>`
+      : `<!doctype html>
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
