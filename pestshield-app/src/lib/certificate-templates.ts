@@ -5,16 +5,19 @@
 
 const STORAGE_KEY = "pestshield.certificate.template";
 
-export type CertificateStyle = "gold-ribbon" | "green-frame";
+export type CertificateStyle = "gold-ribbon";
+export type CertificateOrientation = "portrait" | "landscape";
 
 export interface CertificateTemplateSettings {
   style: CertificateStyle;
+  orientation: CertificateOrientation;
   sealImage: string | null;
   updatedAt: string | null;
 }
 
 const DEFAULT_SETTINGS: CertificateTemplateSettings = {
   style: "gold-ribbon",
+  orientation: "portrait",
   sealImage: null,
   updatedAt: null,
 };

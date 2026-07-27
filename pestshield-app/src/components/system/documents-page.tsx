@@ -118,7 +118,7 @@ export function DocumentsPage() {
     }
     try {
       const dataUrl = await readImageFile(selected, 10);
-      setFile({ dataUrl, fileName: selected.name, sizeKb: selected.size / 1024 });
+      setFile({ dataUrl, fileName: selected.name, sizeKb: Math.round(selected.size / 1024) });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Dosya yüklenemedi");
     }

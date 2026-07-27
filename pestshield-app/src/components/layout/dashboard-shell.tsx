@@ -22,10 +22,19 @@ interface DashboardShellProps {
   userEmail: string;
   /** `null` = kısıtlama yok (kiracı sahibi / ADMIN / TECH). Alt kullanıcı için sidebar'da görünecek href listesi. */
   visibleNavHrefs?: string[] | null;
+  /** Sunucudan (DB) okunan firma logosu — standalone dağıtımlarda sidebar'da PestShield yerine bu gösterilir. */
+  registeredLogoUrl?: string | null;
   children: React.ReactNode;
 }
 
-export function DashboardShell({ role, userName, userEmail, visibleNavHrefs = null, children }: DashboardShellProps) {
+export function DashboardShell({
+  role,
+  userName,
+  userEmail,
+  visibleNavHrefs = null,
+  registeredLogoUrl = null,
+  children,
+}: DashboardShellProps) {
   const supportHref = SUPPORT_HREF_BY_ROLE[role];
   return (
     <NotificationsProvider role={role}>
@@ -33,7 +42,13 @@ export function DashboardShell({ role, userName, userEmail, visibleNavHrefs = nu
       <AiPanelProvider>
         <CommandPaletteProvider>
           <SidebarProvider style={{ "--sidebar-width": "18.75rem" } as React.CSSProperties}>
-            <AppSidebar role={role} userName={userName} userEmail={userEmail} visibleNavHrefs={visibleNavHrefs} />
+            <AppSidebar
+              role={role}
+              userName={userName}
+              userEmail={userEmail}
+              visibleNavHrefs={visibleNavHrefs}
+              registeredLogoUrl={registeredLogoUrl}
+            />
             <SidebarInset>
               <DashboardHeader />
               <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</main>

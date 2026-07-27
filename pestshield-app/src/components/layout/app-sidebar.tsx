@@ -42,12 +42,19 @@ const ROLE_LABELS: Record<Role, string> = {
 
 const STORAGE_KEY = "pestshield.sidebar.open-groups";
 
+// Standalone (tek firmalı) dağıtımlarda sidebar başlığında da PestShield
+// yerine firmanın kendi logosu gösterilir — çok kiracılı SaaS'ta (self
+// registration açık) her zaman PestShield marka logosu kalır.
+const IS_STANDALONE = process.env.NEXT_PUBLIC_ENABLE_SELF_REGISTRATION === "false";
+
 interface AppSidebarProps {
   role: Role;
   userName: string;
   userEmail: string;
   /** `null` = kısıtlama yok. Alt kullanıcı için sidebar'da görünecek href listesi — bunun dışındaki öğeler ve boşalan gruplar gizlenir. */
   visibleNavHrefs?: string[] | null;
+  /** Sunucudan (DB) okunan firma logosu — localStorage boşsa (ör. farklı cihaz) buna düşülür. */
+  registeredLogoUrl?: string | null;
 }
 
 function initialsOf(name: string) {
@@ -66,7 +73,7 @@ function getInitialOpenState(groups: NavGroup[], pathname: string): Record<strin
   return state;
 }
 
-export function AppSidebar({ role, userName, userEmail, visibleNavHrefs = null }: AppSidebarProps) {
+export function AppSidebar({ role, userName, userEmail, visibleNavHrefs = null, registeredLogoUrl = null }: AppSidebarProps) {
   const pathname = usePathname();
   const { state: sidebarState } = useSidebar();
   const { openPalette } = useCommandPalette();
@@ -115,6 +122,7 @@ export function AppSidebar({ role, userName, userEmail, visibleNavHrefs = null }
   }, [role]);
 
   const displayName = companyName ?? userName;
+  const effectiveLogo = companyLogo || registeredLogoUrl;
   const isLicenseBlocked =
     role === "CLIENT" && (licenseStatus === "EXPIRED" || licenseStatus === "NONE");
 
@@ -150,20 +158,39 @@ export function AppSidebar({ role, userName, userEmail, visibleNavHrefs = null }
     <Sidebar collapsible="icon">
       <SidebarHeader className="gap-3 border-b border-sidebar-border/60 px-3 py-5 group-data-[collapsible=icon]:pb-6">
         <Link href={getDashboardPathForRole(role)} className="flex flex-col gap-1.5 px-1 transition-opacity hover:opacity-80">
-          <Image
-            src="/logo-shield.png"
-            alt="PestShield"
-            width={328}
-            height={401}
-            className="hidden h-9 w-auto shrink-0 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:block"
-          />
-          <Image
-            src="/logo-wordmark.png"
-            alt="PestShield"
-            width={1113}
-            height={208}
-            className="h-8 w-auto shrink-0 group-data-[collapsible=icon]:hidden"
-          />
+          {IS_STANDALONE && effectiveLogo ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={effectiveLogo}
+                alt="Firma logosu"
+                className="hidden h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-1 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:block"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={effectiveLogo}
+                alt="Firma logosu"
+                className="h-9 max-w-full shrink-0 object-contain object-left group-data-[collapsible=icon]:hidden"
+              />
+            </>
+          ) : (
+            <>
+              <Image
+                src="/logo-shield.png"
+                alt="PestShield"
+                width={328}
+                height={401}
+                className="hidden h-9 w-auto shrink-0 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:block"
+              />
+              <Image
+                src="/logo-wordmark.png"
+                alt="PestShield"
+                width={1113}
+                height={208}
+                className="h-8 w-auto shrink-0 group-data-[collapsible=icon]:hidden"
+              />
+            </>
+          )}
           <span className="text-[10px] font-medium tracking-wide text-sidebar-foreground/50 uppercase group-data-[collapsible=icon]:hidden">
             {ROLE_LABELS[role]} Paneli
           </span>

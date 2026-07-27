@@ -144,7 +144,6 @@ export async function printApplicationCertificate(customer: Customer) {
   const qr = await qrDataUrl(customer, 220);
   const companyName = escapeHtml(company.companyName || "PestShield Haşere Yönetim Hizmetleri");
   const authorizedLine = company.authorizedName.trim() ? `Yetkili: ${escapeHtml(company.authorizedName.trim())}` : "";
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const sealHtml = template.sealImage
     ? `<img src="${template.sealImage}" alt="" class="seal-img" />`
@@ -246,63 +245,32 @@ export async function printApplicationCertificate(customer: Customer) {
   .cert-meta { margin-top: 10px; display: flex; justify-content: center; gap: 22px; font-size: 9px; color: #94a3b8; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`;
 
-  const html =
-    template.style === "green-frame"
-      ? `<!doctype html>
+  // Dikey: A4 (210 x 297mm). Yatay: A4 döndürülmüş (297 x 210mm) — kart daha
+  // az yükseklik alır, iç boşluklar orana göre küçültülür.
+  const isLandscape = template.orientation === "landscape";
+  const pageHeight = isLandscape ? "180mm" : "275mm";
+  const pagePadding = isLandscape ? "12mm 20mm" : "16mm";
+  const cardHeight = isLandscape ? "calc(180mm - 24mm - 2px)" : "calc(275mm - 32mm - 2px)";
+  const cardPadding = isLandscape ? "30px 56px 24px" : "48px 56px 40px";
+  const bodyMaxWidth = isLandscape ? "680px" : "560px";
+
+  const html = `<!doctype html>
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
 <title>Ürün Uygulama Belgesi — ${escapeHtml(customer.companyName)}</title>
 <style>
-  @page { size: A4; margin: 0; }
+  @page { size: ${isLandscape ? "A4 landscape" : "A4"}; margin: 0; }
   * { box-sizing: border-box; }
   body { font-family: "Segoe UI", -apple-system, Inter, Arial, sans-serif; margin: 0; color: #1e293b; }
   .cert-page {
     position: relative;
-    width: 210mm;
-    height: 275mm;
-    background: url("${origin}/posters/cert-frame-green.png") center / 100% 100% no-repeat;
-    overflow: hidden;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-  .cert-card {
-    position: absolute;
-    inset: 18mm 17mm 24mm;
-    display: flex;
-    flex-direction: column;
-    padding: 10px 6px;
-    overflow: hidden;
-  }
-  .cert-title { color: #0f5132; }
-  ${sharedStyles}
-</style>
-</head>
-<body>
-  <div class="cert-page">
-    <div class="cert-card">
-      <div class="cert-header">${bodyHtml}
-    </div>
-  </div>
-</body>
-</html>`
-      : `<!doctype html>
-<html lang="tr">
-<head>
-<meta charset="utf-8" />
-<title>Ürün Uygulama Belgesi — ${escapeHtml(customer.companyName)}</title>
-<style>
-  @page { size: A4; margin: 0; }
-  * { box-sizing: border-box; }
-  body { font-family: "Segoe UI", -apple-system, Inter, Arial, sans-serif; margin: 0; color: #1e293b; }
-  .cert-page {
-    position: relative;
-    height: 275mm;
+    height: ${pageHeight};
     background: linear-gradient(160deg, #0a1e3d 0%, #123258 45%, #0a1e3d 100%);
     overflow: hidden;
     page-break-inside: avoid;
     break-inside: avoid;
-    padding: 16mm;
+    padding: ${pagePadding};
   }
   .ribbon {
     position: absolute;
@@ -319,9 +287,9 @@ export async function printApplicationCertificate(customer: Customer) {
     border-radius: 6px;
     border: 1px solid #d9c07f;
     box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
-    height: calc(275mm - 32mm - 2px);
+    height: ${cardHeight};
     overflow: hidden;
-    padding: 48px 56px 40px;
+    padding: ${cardPadding};
     display: flex;
     flex-direction: column;
   }
@@ -336,6 +304,7 @@ export async function printApplicationCertificate(customer: Customer) {
   .cert-title { color: #b8862f; }
   .cert-footnote { border-top: 1px solid #e5d19c; }
   ${sharedStyles}
+  .cert-body-block { max-width: ${bodyMaxWidth}; }
 </style>
 </head>
 <body>

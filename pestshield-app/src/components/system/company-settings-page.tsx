@@ -20,14 +20,14 @@ import {
   getCertificateTemplate,
   readSealFile,
   saveCertificateTemplate,
-  type CertificateStyle,
+  type CertificateOrientation,
   type CertificateTemplateSettings,
 } from "@/lib/certificate-templates";
 import { cn } from "@/lib/utils";
 
-const CERTIFICATE_STYLES: { value: CertificateStyle; label: string; preview: string }[] = [
-  { value: "gold-ribbon", label: "Altın Kurdela", preview: "linear-gradient(160deg, #0a1e3d 0%, #123258 45%, #0a1e3d 100%)" },
-  { value: "green-frame", label: "Yeşil Çerçeve", preview: "linear-gradient(160deg, #0f5132 0%, #14532d 45%, #0f5132 100%)" },
+const ORIENTATION_OPTIONS: { value: CertificateOrientation; label: string }[] = [
+  { value: "portrait", label: "Dikey" },
+  { value: "landscape", label: "Yatay" },
 ];
 
 export function CompanySettingsPage() {
@@ -53,7 +53,7 @@ export function CompanySettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [certTemplate, setCertTemplate] = useState<CertificateTemplateSettings>(() => getCertificateTemplate());
-  const [certStyle, setCertStyle] = useState<CertificateStyle>(() => getCertificateTemplate().style);
+  const [certOrientation, setCertOrientation] = useState<CertificateOrientation>(() => getCertificateTemplate().orientation);
   const [sealImage, setSealImage] = useState<string | null>(() => getCertificateTemplate().sealImage);
   const [savingCert, setSavingCert] = useState(false);
   const sealInputRef = useRef<HTMLInputElement>(null);
@@ -263,7 +263,8 @@ export function CompanySettingsPage() {
   function handleSaveCertTemplate() {
     setSavingCert(true);
     const next: CertificateTemplateSettings = {
-      style: certStyle,
+      style: "gold-ribbon",
+      orientation: certOrientation,
       sealImage,
       updatedAt: new Date().toISOString(),
     };
@@ -518,22 +519,25 @@ export function CompanySettingsPage() {
           </div>
 
           <div>
-            <Label className="mb-2">Tasarım</Label>
-            <div className="grid grid-cols-2 gap-3 sm:max-w-md">
-              {CERTIFICATE_STYLES.map((s) => (
+            <Label className="mb-2">Yönlendirme</Label>
+            <div className="grid grid-cols-2 gap-3 sm:max-w-xs">
+              {ORIENTATION_OPTIONS.map((o) => (
                 <button
-                  key={s.value}
+                  key={o.value}
                   type="button"
-                  onClick={() => setCertStyle(s.value)}
+                  onClick={() => setCertOrientation(o.value)}
                   className={cn(
                     "flex flex-col items-center gap-2 rounded-xl border-2 p-3 text-left transition-colors",
-                    certStyle === s.value ? "border-primary bg-primary/5" : "border-border/60 hover:border-border",
+                    certOrientation === o.value ? "border-primary bg-primary/5" : "border-border/60 hover:border-border",
                   )}
                 >
-                  <div className="h-16 w-full rounded-lg" style={{ background: s.preview }} />
+                  <div
+                    className="rounded-lg bg-gradient-to-br from-[#0a1e3d] via-[#123258] to-[#0a1e3d]"
+                    style={o.value === "portrait" ? { width: 44, height: 60 } : { width: 60, height: 44 }}
+                  />
                   <span className="flex w-full items-center justify-between text-xs font-medium text-foreground">
-                    {s.label}
-                    {certStyle === s.value && <CheckCircle2 className="size-3.5 text-primary" />}
+                    {o.label}
+                    {certOrientation === o.value && <CheckCircle2 className="size-3.5 text-primary" />}
                   </span>
                 </button>
               ))}
