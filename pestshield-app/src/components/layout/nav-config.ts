@@ -22,6 +22,7 @@ import {
   FileSignature,
   FileText,
   FlaskConical,
+  FolderOpen,
   HardHat,
   Key,
   Landmark,
@@ -239,20 +240,24 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       ],
     },
   ],
-  /// Müşteri portalı kendi hafif shell'inde (src/app/dashboard/customer/layout.tsx)
-  /// sabit bir sekme çubuğu kullanır — bu liste sadece Record<Role, NavGroup[]>
-  /// tip tamlığı için var, DashboardShell/AppSidebar tarafından okunmaz.
+  /// Müşteri portalı da AppSidebar'ı kullanır (src/app/dashboard/customer/layout.tsx) —
+  /// aynı bileşen, sadece bu liste farklı.
   CUSTOMER: [
     {
       label: "Genel",
       icon: LayoutDashboard,
       defaultOpen: true,
       items: [
-        { label: "Genel Bakış", href: "/dashboard/customer", icon: LayoutDashboard },
-        { label: "Hizmet Geçmişi", href: "/dashboard/customer/work-orders", icon: ListChecks },
+        { label: "Ana Sayfa", href: "/dashboard/customer", icon: LayoutDashboard },
+        { label: "Takvim", href: "/dashboard/customer/calendar", icon: Calendar, comingSoon: true },
+        { label: "Talepler", href: "/dashboard/customer/support", icon: LifeBuoy },
+        { label: "Raporlar", href: "/dashboard/customer/reports", icon: FileBarChart, comingSoon: true },
+        { label: "Firmalar ve Belgeleri", href: "/dashboard/customer/documents", icon: FolderOpen, comingSoon: true },
+        { label: "Hizmetler", href: "/dashboard/customer/work-orders", icon: ListChecks },
+        { label: "Teklifler", href: "/dashboard/customer/offers", icon: FileText, comingSoon: true },
         { label: "Faturalar", href: "/dashboard/customer/invoices", icon: FileClock },
         { label: "Sözleşmeler", href: "/dashboard/customer/contracts", icon: FileSignature },
-        { label: "Destek", href: "/dashboard/customer/support", icon: LifeBuoy },
+        { label: "Ayarlar", href: "/dashboard/customer/settings", icon: Settings, comingSoon: true },
       ],
     },
   ],
