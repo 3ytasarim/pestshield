@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { customerId, items, vatRate, serviceType: _serviceType, description: _description, notes: _notes, ...values } = parsed.data;
+  const { customerId, items, vatRate, serviceType: _serviceType, description: _description, notes: _notes, fileDataUrl, fileName, fileSizeKb, ...values } = parsed.data;
   void _serviceType;
   void _description;
   void _notes;
@@ -55,6 +55,9 @@ export async function POST(request: Request) {
       currency: "TRY",
       status: "draft",
       createdAt: new Date().toISOString().slice(0, 10),
+      fileDataUrl: fileDataUrl ?? null,
+      fileName: fileName ?? null,
+      fileSizeKb: fileSizeKb ?? 0,
       items: { create: items.map((item) => ({ ...item, ownerId })) },
     },
     include: { items: true },

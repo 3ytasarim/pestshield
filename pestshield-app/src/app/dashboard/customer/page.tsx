@@ -6,6 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { cn } from "@/lib/utils";
+import { DocumentsCard } from "@/components/customer-portal/documents-card";
+import { BiocidalProductsCard } from "@/components/customer-portal/biocidal-products-card";
+import { QrCodeCard } from "@/components/customer-portal/qr-code-card";
+import { KrokilerCard } from "@/components/customer-portal/krokiler-card";
 
 export default async function CustomerPortalOverviewPage() {
   const session = await auth();
@@ -78,6 +82,20 @@ export default async function CustomerPortalOverviewPage() {
             <p className="text-lg font-semibold text-foreground">{openTicketCount}</p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DocumentsCard customerName={customer.companyName} />
+        </div>
+        <BiocidalProductsCard />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <QrCodeCard />
+        <div className="lg:col-span-2">
+          <KrokilerCard />
+        </div>
       </div>
     </div>
   );

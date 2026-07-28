@@ -163,6 +163,10 @@ export const offerFormSchema = z.object({
   vatRate: z.number().min(0).max(100),
   validUntil: z.string().min(1, "Geçerlilik tarihi zorunludur"),
   notes: z.string().optional(),
+  /// "Teklif Kabul" PDF'i — müşteri portalında Hizmet Belgeleri'nde gösterilir.
+  fileDataUrl: z.string().optional().nullable(),
+  fileName: z.string().optional().nullable(),
+  fileSizeKb: z.number().int().nonnegative().optional(),
 });
 
 export type OfferFormValues = z.infer<typeof offerFormSchema>;

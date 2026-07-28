@@ -405,7 +405,7 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
   );
 }
 
-function downloadKroki(sketch: KrokiSketch) {
+export function downloadKroki(sketch: KrokiSketch) {
   const img = new Image();
   img.crossOrigin = "anonymous";
   img.onload = () => {

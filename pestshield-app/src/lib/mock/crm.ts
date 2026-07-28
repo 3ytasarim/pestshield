@@ -214,6 +214,9 @@ export interface Offer {
   validUntil: string;
   status: OfferStatus;
   createdAt: string;
+  fileDataUrl: string | null;
+  fileName: string | null;
+  fileSizeKb: number;
   items: OfferItem[];
 }
 
@@ -851,6 +854,9 @@ export function getOffers(customerId: string): Offer[] {
       validUntil: daysFromNow(20 - i * 5),
       status,
       createdAt: daysFromNow(-(i * 12 + 3)),
+      fileDataUrl: null,
+      fileName: null,
+      fileSizeKb: 0,
       items,
     };
   });

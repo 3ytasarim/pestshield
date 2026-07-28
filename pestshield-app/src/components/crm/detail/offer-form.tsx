@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2 } from "lucide-react";
+import { FileText, Plus, Trash2, Upload, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -12,11 +13,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TextField, TextareaField, SelectField, CurrencyField, FormSectionTitle } from "@/components/crm/form-fields";
 import { formatCurrency } from "@/components/crm/crm-format";
 import { offerFormSchema, type OfferFormValues } from "@/lib/validations/crm";
 import { SERVICE_TYPE_OPTIONS } from "@/components/crm/crm-labels";
+import { readImageFile } from "@/lib/file-utils";
+import { cn } from "@/lib/utils";
 
 const EMPTY: OfferFormValues = {
   title: "",
@@ -26,7 +30,20 @@ const EMPTY: OfferFormValues = {
   vatRate: 20,
   validUntil: "",
   notes: "",
+  fileDataUrl: null,
+  fileName: null,
+  fileSizeKb: 0,
 };
+
+const ALLOWED_FILE_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+function isAllowedOfferFile(file: File): boolean {
+  return ALLOWED_FILE_TYPES.has(file.type) || /\.(pdf|docx?)$/i.test(file.name);
+}
 
 interface OfferFormProps {
   open: boolean;
@@ -40,12 +57,42 @@ export function OfferForm({ open, onOpenChange, onSubmit }: OfferFormProps) {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<OfferFormValues>({ resolver: zodResolver(offerFormSchema), defaultValues: EMPTY });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const items = useWatch({ control, name: "items" });
   const vatRate = useWatch({ control, name: "vatRate" });
+  const fileName = useWatch({ control, name: "fileName" });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  async function handleFileSelect(selected: File | undefined) {
+    if (!selected) return;
+    if (!isAllowedOfferFile(selected)) {
+      toast.error("Lütfen bir PDF veya Word dosyası seçin");
+      return;
+    }
+    setUploadingFile(true);
+    try {
+      const dataUrl = await readImageFile(selected, 10);
+      setValue("fileDataUrl", dataUrl, { shouldDirty: true });
+      setValue("fileName", selected.name, { shouldDirty: true });
+      setValue("fileSizeKb", Math.round(selected.size / 1024), { shouldDirty: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Dosya yüklenemedi");
+    } finally {
+      setUploadingFile(false);
+    }
+  }
+
+  function handleRemoveFile() {
+    setValue("fileDataUrl", null, { shouldDirty: true });
+    setValue("fileName", null, { shouldDirty: true });
+    setValue("fileSizeKb", 0, { shouldDirty: true });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   const { subtotal, total } = useMemo(() => {
     const sub = (items ?? []).reduce((sum, item) => sum + (item.unitPrice || 0) * (item.quantity || 0), 0);
@@ -151,6 +198,41 @@ export function OfferForm({ open, onOpenChange, onSubmit }: OfferFormProps) {
               </div>
 
               <TextareaField label="Notlar" registration={register("notes")} />
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Teklif Kabul Belgesi (opsiyonel)</Label>
+                {fileName ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm">
+                    <FileText className="size-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1 truncate">{fileName}</span>
+                    <Button type="button" size="icon-sm" variant="ghost" onClick={handleRemoveFile} aria-label="Belgeyi kaldır">
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn("w-fit", uploadingFile && "opacity-60")}
+                    disabled={uploadingFile}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="size-3.5" />
+                    {uploadingFile ? "Yükleniyor…" : "PDF / Word Yükle"}
+                  </Button>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Müşteri portalında Hizmet Belgeleri altında &quot;Teklif Kabul&quot; olarak gösterilir.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e.target.files?.[0])}
+                />
+              </div>
             </div>
           </ScrollArea>
           <DialogFooter className="mt-2">

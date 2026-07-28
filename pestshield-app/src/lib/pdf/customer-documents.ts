@@ -8,17 +8,27 @@
 
 import QRCode from "qrcode";
 import { formatDate } from "@/components/crm/crm-format";
-import { getCompanySettings } from "@/lib/company-settings";
+import { getCompanySettings, type CompanySettings } from "@/lib/company-settings";
 import { getCertificateTemplate } from "@/lib/certificate-templates";
 import { escapeHtml, openPrintWindow } from "@/lib/pdf/shared";
 import type { Customer } from "@/lib/mock/crm";
 
-function reportsUrl(customer: Customer): string {
+/** Sunucudan okunan marka bilgisi — müşteri portalı gibi localStorage'ı olmayan
+ * (Şirket Ayarları'nı hiç ziyaret etmemiş) oturumlarda kullanılır. Verilmezse
+ * mevcut getCompanySettings() (localStorage) davranışı aynen korunur. */
+export type DocumentBranding = Pick<CompanySettings, "companyName" | "logo" | "authorizedName">;
+
+/** Bu dosyadaki belge üretim fonksiyonlarının müşteriden gerçekten ihtiyaç
+ * duyduğu alanlar — müşteri portalı gibi tam Customer kaydı olmayan (sadece
+ * id/companyName/accountCode döndüren) API'lerden de beslenebilsin diye. */
+export type DocumentCustomer = Pick<Customer, "id" | "companyName" | "accountCode">;
+
+function reportsUrl(customer: DocumentCustomer): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}/dashboard/client/customers/${customer.id}?tab=work-history`;
 }
 
-async function qrDataUrl(customer: Customer, size = 240): Promise<string> {
+export async function qrDataUrl(customer: DocumentCustomer, size = 240): Promise<string> {
   return QRCode.toDataURL(reportsUrl(customer), { width: size, margin: 1, color: { dark: "#0f2942", light: "#ffffff" } });
 }
 
@@ -28,14 +38,14 @@ function companyLogoImg(logo: string | null, className: string): string {
   return `<img src="${src}" alt="Logo" class="${className}" onerror="this.style.display='none'" />`;
 }
 
-function docNo(prefix: string, customer: Customer): string {
+function docNo(prefix: string, customer: DocumentCustomer): string {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   return `${prefix}-${customer.accountCode.replace("CARI-", "")}-${today}`;
 }
 
 /** QR Kod Etiketi — hijyen istasyonuna yapıştırılacak kompakt etiket. */
-export async function printQrLabel(customer: Customer) {
-  const company = getCompanySettings();
+export async function printQrLabel(customer: DocumentCustomer, branding?: DocumentBranding) {
+  const company = branding ?? getCompanySettings();
   const qr = await qrDataUrl(customer, 220);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -138,8 +148,8 @@ export async function printQrLabel(customer: Customer) {
 }
 
 /** Ürün Uygulama Belgesi — A4 dikey, Şirket Ayarları'nda seçilen şablona göre resmi sertifika görünümü. */
-export async function printApplicationCertificate(customer: Customer) {
-  const company = getCompanySettings();
+export async function printApplicationCertificate(customer: DocumentCustomer, branding?: DocumentBranding) {
+  const company = branding ?? getCompanySettings();
   const template = getCertificateTemplate();
   const qr = await qrDataUrl(customer, 220);
   const companyName = escapeHtml(company.companyName || "PestShield Haşere Yönetim Hizmetleri");
@@ -372,8 +382,8 @@ const POSTER_PANELS = [
 ];
 
 /** Müşteri Hijyen Takip Sistemi Afişi — A4 dikey, gerçek illüstrasyon panelli profesyonel tanıtım posteri. */
-export async function printHygienePoster(customer: Customer) {
-  const company = getCompanySettings();
+export async function printHygienePoster(customer: DocumentCustomer, branding?: DocumentBranding) {
+  const company = branding ?? getCompanySettings();
   const qr = await qrDataUrl(customer, 180);
   const companyName = escapeHtml(company.companyName || "PestShield Haşere Yönetim Hizmetleri");
   const origin = typeof window !== "undefined" ? window.location.origin : "";

@@ -649,6 +649,12 @@ model Offer {
   status     OfferStatus @default(draft)
   createdAt  String
 
+  /// "Teklif Kabul" belgesi — teklif oluşturulurken eklenen PDF (müşteri
+  /// portalında Hizmet Belgeleri sekmesinde gösterilir).
+  fileDataUrl String? @db.Text
+  fileName    String?
+  fileSizeKb  Int     @default(0)
+
   items OfferItem[]
 
   @@index([ownerId])
