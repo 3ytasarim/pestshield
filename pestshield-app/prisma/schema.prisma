@@ -336,6 +336,8 @@ model User {
   parasutIntegration ParasutIntegration?
   googleCalendarIntegration GoogleCalendarIntegration?
   documents          Document[]
+  technicianDocuments TechnicianDocument[]
+  vehicleDocuments    VehicleDocument[]
   companyRolesOwned  CompanyRole[] @relation("CompanyRoleOwner")
   companyUsersOwned  CompanyUser[] @relation("CompanyUserOwner")
   companyUserProfile CompanyUser?  @relation("CompanyUserLogin")
@@ -764,6 +766,7 @@ model Technician {
   stationChecks StationCheck[]
   workOrders    WorkOrder[]
   workdays      TechnicianWorkday[]
+  documents     TechnicianDocument[]
 
   @@index([ownerId])
   @@map("technicians")
@@ -825,6 +828,8 @@ model Vehicle {
   inspectionDue        String        @default("")
   insuranceDue         String        @default("")
   status               VehicleStatus @default(active)
+
+  documents VehicleDocument[]
 
   @@index([ownerId])
   @@index([assignedTechnicianId])
@@ -1443,6 +1448,50 @@ model Document {
 
   @@index([ownerId])
   @@map("documents")
+}
+
+/// Teknisyene özel belgeler (ehliyet, sertifika, sağlık raporu vb.) —
+/// Document ile aynı desen, sadece bir teknisyene bağlı.
+model TechnicianDocument {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  name        String
+  fileDataUrl String @db.Text
+  fileName    String
+  fileSizeKb  Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([technicianId])
+  @@map("technician_documents")
+}
+
+/// Araca özel belgeler (ruhsat, sigorta poliçesi vb.) — Document ile aynı
+/// desen, sadece bir araca bağlı.
+model VehicleDocument {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  name        String
+  fileDataUrl String @db.Text
+  fileName    String
+  fileSizeKb  Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([vehicleId])
+  @@map("vehicle_documents")
 }
 
 /// Google Calendar entegrasyonu — PestShield TEK bir paylaşımlı Google OAuth

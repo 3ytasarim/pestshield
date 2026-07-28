@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
+import { EntityDocumentsSection } from "@/components/operations/entity-documents-section";
 import { vehicleFormSchema, type VehicleFormValues } from "@/lib/validations/operations";
 import type { Vehicle } from "@/lib/mock/operations";
 
@@ -118,6 +119,8 @@ export function VehicleForm({ open, onOpenChange, onSubmit, editing }: VehicleFo
             <TextField label="Sigorta Tarihi" type="date" required registration={register("insuranceDue")} error={errors.insuranceDue?.message} />
           </div>
           <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
+
+          {isEditing && editing && <EntityDocumentsSection apiBase={`/api/operations/vehicles/${editing.id}/documents`} />}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

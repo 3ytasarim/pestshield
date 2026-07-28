@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
+import { EntityDocumentsSection } from "@/components/operations/entity-documents-section";
 import { technicianFormSchema, technicianEditFormSchema, type TechnicianEditFormValues } from "@/lib/validations/operations";
 import type { Technician } from "@/lib/mock/operations";
 
@@ -128,6 +129,8 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
             <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
             {isEditing && <p className="mt-1 text-xs text-muted-foreground">&quot;Pasif&quot; seçilirse teknisyen mobil panele giriş yapamaz.</p>}
           </div>
+
+          {isEditing && editing && <EntityDocumentsSection apiBase={`/api/operations/technicians/${editing.id}/documents`} />}
 
           {isEditing && calendarOptions.length > 0 && (
             <div>
