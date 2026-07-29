@@ -11,7 +11,16 @@ const mockClient = {
   upsertEvent: vi.fn(),
   deleteEvent: vi.fn(),
 };
-vi.mock("./client", () => ({ googleCalendarClient: mockClient }));
+class MockGoogleApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "GoogleApiError";
+  }
+}
+vi.mock("./client", () => ({ googleCalendarClient: mockClient, GoogleApiError: MockGoogleApiError }));
 
 vi.mock("@/lib/crypto", () => ({
   encryptSecret: (s: string) => `enc(${s})`,
@@ -127,6 +136,26 @@ describe("syncWorkOrderToCalendar", () => {
     expect(mockPrisma.workOrder.update).toHaveBeenCalledWith({
       where: { id: "order-1" },
       data: { googleEventId: "existing-event" },
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("recreates the event when the stored googleEventId returns 404 (deleted/stale) instead of failing the sync", async () => {
+    mockPrisma.googleCalendarIntegration.findUnique.mockResolvedValue(baseIntegration());
+    mockPrisma.workOrder.findUnique.mockResolvedValue(baseOrder({ googleEventId: "stale-event" }));
+    mockClient.upsertEvent
+      .mockRejectedValueOnce(new MockGoogleApiError("Not Found", 404))
+      .mockResolvedValueOnce({ id: "new-event" });
+    mockPrisma.workOrder.update.mockResolvedValue({});
+    mockPrisma.googleCalendarIntegration.update.mockResolvedValue({});
+
+    const result = await syncWorkOrderToCalendar(OWNER_ID, "order-1");
+
+    expect(mockClient.upsertEvent).toHaveBeenNthCalledWith(1, "access-token", "primary", "stale-event", expect.any(Object));
+    expect(mockClient.upsertEvent).toHaveBeenNthCalledWith(2, "access-token", "primary", null, expect.any(Object));
+    expect(mockPrisma.workOrder.update).toHaveBeenCalledWith({
+      where: { id: "order-1" },
+      data: { googleEventId: "new-event" },
     });
     expect(result).toEqual({ ok: true });
   });

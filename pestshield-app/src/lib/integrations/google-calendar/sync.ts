@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
-import { googleCalendarClient } from "./client";
+import { googleCalendarClient, GoogleApiError } from "./client";
 import type { GoogleCalendarIntegration } from "@/generated/prisma";
 
 export interface GoogleCalendarSyncResult {
@@ -91,13 +91,26 @@ export async function syncWorkOrderToCalendar(ownerId: string, workOrderId: stri
       order.riskFinding ? `Bulgu: ${order.riskFinding}` : null,
     ].filter(Boolean);
 
-    const result = await googleCalendarClient.upsertEvent(accessToken, calendarId, order.googleEventId, {
+    const eventInput = {
       summary: `${order.serviceType} — ${order.customer.companyName}`,
       description: descriptionParts.join("\n"),
       location: addressParts.join(", "),
       startDate: order.plannedDate,
       endDate: nextDay(order.plannedDate),
-    });
+    };
+
+    let result;
+    try {
+      result = await googleCalendarClient.upsertEvent(accessToken, calendarId, order.googleEventId, eventInput);
+    } catch (err) {
+      // Kayıtlı googleEventId Google tarafında artık yok (elle silinmiş veya takvim değiştirilmiş) —
+      // güncelleme (PUT) 404 döner. Kalıntı id'yi at, yeni bir etkinlik olarak oluştur.
+      if (err instanceof GoogleApiError && err.status === 404 && order.googleEventId) {
+        result = await googleCalendarClient.upsertEvent(accessToken, calendarId, null, eventInput);
+      } else {
+        throw err;
+      }
+    }
 
     await prisma.workOrder.update({ where: { id: order.id }, data: { googleEventId: result.id } });
     await prisma.googleCalendarIntegration.update({
