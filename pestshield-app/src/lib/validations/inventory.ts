@@ -8,6 +8,15 @@ export const addStockFormSchema = z.object({
 
 export type AddStockFormValues = z.infer<typeof addStockFormSchema>;
 
+export const transferStockFormSchema = z.object({
+  productId: z.string().min(1, "Ürün seçiniz"),
+  toWarehouseId: z.string().min(1, "Hedef depo seçiniz"),
+  quantity: z.number().min(0.01, "Miktar 0'dan büyük olmalıdır"),
+  description: z.string(),
+});
+
+export type TransferStockFormValues = z.infer<typeof transferStockFormSchema>;
+
 export const newProductFormSchema = z.object({
   name: z.string().min(2, "Ürün adı en az 2 karakter olmalıdır"),
   category: z.enum(["ilac", "malzeme", "ekipman"]),

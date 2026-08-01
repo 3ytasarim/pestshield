@@ -43,7 +43,7 @@ export interface Product {
   msdsFileName?: string;
 }
 
-export type StockTransactionType = "add" | "use";
+export type StockTransactionType = "add" | "use" | "transfer";
 
 export interface StockTransaction {
   id: string;
@@ -53,6 +53,9 @@ export interface StockTransaction {
   description: string;
   performedBy: string;
   date: string;
+  /** Sadece type="transfer" için doludur. */
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
 }
 
 export const warehouses: Warehouse[] = [

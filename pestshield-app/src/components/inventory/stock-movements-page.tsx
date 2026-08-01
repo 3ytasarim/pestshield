@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowDownCircle, ArrowUpCircle, History, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowDownCircle, ArrowLeftRight, ArrowUpCircle, History, Search, TrendingDown, TrendingUp } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatDate } from "@/components/crm/crm-format";
 import { CategoryBadge } from "@/components/inventory/inventory-badges";
 import { UNIT_LABELS } from "@/components/inventory/inventory-labels";
-import type { Product, StockTransaction, StockTransactionType } from "@/lib/mock/inventory";
+import type { Product, StockTransaction, StockTransactionType, Warehouse } from "@/lib/mock/inventory";
 import { cn } from "@/lib/utils";
 
 type TypeFilter = "all" | StockTransactionType;
@@ -26,9 +26,11 @@ type TypeFilter = "all" | StockTransactionType;
 export function StockMovementsPage({
   initialTransactions,
   products,
+  warehouses,
 }: {
   initialTransactions: StockTransaction[];
   products: Product[];
+  warehouses: Warehouse[];
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -56,8 +58,13 @@ export function StockMovementsPage({
     return {
       added: thisMonth.filter((t) => t.type === "add").length,
       used: thisMonth.filter((t) => t.type === "use").length,
+      transferred: thisMonth.filter((t) => t.type === "transfer").length,
     };
   }, [enriched]);
+
+  function warehouseName(id?: string): string {
+    return warehouses.find((w) => w.id === id)?.name ?? "—";
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,7 +80,7 @@ export function StockMovementsPage({
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <CrmKpiCard
           label="Toplam Hareket"
           value={enriched.length}
@@ -101,6 +108,15 @@ export function StockMovementsPage({
           accent="amber"
           delay={0.15}
         />
+        <CrmKpiCard
+          label="Bu Ay Transfer"
+          value={thisMonthStats.transferred}
+          description="Depolar/araçlar arası taşınan stok"
+          changePercent={thisMonthStats.transferred > 0 ? 5 : -5}
+          icon={ArrowLeftRight}
+          accent="purple"
+          delay={0.2}
+        />
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -119,6 +135,7 @@ export function StockMovementsPage({
               { value: "all", label: "Tümü" },
               { value: "add", label: "Giriş" },
               { value: "use", label: "Kullanım" },
+              { value: "transfer", label: "Transfer" },
             ] as const
           ).map((option) => (
             <button
@@ -155,6 +172,7 @@ export function StockMovementsPage({
                   <TableHead className="hidden sm:table-cell">Kategori</TableHead>
                   <TableHead className="hidden md:table-cell">Tür</TableHead>
                   <TableHead>Miktar</TableHead>
+                  <TableHead className="hidden xl:table-cell">Depo</TableHead>
                   <TableHead className="hidden lg:table-cell">Açıklama</TableHead>
                   <TableHead className="hidden md:table-cell">Kayıt Eden</TableHead>
                 </TableRow>
@@ -173,16 +191,24 @@ export function StockMovementsPage({
                           <ArrowUpCircle className="size-3.5" />
                           Giriş
                         </span>
-                      ) : (
+                      ) : txn.type === "use" ? (
                         <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                           <ArrowDownCircle className="size-3.5" />
                           Kullanım
                         </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-violet-600 dark:text-violet-400">
+                          <ArrowLeftRight className="size-3.5" />
+                          Transfer
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="tabular-nums">
-                      {txn.type === "add" ? "+" : "-"}
+                      {txn.type === "add" ? "+" : txn.type === "use" ? "-" : ""}
                       {txn.quantity} {txn.product ? UNIT_LABELS[txn.product.unit] : ""}
+                    </TableCell>
+                    <TableCell className="hidden text-xs whitespace-nowrap text-muted-foreground xl:table-cell">
+                      {txn.type === "transfer" ? `${warehouseName(txn.fromWarehouseId)} → ${warehouseName(txn.toWarehouseId)}` : "—"}
                     </TableCell>
                     <TableCell className="hidden max-w-[220px] truncate text-xs text-muted-foreground lg:table-cell">
                       {txn.description || "—"}

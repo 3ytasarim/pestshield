@@ -17,12 +17,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { AddStockForm } from "@/components/inventory/add-stock-form";
+import { TransferStockForm } from "@/components/inventory/transfer-stock-form";
 import { NewProductForm } from "@/components/inventory/new-product-form";
 import { ProductCard } from "@/components/inventory/product-card";
 import { UsageHistoryTab } from "@/components/inventory/usage-history-tab";
 import { CATEGORY_OPTIONS } from "@/components/inventory/inventory-labels";
 import { getCriticalProducts, type Product, type ProductCategory, type StockTransaction, type Warehouse } from "@/lib/mock/inventory";
-import type { AddStockFormValues, NewProductFormValues } from "@/lib/validations/inventory";
+import type { AddStockFormValues, NewProductFormValues, TransferStockFormValues } from "@/lib/validations/inventory";
 import { cn } from "@/lib/utils";
 
 type CategoryFilter = "all" | ProductCategory;
@@ -55,8 +56,10 @@ export function InventoryPage({
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [addStockOpen, setAddStockOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [newProductOpen, setNewProductOpen] = useState(false);
   const [stockTargetProduct, setStockTargetProduct] = useState<Product | null>(null);
+  const [transferTargetProduct, setTransferTargetProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const filtered = useMemo(() => {
@@ -99,6 +102,33 @@ export function InventoryPage({
     );
     setTransactions((prev) => [stockTransaction, ...prev]);
     toast.success("Stok güncellendi");
+  }
+
+  async function handleTransfer(values: TransferStockFormValues) {
+    const res = await fetch("/api/inventory/stock-transactions/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Transfer yapılamadı");
+      return;
+    }
+    const { stockTransaction, sourceProduct, destinationProduct } = data as {
+      stockTransaction: StockTransaction;
+      sourceProduct: Product;
+      destinationProduct: Product;
+    };
+    setProducts((prev) => {
+      const withSourceUpdated = prev.map((p) => (p.id === sourceProduct.id ? sourceProduct : p));
+      const hasDestination = withSourceUpdated.some((p) => p.id === destinationProduct.id);
+      return hasDestination
+        ? withSourceUpdated.map((p) => (p.id === destinationProduct.id ? destinationProduct : p))
+        : [destinationProduct, ...withSourceUpdated];
+    });
+    setTransactions((prev) => [stockTransaction, ...prev]);
+    toast.success("Transfer tamamlandı");
   }
 
   async function handleNewProduct(values: NewProductFormValues) {
@@ -310,6 +340,10 @@ export function InventoryPage({
                     setEditingProduct(p);
                     setNewProductOpen(true);
                   }}
+                  onTransfer={(p) => {
+                    setTransferTargetProduct(p);
+                    setTransferOpen(true);
+                  }}
                 />
               ))}
             </div>
@@ -327,6 +361,15 @@ export function InventoryPage({
         products={products}
         defaultProductId={stockTargetProduct?.id}
         onSubmit={handleAddStock}
+      />
+
+      <TransferStockForm
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        products={products}
+        warehouses={warehouses}
+        defaultProductId={transferTargetProduct?.id}
+        onSubmit={handleTransfer}
       />
 
       <NewProductForm

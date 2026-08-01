@@ -169,6 +169,7 @@ enum WarehouseType {
 enum StockTransactionType {
   add
   use
+  transfer
 }
 
 enum ComplianceStandard {
@@ -1025,6 +1026,9 @@ model Warehouse {
   products Product[]
   vehicles Vehicle[]
 
+  outgoingTransfers StockTransaction[] @relation("StockTransactionFromWarehouse")
+  incomingTransfers StockTransaction[] @relation("StockTransactionToWarehouse")
+
   @@index([ownerId])
   @@map("warehouses")
 }
@@ -1083,8 +1087,17 @@ model StockTransaction {
   performedBy String               @default("")
   date        String
 
+  /// Sadece type=transfer için doludur — kaynak/hedef depo bilgisi (ürünün
+  /// warehouseId'si transfer sonrası değiştiği için burada ayrıca saklanır).
+  fromWarehouseId String?
+  fromWarehouse   Warehouse? @relation("StockTransactionFromWarehouse", fields: [fromWarehouseId], references: [id], onDelete: SetNull)
+  toWarehouseId   String?
+  toWarehouse     Warehouse? @relation("StockTransactionToWarehouse", fields: [toWarehouseId], references: [id], onDelete: SetNull)
+
   @@index([ownerId])
   @@index([productId])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
   @@map("stock_transactions")
 }
 

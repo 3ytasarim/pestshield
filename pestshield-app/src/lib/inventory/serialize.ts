@@ -35,5 +35,10 @@ export function serializeProduct(product: PrismaProduct): Product {
 export function serializeStockTransaction(tx: PrismaStockTransaction): StockTransaction {
   const { ownerId: _ownerId, ...rest } = tx;
   void _ownerId;
-  return { ...rest, quantity: Number(tx.quantity) };
+  return {
+    ...rest,
+    quantity: Number(tx.quantity),
+    fromWarehouseId: tx.fromWarehouseId ?? undefined,
+    toWarehouseId: tx.toWarehouseId ?? undefined,
+  };
 }

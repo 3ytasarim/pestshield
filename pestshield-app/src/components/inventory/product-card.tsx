@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Pencil, Plus } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -15,6 +15,7 @@ interface ProductCardProps {
   delay?: number;
   onAddStock: (product: Product) => void;
   onEdit: (product: Product) => void;
+  onTransfer: (product: Product) => void;
 }
 
 const CATEGORY_GLOW_CLASS: Record<ProductCategory, string> = {
@@ -29,7 +30,7 @@ const CATEGORY_BORDER_CLASS: Record<ProductCategory, string> = {
   ekipman: "before:bg-violet-500",
 };
 
-export function ProductCard({ product, delay = 0, onAddStock, onEdit }: ProductCardProps) {
+export function ProductCard({ product, delay = 0, onAddStock, onEdit, onTransfer }: ProductCardProps) {
   const isCritical = product.currentStock <= product.criticalLevel;
   const ratio = stockLevelRatio(product);
 
@@ -94,6 +95,10 @@ export function ProductCard({ product, delay = 0, onAddStock, onEdit }: ProductC
               Stok Ekle
             </Button>
           </div>
+          <Button variant="outline" size="sm" className="w-full" onClick={() => onTransfer(product)}>
+            <ArrowLeftRight className="size-3.5" />
+            Transfer Et
+          </Button>
         </CardContent>
       </Card>
     </motion.div>

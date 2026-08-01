@@ -7,15 +7,17 @@ import { AlertTriangle, PackageX, ShieldAlert, TrendingDown } from "lucide-react
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { AddStockForm } from "@/components/inventory/add-stock-form";
+import { TransferStockForm } from "@/components/inventory/transfer-stock-form";
 import { ProductCard } from "@/components/inventory/product-card";
 import { NewProductForm } from "@/components/inventory/new-product-form";
 import {
   getCriticalProducts,
   criticalSeverity,
   type Product,
+  type StockTransaction,
   type Warehouse,
 } from "@/lib/mock/inventory";
-import type { AddStockFormValues, NewProductFormValues } from "@/lib/validations/inventory";
+import type { AddStockFormValues, NewProductFormValues, TransferStockFormValues } from "@/lib/validations/inventory";
 
 export function CriticalStockPage({
   initialProducts,
@@ -26,8 +28,10 @@ export function CriticalStockPage({
 }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [addStockOpen, setAddStockOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [stockTargetProduct, setStockTargetProduct] = useState<Product | null>(null);
+  const [transferTargetProduct, setTransferTargetProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const criticalProducts = useMemo(
@@ -56,6 +60,32 @@ export function CriticalStockPage({
       prev.map((p) => (p.id === values.productId ? { ...p, currentStock: p.currentStock + values.quantity } : p)),
     );
     toast.success("Stok güncellendi");
+  }
+
+  async function handleTransfer(values: TransferStockFormValues) {
+    const res = await fetch("/api/inventory/stock-transactions/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Transfer yapılamadı");
+      return;
+    }
+    const { sourceProduct, destinationProduct } = data as {
+      stockTransaction: StockTransaction;
+      sourceProduct: Product;
+      destinationProduct: Product;
+    };
+    setProducts((prev) => {
+      const withSourceUpdated = prev.map((p) => (p.id === sourceProduct.id ? sourceProduct : p));
+      const hasDestination = withSourceUpdated.some((p) => p.id === destinationProduct.id);
+      return hasDestination
+        ? withSourceUpdated.map((p) => (p.id === destinationProduct.id ? destinationProduct : p))
+        : [destinationProduct, ...withSourceUpdated];
+    });
+    toast.success("Transfer tamamlandı");
   }
 
   async function handleEditProduct(values: NewProductFormValues) {
@@ -150,6 +180,10 @@ export function CriticalStockPage({
                 setEditingProduct(p);
                 setEditOpen(true);
               }}
+              onTransfer={(p) => {
+                setTransferTargetProduct(p);
+                setTransferOpen(true);
+              }}
             />
           ))}
         </div>
@@ -161,6 +195,15 @@ export function CriticalStockPage({
         products={products}
         defaultProductId={stockTargetProduct?.id}
         onSubmit={handleAddStock}
+      />
+
+      <TransferStockForm
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        products={products}
+        warehouses={warehouses}
+        defaultProductId={transferTargetProduct?.id}
+        onSubmit={handleTransfer}
       />
 
       <NewProductForm
