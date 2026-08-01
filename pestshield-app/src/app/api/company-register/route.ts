@@ -6,7 +6,6 @@ import { generateToken } from "@/lib/tokens";
 
 const BCRYPT_ROUNDS = 12;
 const VERIFICATION_TOKEN_TTL_HOURS = 24;
-const DEMO_LICENSE_DAYS = 5;
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -30,9 +29,6 @@ export async function POST(request: Request) {
   const tokenExpiresAt = new Date(
     Date.now() + VERIFICATION_TOKEN_TTL_HOURS * 60 * 60 * 1000,
   );
-  const licenseExpiresAt = new Date(
-    Date.now() + DEMO_LICENSE_DAYS * 24 * 60 * 60 * 1000,
-  );
 
   await prisma.$transaction([
     prisma.user.create({
@@ -42,8 +38,9 @@ export async function POST(request: Request) {
         password: passwordHash,
         role: "CLIENT",
         companyName,
-        licenseType: "DEMO",
-        licenseExpiresAt,
+        // Superadmin firmayı doğrulayıp "Aktif Et" diyene kadar giriş yapamaz —
+        // demo lisans da (5 gün) ancak o aktivasyon anında başlar, kayıt anında değil.
+        isActive: false,
       },
     }),
     prisma.verificationToken.create({
@@ -57,7 +54,7 @@ export async function POST(request: Request) {
   console.log(`[company-register] Doğrulama linki (${email}): ${verifyLink}`);
 
   return NextResponse.json({
-    message: "Firma hesabınız 5 günlük demo lisansıyla oluşturuldu",
+    message: "Firma kaydınız alındı — ekibimiz sizinle iletişime geçip hesabınızı onayladıktan sonra 5 günlük demo lisansınız başlayacak",
     devVerifyLink: verifyLink,
   });
 }

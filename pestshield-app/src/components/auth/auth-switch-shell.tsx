@@ -16,7 +16,7 @@ import {
   companyRegisterSchema,
   type CompanyRegisterFormValues,
 } from "@/lib/validations/auth";
-import { TWO_FACTOR_REQUIRED } from "@/lib/auth-constants";
+import { TWO_FACTOR_REQUIRED, ACCOUNT_PENDING } from "@/lib/auth-constants";
 import { getDashboardPathForRole } from "@/lib/dashboard-path";
 import "@/components/auth/auth-switch.css";
 
@@ -191,6 +191,11 @@ function LoginFormContent() {
         return;
       }
 
+      if (result?.code === ACCOUNT_PENDING) {
+        toast.error("Hesabınız henüz onaylanmadı — ekibimiz sizinle iletişime geçtikten sonra giriş yapabileceksiniz.");
+        return;
+      }
+
       if (result?.error) {
         toast.error("E-posta veya şifre hatalı");
         return;
@@ -289,10 +294,10 @@ function CompanyRegisterFormContent() {
       <div style={{ textAlign: "center" }}>
         <MailCheck size={32} color="#0877b2" style={{ margin: "0 auto 12px" }} />
         <h2 className="title" style={{ fontSize: "1.4rem" }}>
-          E-postanızı Doğrulayın
+          Kaydınız Alındı
         </h2>
         <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: 10 }}>
-          Hesabınızı aktive etmek için gönderdiğimiz bağlantıya tıklayın.
+          Ekibimiz sizinle iletişime geçip hesabınızı onayladıktan sonra giriş yapabilir ve 5 günlük demo lisansınızı kullanmaya başlayabilirsiniz.
         </p>
         <a href={devVerifyLink} style={{ fontSize: "0.75rem", color: "#0877b2" }}>
           (Geliştirme modu) Doğrulama bağlantısı

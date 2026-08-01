@@ -4,3 +4,4 @@
  * client component'lerden güvenle import edilebilmesi bu şarta bağlıdır.
  */
 export const TWO_FACTOR_REQUIRED = "TWO_FACTOR_REQUIRED";
+export const ACCOUNT_PENDING = "ACCOUNT_PENDING";

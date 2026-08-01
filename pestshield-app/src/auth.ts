@@ -6,7 +6,7 @@ import { verify as verifyTotp } from "otplib";
 import { prisma } from "@/lib/db";
 import { authConfig } from "./auth.config";
 import { loginSchema } from "@/lib/validations/auth";
-import { TWO_FACTOR_REQUIRED } from "@/lib/auth-constants";
+import { TWO_FACTOR_REQUIRED, ACCOUNT_PENDING } from "@/lib/auth-constants";
 
 // Auth.js sadece `CredentialsSignin` (ve türevlerini) istemciye "code" alanıyla
 // birlikte iletir - düz `throw new Error(...)` her zaman `CallbackRouteError`e
@@ -14,6 +14,11 @@ import { TWO_FACTOR_REQUIRED } from "@/lib/auth-constants";
 // isClientError). Bu yüzden 2FA sinyali `code` üzerinden taşınıyor.
 class TwoFactorRequiredError extends CredentialsSignin {
   code = TWO_FACTOR_REQUIRED;
+}
+
+/** Firma kaydı Superadmin tarafından henüz "Aktif Et" ile onaylanmadı. */
+class AccountPendingError extends CredentialsSignin {
+  code = ACCOUNT_PENDING;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -35,7 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
         });
-        if (!user?.password || !user.isActive) {
+        if (!user?.password) {
           return null;
         }
 
@@ -45,6 +50,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
         if (!passwordMatches) {
           return null;
+        }
+
+        // Şifre doğru ama hesap henüz Superadmin tarafından aktive edilmemiş —
+        // bu ayrımı sadece doğru şifreyi bilen tarafa gösteriyoruz (hesap
+        // varlığını rastgele deneme yapanlara sızdırmamak için).
+        if (!user.isActive) {
+          throw new AccountPendingError();
         }
 
         if (user.twoFactorEnabled) {

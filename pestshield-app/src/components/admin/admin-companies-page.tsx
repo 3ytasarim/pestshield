@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Building2, Check, Copy, KeyRound, Plus } from "lucide-react";
+import { Building2, Check, CircleCheck, Copy, KeyRound, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,7 @@ export function AdminCompaniesPage({
 }) {
   const [companies, setCompanies] = useState(initialCompanies);
   const [codes, setCodes] = useState(initialCodes);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
   const [dialogTarget, setDialogTarget] = useState<CompanyRow | null>(null);
   const [selectedType, setSelectedType] = useState<LicenseType>("MONTHLY");
   const [generating, setGenerating] = useState(false);
@@ -147,6 +148,32 @@ export function AdminCompaniesPage({
       toast.error("Lisans kodu oluşturulamadı");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  const pendingCount = useMemo(() => companies.filter((c) => !c.isActive).length, [companies]);
+
+  async function handleActivate(id: string) {
+    setActivatingId(id);
+    try {
+      const res = await fetch(`/api/admin/companies/${id}/activate`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Firma aktive edilemedi");
+        return;
+      }
+      setCompanies((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? { ...c, isActive: data.company.isActive, licenseType: data.company.licenseType, licenseExpiresAt: data.company.licenseExpiresAt }
+            : c,
+        ),
+      );
+      toast.success("Firma aktive edildi — 5 günlük demo lisansı başladı");
+    } catch {
+      toast.error("Firma aktive edilemedi");
+    } finally {
+      setActivatingId(null);
     }
   }
 
@@ -243,6 +270,11 @@ export function AdminCompaniesPage({
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Firmalar</h1>
           <p className="text-sm text-muted-foreground">
             PestShield&apos;e kayıtlı tüm zararlı kontrol firmaları ve lisans durumları.
+            {pendingCount > 0 && (
+              <span className="ml-2 font-medium text-amber-600 dark:text-amber-400">
+                {pendingCount} firma onay bekliyor
+              </span>
+            )}
           </p>
         </div>
         <Button onClick={() => setNewCompanyOpen(true)}>
@@ -290,13 +322,31 @@ export function AdminCompaniesPage({
                       {days === null ? "—" : `${days} gün`}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+                      {row.isActive ? (
+                        <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-amber-500/30 text-amber-600 dark:text-amber-400">
+                          Onay Bekliyor
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => openDialog(row)}>
-                        <KeyRound className="size-3.5" />
-                        Lisans Oluştur
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {!row.isActive && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleActivate(row.id)}
+                            loading={activatingId === row.id}
+                          >
+                            <CircleCheck className="size-3.5" />
+                            Aktif Et
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => openDialog(row)}>
+                          <KeyRound className="size-3.5" />
+                          Lisans Oluştur
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
