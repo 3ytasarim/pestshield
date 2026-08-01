@@ -51,7 +51,7 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
     reset,
     formState: { errors, isSubmitting },
   } = useForm<TechnicianEditFormValues>({
-    resolver: zodResolver(isEditing ? technicianEditFormSchema : technicianFormSchema) as Resolver<TechnicianEditFormValues>,
+    resolver: zodResolver(isEditing ? technicianEditFormSchema : technicianFormSchema) as unknown as Resolver<TechnicianEditFormValues>,
     defaultValues: EMPTY,
   });
 
