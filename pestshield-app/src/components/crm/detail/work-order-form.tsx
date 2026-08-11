@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TextField, SelectField } from "@/components/crm/form-fields";
+import { TextField, SelectField, TextareaField, ToggleField } from "@/components/crm/form-fields";
 import { SERVICE_TYPE_OPTIONS } from "@/components/crm/crm-labels";
 import type { Technician } from "@/lib/mock/operations";
 import { workOrderFormSchema, type WorkOrderFormValues } from "@/lib/validations/crm";
@@ -22,6 +22,9 @@ const EMPTY: WorkOrderFormValues = {
   serviceType: SERVICE_TYPE_OPTIONS[0],
   technicianId: "",
   plannedDate: new Date().toISOString().slice(0, 10),
+  dispatchNote: "",
+  syncToCalendar: true,
+  followUpDate: "",
 };
 
 const SERVICE_TYPE_SELECT_OPTIONS = SERVICE_TYPE_OPTIONS.map((v) => ({ value: v, label: v }));
@@ -67,6 +70,20 @@ export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians }: Wor
           <SelectField label="Hizmet Türü" name="serviceType" control={control} options={SERVICE_TYPE_SELECT_OPTIONS} required error={errors.serviceType?.message} />
           <SelectField label="Teknisyen" name="technicianId" control={control} options={technicianOptions} required placeholder="Teknisyen seçiniz" error={errors.technicianId?.message} />
           <TextField label="Planlanan Tarih" type="date" required registration={register("plannedDate")} error={errors.plannedDate?.message} />
+          <TextareaField
+            label="Personele Açıklama"
+            placeholder="Kapı kodu, evcil hayvan uyarısı, dikkat edilecek notlar vb."
+            rows={2}
+            registration={register("dispatchNote")}
+            error={errors.dispatchNote?.message}
+          />
+          <TextField label="Tekrar Uygulama Tarihi (opsiyonel)" type="date" registration={register("followUpDate")} error={errors.followUpDate?.message} />
+          <ToggleField
+            label="Takvime Ekle"
+            description="Google Takvim bağlıysa bu iş emri otomatik senkronize edilir."
+            name="syncToCalendar"
+            control={control}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

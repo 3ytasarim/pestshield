@@ -68,6 +68,9 @@ export async function syncWorkOrderToCalendar(ownerId: string, workOrderId: stri
     if (!order || order.ownerId !== ownerId) {
       return { ok: false, error: "İş emri bulunamadı." };
     }
+    if (!order.syncToCalendar) {
+      return { ok: true };
+    }
 
     const accessToken = await ensureFreshAccessToken(integration);
     const calendarId = integration.calendarId || "primary";

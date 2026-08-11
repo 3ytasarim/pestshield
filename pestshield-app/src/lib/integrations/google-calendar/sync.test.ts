@@ -62,6 +62,7 @@ function baseOrder(overrides: Partial<Record<string, unknown>> = {}) {
     completedDate: null,
     status: "planned",
     riskFinding: null,
+    syncToCalendar: true,
     googleEventId: null,
     customer: { companyName: "ACME A.Ş.", addressLine: "Test Cad. No:1", district: "Kadıköy", city: "İstanbul" },
     technician: { name: "Ahmet Yılmaz" },

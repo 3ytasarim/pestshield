@@ -924,6 +924,14 @@ model WorkOrder {
   technicianNote  String          @default("")
   customerSigned  Boolean         @default(false)
 
+  /// Ofisin teknisyene bıraktığı sevkiyat notu (kapı kodu, evcil hayvan uyarısı vb.) — technicianNote'tan
+  /// farklı olarak teknisyenin YAZDIĞI değil, teknisyene YAZILAN nottur.
+  dispatchNote String @default("")
+  /// false ise bu iş emri Google Takvim'e senkronize edilmez (bkz. google-calendar/sync.ts).
+  syncToCalendar Boolean @default(true)
+  /// Aynı hafta içinde planlanan bir tekrar uygulama varsa tarihi.
+  followUpDate String?
+
   /// Bu iş emrine karşılık gelen Google Takvim etkinliğinin id'si (bkz. google-calendar/sync.ts).
   googleEventId String?
 

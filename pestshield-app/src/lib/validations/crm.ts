@@ -230,6 +230,9 @@ export const workOrderFormSchema = z.object({
   serviceType: z.string().min(1, "Hizmet türü seçiniz"),
   technicianId: z.string().min(1, "Teknisyen seçiniz"),
   plannedDate: z.string().min(1, "Planlanan tarih zorunludur"),
+  dispatchNote: z.string(),
+  syncToCalendar: z.boolean(),
+  followUpDate: z.string().optional(),
 });
 
 export type WorkOrderFormValues = z.infer<typeof workOrderFormSchema>;
@@ -239,6 +242,9 @@ export const workOrderPatchSchema = z.object({
   plannedDate: z.string().optional(),
   technicianId: z.string().min(1, "Teknisyen seçiniz").optional(),
   serviceType: z.string().min(1, "Hizmet türü seçiniz").optional(),
+  dispatchNote: z.string().optional(),
+  syncToCalendar: z.boolean().optional(),
+  followUpDate: z.string().optional(),
 });
 
 export const portalAccessFormSchema = z.object({

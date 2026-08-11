@@ -402,6 +402,9 @@ export interface WorkOrder {
   stationsChecked: number;
   technicianNote: string;
   customerSigned: boolean;
+  dispatchNote: string;
+  syncToCalendar: boolean;
+  followUpDate: string | null;
 }
 
 export interface AccountTransaction {
@@ -890,6 +893,9 @@ export function getWorkOrders(customerId: string): WorkOrder[] {
         ? "Tüm istasyonlar kontrol edildi, aktivite normal seviyede."
         : "Servis henüz tamamlanmadı.",
     customerSigned: status === "completed",
+    dispatchNote: "",
+    syncToCalendar: true,
+    followUpDate: null,
   }));
 }
 
