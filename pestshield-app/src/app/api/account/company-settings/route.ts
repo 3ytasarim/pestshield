@@ -14,6 +14,8 @@ function serialize(user: {
   phone: string | null;
   authorizedPhone: string | null;
   logoUrl: string | null;
+  letterheadImage: string | null;
+  letterheadMode: string | null;
   permitDate: string | null;
   permitNumber: string | null;
   activityField: string | null;
@@ -34,6 +36,8 @@ function serialize(user: {
     phone: user.phone ?? "",
     authorizedPhone: user.authorizedPhone ?? "",
     logo: user.logoUrl,
+    letterheadImage: user.letterheadImage,
+    letterheadMode: user.letterheadMode === "background" ? "background" : "header",
     permitDate: user.permitDate ?? "",
     permitNumber: user.permitNumber ?? "",
     activityField: user.activityField ?? "",
@@ -84,6 +88,8 @@ export async function PATCH(request: Request) {
       phone: values.phone || null,
       authorizedPhone: values.authorizedPhone || null,
       logoUrl: values.logo ?? null,
+      letterheadImage: values.letterheadImage ?? null,
+      letterheadMode: values.letterheadMode ?? "header",
       permitDate: values.permitDate || null,
       permitNumber: values.permitNumber || null,
       activityField: values.activityField || null,

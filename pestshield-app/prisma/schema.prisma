@@ -288,6 +288,10 @@ model User {
   authorizedPhone String?
   /// Firma logosu — base64 data URL (bkz. src/lib/file-utils.ts readImageFile).
   logoUrl         String?
+  /// Antetli kağıt görseli — base64 data URL. Raporlarda/tekliflerde logo yerine/yanında kullanılır.
+  letterheadImage String?
+  /// "header" (üst başlık bandı) | "background" (tam sayfa arkaplan)
+  letterheadMode  String?  @default("header")
 
   /// Biyosidal ürün uygulama ruhsatı - EK-1 formunun "Uygulamayı Yapana Ait
   /// Bilgiler" bölümüne otomatik yazılır.

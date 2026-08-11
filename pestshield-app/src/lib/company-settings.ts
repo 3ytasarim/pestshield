@@ -8,7 +8,11 @@
 //  - Firma adına ait tüm PDF belgelerinde (cari ekstre, teklif, iş emri raporu)
 //    hem logo hem de imza bölümünde "Yetkili Adı Soyadı" olarak basılır.
 
+import { readImageFile } from "@/lib/file-utils";
+
 const STORAGE_KEY = "pestshield.company.settings";
+
+export type LetterheadMode = "header" | "background";
 
 export interface CompanySettings {
   companyName: string;
@@ -21,6 +25,8 @@ export interface CompanySettings {
   phone: string;
   authorizedPhone: string;
   logo: string | null;
+  letterheadImage: string | null;
+  letterheadMode: LetterheadMode;
   permitDate: string;
   permitNumber: string;
   activityField: string;
@@ -42,6 +48,8 @@ const DEFAULT_SETTINGS: CompanySettings = {
   phone: "",
   authorizedPhone: "",
   logo: null,
+  letterheadImage: null,
+  letterheadMode: "header",
   permitDate: "",
   permitNumber: "",
   activityField: "",
@@ -73,4 +81,11 @@ export function resetCompanySettings() {
 }
 
 /** Seçilen logo dosyasını base64 data URL'e çevirir (5MB üstü reddedilir). */
-export { readImageFile as readLogoFile } from "@/lib/file-utils";
+export function readLogoFile(file: File): Promise<string> {
+  return readImageFile(file, 5);
+}
+
+/** Seçilen antetli kağıt görselini base64 data URL'e çevirir (8MB üstü reddedilir — tam sayfa görseller daha büyük olabilir). */
+export function readLetterheadFile(file: File): Promise<string> {
+  return readImageFile(file, 8);
+}

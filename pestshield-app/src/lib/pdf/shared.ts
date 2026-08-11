@@ -69,6 +69,8 @@ export const LETTERHEAD_STYLES = `
     .info-box, .party-card, .note-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     thead th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
+
+  .letterhead-banner { display: block; width: 100%; max-height: 140px; object-fit: contain; margin-bottom: 14px; }
 `;
 
 interface LetterheadOptions {
@@ -81,11 +83,31 @@ interface LetterheadOptions {
  * Belgenin üst kısmı: soldaki firma logosu/adı (Şirket Ayarları'ndan), sağdaki belge başlığı/no.
  * Firma kendi logosunu/adını girmemişse HİÇBİR marka fallback'i kullanılmaz (her kiracı kendi
  * markasıyla çalışır — PestShield'ın kendi logosuna düşmek yanlış marka izlenimi verir).
+ *
+ * Firma bir "Antetli Kağıt" görseli yüklediyse (Şirket Ayarları), kullanım şekline göre ya
+ * belgenin en üstüne tam genişlikte bir banner olarak eklenir ("header") ya da sayfanın
+ * tamamına arkaplan olarak basılır ("background") — ikinci durumda stil, body'ye enjekte edilir.
  */
 export function renderLetterhead({ docTitle, docNo, docDate }: LetterheadOptions): string {
   const company = getCompanySettings();
   const logo = company.logo ? `<img src="${company.logo}" alt="Logo" />` : "";
+
+  const letterheadBanner =
+    company.letterheadImage && company.letterheadMode !== "background"
+      ? `<img class="letterhead-banner" src="${company.letterheadImage}" alt="Antetli Kağıt" />`
+      : "";
+
+  const backgroundStyle =
+    company.letterheadImage && company.letterheadMode === "background"
+      ? `<style>
+          body { background-image: url("${company.letterheadImage}"); background-size: 100% 100%; background-repeat: no-repeat; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @media print { body { background-image: url("${company.letterheadImage}"); background-size: 100% 100%; background-repeat: no-repeat; } }
+        </style>`
+      : "";
+
   return `
+  ${backgroundStyle}
+  ${letterheadBanner}
   <div class="letterhead">
     <div class="brand-block">
       ${logo}

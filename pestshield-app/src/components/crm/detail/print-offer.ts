@@ -1,5 +1,5 @@
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { escapeHtml, LETTERHEAD_STYLES, openPrintWindow, renderLetterhead, renderSignatures } from "@/lib/pdf/shared";
+import { escapeHtml, footerBrandLabel, LETTERHEAD_STYLES, openPrintWindow, renderLetterhead, renderSignatures } from "@/lib/pdf/shared";
 import type { Customer, Offer } from "@/lib/mock/crm";
 
 const STATUS_LABELS: Record<Offer["status"], string> = {
@@ -72,7 +72,7 @@ export function printOffer(customer: Customer, offer: Offer) {
   ${renderSignatures(customer.companyName)}
 
   <div class="footer">
-    <span>Bu teklif PestShield tarafından otomatik olarak oluşturulmuştur.</span>
+    <span>Bu teklif ${footerBrandLabel()} tarafından otomatik olarak oluşturulmuştur.</span>
     <span>${offer.offerNo} · ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

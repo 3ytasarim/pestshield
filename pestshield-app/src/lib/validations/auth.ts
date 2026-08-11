@@ -71,6 +71,8 @@ export const companySettingsSchema = z.object({
   phone: z.string().optional(),
   authorizedPhone: z.string().optional(),
   logo: z.string().nullable().optional(),
+  letterheadImage: z.string().nullable().optional(),
+  letterheadMode: z.enum(["header", "background"]).optional(),
   permitDate: z.string().optional(),
   permitNumber: z.string().optional(),
   activityField: z.string().optional(),

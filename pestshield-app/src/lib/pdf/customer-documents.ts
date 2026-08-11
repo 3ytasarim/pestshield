@@ -33,9 +33,8 @@ export async function qrDataUrl(customer: DocumentCustomer, size = 240): Promise
 }
 
 function companyLogoImg(logo: string | null, className: string): string {
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const src = logo || `${origin}/logo-icon.png`;
-  return `<img src="${src}" alt="Logo" class="${className}" onerror="this.style.display='none'" />`;
+  if (!logo) return "";
+  return `<img src="${logo}" alt="Logo" class="${className}" onerror="this.style.display='none'" />`;
 }
 
 function docNo(prefix: string, customer: DocumentCustomer): string {
@@ -139,7 +138,7 @@ export async function printQrLabel(customer: DocumentCustomer, branding?: Docume
         <p class="qr-caption">QR kodu okutarak raporları görüntüleyebilirsiniz.</p>
       </div>
     </div>
-    <div class="label-footer">${escapeHtml(company.companyName || "PestShield")}</div>
+    <div class="label-footer">${escapeHtml(company.companyName)}</div>
   </div>
 </body>
 </html>`;
@@ -152,7 +151,7 @@ export async function printApplicationCertificate(customer: DocumentCustomer, br
   const company = branding ?? getCompanySettings();
   const template = getCertificateTemplate();
   const qr = await qrDataUrl(customer, 220);
-  const companyName = escapeHtml(company.companyName || "PestShield Haşere Yönetim Hizmetleri");
+  const companyName = escapeHtml(company.companyName);
   const authorizedLine = company.authorizedName.trim() ? `Yetkili: ${escapeHtml(company.authorizedName.trim())}` : "";
 
   const sealHtml = template.sealImage
@@ -385,7 +384,7 @@ const POSTER_PANELS = [
 export async function printHygienePoster(customer: DocumentCustomer, branding?: DocumentBranding) {
   const company = branding ?? getCompanySettings();
   const qr = await qrDataUrl(customer, 180);
-  const companyName = escapeHtml(company.companyName || "PestShield Haşere Yönetim Hizmetleri");
+  const companyName = escapeHtml(company.companyName);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const panelsHtml = POSTER_PANELS.map(

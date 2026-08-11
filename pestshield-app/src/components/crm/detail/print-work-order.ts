@@ -1,5 +1,5 @@
 import { formatDate } from "@/components/crm/crm-format";
-import { escapeHtml, LETTERHEAD_STYLES, openPrintWindow, renderLetterhead, renderSignatures } from "@/lib/pdf/shared";
+import { escapeHtml, footerBrandLabel, LETTERHEAD_STYLES, openPrintWindow, renderLetterhead, renderSignatures } from "@/lib/pdf/shared";
 import type { Customer, WorkOrder, WorkOrderStatus } from "@/lib/mock/crm";
 
 const STATUS_LABELS: Record<WorkOrderStatus, string> = {
@@ -74,7 +74,7 @@ export function printWorkOrder(customer: Customer, order: WorkOrder) {
   ${renderSignatures(customer.companyName)}
 
   <div class="footer">
-    <span>Bu rapor PestShield tarafından otomatik olarak oluşturulmuştur.</span>
+    <span>Bu rapor ${footerBrandLabel()} tarafından otomatik olarak oluşturulmuştur.</span>
     <span>${order.orderNo} · ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Award, Building2, CheckCircle2, CreditCard, Globe, ImagePlus, KeyRound, Landmark, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
+import { Award, Building2, CheckCircle2, CreditCard, FileImage, Globe, ImagePlus, KeyRound, Landmark, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,11 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import {
   getCompanySettings,
+  readLetterheadFile,
   readLogoFile,
   saveCompanySettings,
   type CompanySettings,
+  type LetterheadMode,
 } from "@/lib/company-settings";
 import {
   getCertificateTemplate,
@@ -40,6 +42,11 @@ const ORIENTATION_OPTIONS: { value: CertificateOrientation; label: string }[] = 
   { value: "landscape", label: "Yatay" },
 ];
 
+const LETTERHEAD_MODE_OPTIONS: { value: LetterheadMode; label: string; description: string }[] = [
+  { value: "header", label: "Üst Başlık", description: "Görsel, belgenin en üstüne tam genişlikte banner olarak eklenir." },
+  { value: "background", label: "Tam Sayfa Arkaplan", description: "Görsel, belgenin tamamına arkaplan olarak yerleştirilir." },
+];
+
 export function CompanySettingsPage() {
   const [settings, setSettings] = useState<CompanySettings>(() => getCompanySettings());
   const [companyName, setCompanyName] = useState(() => getCompanySettings().companyName);
@@ -52,6 +59,9 @@ export function CompanySettingsPage() {
   const [phone, setPhone] = useState(() => getCompanySettings().phone);
   const [authorizedPhone, setAuthorizedPhone] = useState(() => getCompanySettings().authorizedPhone);
   const [logo, setLogo] = useState<string | null>(() => getCompanySettings().logo);
+  const [letterheadImage, setLetterheadImage] = useState<string | null>(() => getCompanySettings().letterheadImage);
+  const [letterheadMode, setLetterheadMode] = useState<LetterheadMode>(() => getCompanySettings().letterheadMode);
+  const letterheadInputRef = useRef<HTMLInputElement>(null);
   const [permitDate, setPermitDate] = useState(() => getCompanySettings().permitDate);
   const [permitNumber, setPermitNumber] = useState(() => getCompanySettings().permitNumber);
   const [activityField, setActivityField] = useState(() => getCompanySettings().activityField);
@@ -95,6 +105,8 @@ export function CompanySettingsPage() {
           phone: data.phone ?? "",
           authorizedPhone: data.authorizedPhone ?? "",
           logo: data.logo ?? null,
+          letterheadImage: data.letterheadImage ?? null,
+          letterheadMode: data.letterheadMode === "background" ? "background" : "header",
           permitDate: data.permitDate ?? "",
           permitNumber: data.permitNumber ?? "",
           activityField: data.activityField ?? "",
@@ -116,6 +128,8 @@ export function CompanySettingsPage() {
         setPhone(next.phone);
         setAuthorizedPhone(next.authorizedPhone);
         setLogo(next.logo);
+        setLetterheadImage(next.letterheadImage);
+        setLetterheadMode(next.letterheadMode);
         setPermitDate(next.permitDate);
         setPermitNumber(next.permitNumber);
         setActivityField(next.activityField);
@@ -151,6 +165,25 @@ export function CompanySettingsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  async function handleLetterheadSelect(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Lütfen bir görsel dosyası seçin (PNG, JPG, SVG)");
+      return;
+    }
+    try {
+      const dataUrl = await readLetterheadFile(file);
+      setLetterheadImage(dataUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Antetli kağıt görseli yüklenemedi");
+    }
+  }
+
+  function handleRemoveLetterhead() {
+    setLetterheadImage(null);
+    if (letterheadInputRef.current) letterheadInputRef.current.value = "";
+  }
+
   async function handleSave() {
     if (!companyName.trim()) {
       toast.error("Firma adını girin");
@@ -172,6 +205,8 @@ export function CompanySettingsPage() {
           phone: phone.trim(),
           authorizedPhone: authorizedPhone.trim(),
           logo,
+          letterheadImage,
+          letterheadMode,
           permitDate: permitDate.trim(),
           permitNumber: permitNumber.trim(),
           activityField: activityField.trim(),
@@ -197,6 +232,8 @@ export function CompanySettingsPage() {
         phone: data.phone ?? "",
         authorizedPhone: data.authorizedPhone ?? "",
         logo: data.logo ?? null,
+        letterheadImage: data.letterheadImage ?? null,
+        letterheadMode: data.letterheadMode === "background" ? "background" : "header",
         permitDate: data.permitDate ?? "",
         permitNumber: data.permitNumber ?? "",
         activityField: data.activityField ?? "",
@@ -422,6 +459,89 @@ export function CompanySettingsPage() {
               </div>
               <p className="text-[11px] text-muted-foreground sm:col-span-2">
                 Adres ve telefon, EK-1 Biyosidal Ürün Uygulama İşlem Formu&apos;nda &quot;Uygulamayı Yapana Ait Bilgiler&quot; bölümüne otomatik yazılır.
+              </p>
+            </div>
+          </div>
+
+          <Button onClick={handleSave} loading={saving} className="w-fit">
+            <Save className="size-4" />
+            Kaydet
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <FileImage className="size-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Antetli Kağıt</p>
+              <p className="text-xs text-muted-foreground">
+                Rapor, teklif ve audit raporu gönderirken kullanılacak antetli kağıt görseliniz.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex shrink-0 flex-col items-center gap-2.5">
+              <div
+                className={cn(
+                  "flex h-28 w-40 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/30",
+                  letterheadImage && "border-solid border-primary/20 bg-white",
+                )}
+              >
+                {letterheadImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={letterheadImage} alt="Antetli kağıt" className="size-full object-contain p-1.5" />
+                ) : (
+                  <FileImage className="size-7 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" onClick={() => letterheadInputRef.current?.click()}>
+                  {letterheadImage ? "Değiştir" : "Görsel Yükle"}
+                </Button>
+                {letterheadImage && (
+                  <Button size="icon-sm" variant="outline" className="text-destructive hover:bg-destructive/10" onClick={handleRemoveLetterhead} aria-label="Antetli kağıdı kaldır">
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+              <input
+                ref={letterheadInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleLetterheadSelect(e.target.files?.[0])}
+              />
+              <p className="text-center text-[10px] text-muted-foreground">PNG, JPG veya SVG · maks. 8MB</p>
+            </div>
+
+            <div className="flex-1">
+              <Label className="mb-2">Kullanım Şekli</Label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {LETTERHEAD_MODE_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setLetterheadMode(o.value)}
+                    className={cn(
+                      "flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-colors",
+                      letterheadMode === o.value ? "border-primary bg-primary/5" : "border-border/60 hover:border-border",
+                    )}
+                  >
+                    <span className="flex w-full items-center justify-between text-xs font-medium text-foreground">
+                      {o.label}
+                      {letterheadMode === o.value && <CheckCircle2 className="size-3.5 text-primary" />}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">{o.description}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Görsel yüklenmezse belgeleriniz mevcut logo/firma adı başlığıyla oluşturulmaya devam eder.
               </p>
             </div>
           </div>
