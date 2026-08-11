@@ -40,7 +40,15 @@ export async function printCapaRaporu(rows: CapaRow[]) {
   .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #9a3412; margin: 0 0 3px; }
   .kpi-value { font-size: 13px; font-weight: 800; color: #7c2d12; margin: 0; }
   .overdue-tag { color: #dc2626; font-weight: 700; }
-  @media print { .gradient-banner, .kpi-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  .capa-detail-row td { background: #f8fafc; padding: 4px 10px 12px; border-bottom: 2px solid #eef1f5; }
+  .capa-detail-grid { display: flex; gap: 18px; font-size: 10.5px; }
+  .capa-detail-grid > div { flex: 1; }
+  .capa-detail-label { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #64748b; font-size: 9px; margin: 0 0 2px; }
+  .capa-detail-value { color: #334155; margin: 0; }
+  @media print {
+    .gradient-banner, .kpi-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .capa-detail-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>
@@ -81,6 +89,20 @@ export async function printCapaRaporu(rows: CapaRow[]) {
           <td>${escapeHtml(r.responsible)}</td>
           <td>${r.overdue ? `<span class="overdue-tag">${formatDate(r.dueDate)} (gecikti)</span>` : formatDate(r.dueDate)}</td>
           <td>${escapeHtml(STATUS_LABELS[r.status])}</td>
+        </tr>
+        <tr class="capa-detail-row">
+          <td colspan="6">
+            <div class="capa-detail-grid">
+              <div>
+                <p class="capa-detail-label">Kök Neden</p>
+                <p class="capa-detail-value">${escapeHtml(r.rootCause) || "—"}</p>
+              </div>
+              <div>
+                <p class="capa-detail-label">Aksiyon Planı</p>
+                <p class="capa-detail-value">${escapeHtml(r.actionPlan) || "—"}</p>
+              </div>
+            </div>
+          </td>
         </tr>`,
                 )
                 .join("")
