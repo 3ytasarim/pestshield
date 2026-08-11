@@ -6,16 +6,22 @@ export interface SignatureInfo {
   companyName: string | null;
   logoUrl: string | null;
   phone: string | null;
+  address: string | null;
 }
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 }
 
-/** Outlook benzeri otomatik imza — logo + isim/unvan + firma adı + telefon. Boş alanlar atlanır. */
+/** Outlook benzeri otomatik imza — logo + isim/unvan + firma adı + telefon + adres. Boş alanlar atlanır. */
 export function buildEmailSignatureHtml(info: SignatureInfo): string {
   const nameLine = [info.name, info.title].filter((v): v is string => !!v).map(escapeHtml).join(" — ");
-  const lines = [nameLine, info.companyName ? escapeHtml(info.companyName) : "", info.phone ? escapeHtml(info.phone) : ""].filter(Boolean);
+  const lines = [
+    nameLine,
+    info.companyName ? escapeHtml(info.companyName) : "",
+    info.phone ? escapeHtml(info.phone) : "",
+    info.address ? escapeHtml(info.address) : "",
+  ].filter(Boolean);
 
   const logo = info.logoUrl
     ? `<img src="${info.logoUrl}" alt="${info.companyName ? escapeHtml(info.companyName) : "Logo"}" style="max-height:56px;max-width:180px;display:block;margin-bottom:8px;" />`
@@ -30,5 +36,5 @@ ${logo}${lines.map((l) => `<div>${l}</div>`).join("\n")}
 
 export function buildEmailSignatureText(info: SignatureInfo): string {
   const nameLine = [info.name, info.title].filter(Boolean).join(" — ");
-  return [nameLine, info.companyName, info.phone].filter(Boolean).join("\n");
+  return [nameLine, info.companyName, info.phone, info.address].filter(Boolean).join("\n");
 }

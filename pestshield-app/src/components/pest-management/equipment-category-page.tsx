@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { UNIT_LABELS } from "@/components/inventory/inventory-labels";
 import { PestIcon } from "@/components/pest-management/pest-icon";
+import { PheromoneInfoCard } from "@/components/pest-management/pheromone-info-card";
 import {
   EQUIPMENT_CATEGORY_LABELS,
   getEquipmentByCategory,
@@ -48,6 +49,8 @@ export function EquipmentCategoryPage({ category, products }: EquipmentCategoryP
         <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">{EQUIPMENT_CATEGORY_LABELS[category]}</h1>
         <p className="max-w-xl text-sm text-muted-foreground">{CATEGORY_DESCRIPTIONS[category]}</p>
       </motion.div>
+
+      {category === "pheromone" && <PheromoneInfoCard />}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <CrmKpiCard label="Uygulama Rehberi" value={guides.length} description="Tanımlı kullanım rehberi" changePercent={4} icon={Layers} accent="blue" delay={0.05} />

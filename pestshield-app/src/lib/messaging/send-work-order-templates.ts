@@ -14,6 +14,7 @@ interface OwnerBrandingInfo {
   companyName: string | null;
   logoUrl: string | null;
   phone: string | null;
+  address: string | null;
 }
 
 function fillTemplate(text: string, vars: TemplateVariables): string {
@@ -86,6 +87,7 @@ export async function sendWorkOrderTemplates(
       companyName: owner.companyName,
       logoUrl: owner.logoUrl,
       phone: owner.phone,
+      address: [owner.address, owner.district, owner.city].filter(Boolean).join(", ") || null,
     };
 
     await Promise.all([
@@ -131,6 +133,7 @@ async function sendEmailTemplate(
         companyName: ownerBranding.companyName,
         logoUrl: ownerBranding.logoUrl,
         phone: ownerBranding.phone,
+        address: ownerBranding.address,
       })
     : "";
   const bodyHtml = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1e293b;white-space:pre-wrap;">${escapeHtml(body)}</div>${signatureHtml}`;

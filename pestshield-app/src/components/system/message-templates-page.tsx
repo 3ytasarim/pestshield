@@ -70,6 +70,9 @@ interface CompanyBrandingDTO {
   authorizedName: string;
   phone: string;
   logo: string | null;
+  address: string;
+  city: string;
+  district: string;
 }
 
 function EmailSignatureCard() {
@@ -156,6 +159,9 @@ function EmailSignatureCard() {
               {nameLine && <div>{nameLine}</div>}
               {branding?.companyName && <div>{branding.companyName}</div>}
               {branding?.phone && <div>{branding.phone}</div>}
+              {[branding?.address, branding?.district, branding?.city].filter(Boolean).join(", ") && (
+                <div>{[branding?.address, branding?.district, branding?.city].filter(Boolean).join(", ")}</div>
+              )}
             </div>
           </div>
         )}
