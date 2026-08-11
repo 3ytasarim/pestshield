@@ -2,7 +2,7 @@
 // yapısına birebir uygun, sade siyah-beyaz tablo görünümlü PDF çıktısı.
 
 import { formatDate, formatDateLong } from "@/components/crm/crm-format";
-import { escapeHtml, openPrintWindow } from "@/lib/pdf/shared";
+import { escapeHtml, footerBrandLabel, openPrintWindow } from "@/lib/pdf/shared";
 import type { Ek1Form, PeriyotOccurrence } from "@/lib/mock/crm";
 
 type Ek1PrintOccurrence = Pick<PeriyotOccurrence, "periodDate" | "startTime" | "endTime">;
@@ -108,7 +108,7 @@ export async function printEk1Form(form: Ek1PrintFormFields, occurrence: Ek1Prin
   <div class="note2">Bu form iki nüsha olarak hazırlanır ve bir nüshası uygulama yapılan yerin yetkililerine/sahibine verilmesi zorunludur.</div>
 
   <div class="footer">
-    <span>PestShield AI</span>
+    <span>${footerBrandLabel()}</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

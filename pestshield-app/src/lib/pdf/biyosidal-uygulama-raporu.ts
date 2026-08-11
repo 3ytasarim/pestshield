@@ -3,7 +3,7 @@
 // periyot ziyaretine bağlı olmayan, imza gerektirmeyen hızlı bir uygulama raporu.
 
 import { formatDate } from "@/components/crm/crm-format";
-import { escapeHtml, openPrintWindow } from "@/lib/pdf/shared";
+import { escapeHtml, footerBrandLabel, openPrintWindow } from "@/lib/pdf/shared";
 
 export interface BiyosidalRaporFormValues {
   uygulayanFirmaAdi: string;
@@ -110,7 +110,7 @@ export async function printBiyosidalUygulamaRaporu(form: BiyosidalRaporFormValue
   <div class="note">Not: ZEHİRLENME DURUMLARINDA GEREKTİĞİNDE ULUSAL ZEHİR DANIŞMA MERKEZİNİN (UZEM) 114 VE ACİL SAĞLIK HİZMETLERİNİN 112 NOLU TELEFONUNU ARAYINIZ.</div>
 
   <div class="footer">
-    <span>PestShield AI</span>
+    <span>${footerBrandLabel()}</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

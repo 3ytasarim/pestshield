@@ -12,7 +12,7 @@
 // kullanıcıyla mutabık kalınarak kapsam dışı bırakılmıştır.
 
 import { formatDate } from "@/components/crm/crm-format";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow } from "@/lib/pdf/shared";
 import { CHART_STYLES, renderLineChartSvg, renderStackedBarChartSvg, type ChartSeries } from "@/lib/pdf/chart-svg";
 import { getCompanySettings } from "@/lib/company-settings";
 import type { RiskyStationRow, TrendAnalysis } from "@/lib/trend-analysis";
@@ -406,7 +406,7 @@ export async function printTrendAnalysisReport(analysis: TrendAnalysis, customer
   </div>
 
   <div class="footer">
-    <span>PestShield — Trend Analiz Raporu</span>
+    <span>${footerBrandLabel()} — Trend Analiz Raporu</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

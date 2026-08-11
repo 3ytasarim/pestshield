@@ -2,7 +2,7 @@
 // ve gecikme bilgisini özetleyen denetim raporu.
 
 import { formatDate } from "@/components/crm/crm-format";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 import type { CapaRow } from "@/lib/audit-report-data";
 
 const SEVERITY_LABELS: Record<CapaRow["severity"], string> = {
@@ -91,7 +91,7 @@ export async function printCapaRaporu(rows: CapaRow[]) {
   </div>
 
   <div class="footer">
-    <span>PestShield AI — CAPA Durum Raporu</span>
+    <span>${footerBrandLabel()} — Düzeltici Önleyici Faaliyet Raporu</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

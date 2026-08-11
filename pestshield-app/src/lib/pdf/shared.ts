@@ -5,6 +5,11 @@ export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 }
 
+/** Rapor footer'larında kullanılan marka adı — her zaman firmanın kendi adı, asla sabit "PestShield" değil. */
+export function footerBrandLabel(): string {
+  return escapeHtml(getCompanySettings().companyName);
+}
+
 export const LETTERHEAD_STYLES = `
   @page { size: A4; margin: 16mm 14mm; }
   * { box-sizing: border-box; }
@@ -72,19 +77,20 @@ interface LetterheadOptions {
   docDate?: string;
 }
 
-/** Belgenin üst kısmı: soldaki firma logosu/adı (Şirket Ayarları'ndan), sağdaki belge başlığı/no. */
+/**
+ * Belgenin üst kısmı: soldaki firma logosu/adı (Şirket Ayarları'ndan), sağdaki belge başlığı/no.
+ * Firma kendi logosunu/adını girmemişse HİÇBİR marka fallback'i kullanılmaz (her kiracı kendi
+ * markasıyla çalışır — PestShield'ın kendi logosuna düşmek yanlış marka izlenimi verir).
+ */
 export function renderLetterhead({ docTitle, docNo, docDate }: LetterheadOptions): string {
   const company = getCompanySettings();
-  const logo = company.logo
-    ? `<img src="${company.logo}" alt="Logo" />`
-    : `<img src="${typeof window !== "undefined" ? window.location.origin : ""}/logo-icon.png" alt="PestShield" onerror="this.style.display='none'" />`;
+  const logo = company.logo ? `<img src="${company.logo}" alt="Logo" />` : "";
   return `
   <div class="letterhead">
     <div class="brand-block">
       ${logo}
       <div>
-        <div class="brand-name">${escapeHtml(company.companyName || "PestShield")}</div>
-        <div class="brand-tagline">Haşere Yönetim &amp; Denetim Platformu</div>
+        <div class="brand-name">${escapeHtml(company.companyName)}</div>
       </div>
     </div>
     <div class="doc-meta">
@@ -103,7 +109,7 @@ export function renderSignatures(customerName: string): string {
     : "";
   return `
   <div class="signatures">
-    <div class="signature-box"><div class="signature-line">Düzenleyen — ${escapeHtml(company.companyName || "PestShield")}${authorizedLine}</div></div>
+    <div class="signature-box"><div class="signature-line">Düzenleyen — ${escapeHtml(company.companyName)}${authorizedLine}</div></div>
     <div class="signature-box"><div class="signature-line">Yetkili İmza / Kaşe — ${escapeHtml(customerName)}</div></div>
   </div>`;
 }

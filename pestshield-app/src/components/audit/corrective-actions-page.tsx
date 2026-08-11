@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
-import { AlertOctagon, CheckCircle2, ClipboardCheck, Clock, Plus, Search } from "lucide-react";
+import { AlertOctagon, CheckCircle2, ClipboardCheck, Clock, FileText, Mail, Plus, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import {
   type CapaStatus,
   type CorrectiveAction,
 } from "@/lib/mock/audit";
+import { getCapaRows } from "@/lib/audit-report-data";
+import { printCapaRaporu } from "@/lib/pdf/capa-report";
 import type { CapaFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +77,27 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
     toast.success("Durum güncellendi");
   }
 
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+
+  function viewReport(capa: CorrectiveAction) {
+    printCapaRaporu(getCapaRows([capa], customers));
+  }
+
+  async function sendEmail(capa: CorrectiveAction) {
+    setSendingEmailId(capa.id);
+    try {
+      const res = await fetch(`/api/audit/corrective-actions/${capa.id}/send-email`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.message ?? "Mail gönderilemedi");
+        return;
+      }
+      toast.success("Mail gönderildi");
+    } finally {
+      setSendingEmailId(null);
+    }
+  }
+
   async function handleCreate(values: CapaFormValues) {
     const res = await fetch("/api/audit/corrective-actions", {
       method: "POST",
@@ -99,7 +122,7 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex flex-col gap-1.5">
-          <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Düzeltici Faaliyetler</h1>
+          <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Düzeltici Önleyici Faaliyetler</h1>
           <p className="max-w-xl text-sm text-muted-foreground">Denetim bulguları ve uygunsuzluklar için CAPA takibi.</p>
         </div>
         <Button onClick={() => setFormOpen(true)}>
@@ -239,11 +262,27 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
                         <span className={cn("font-medium", overdue ? "text-destructive" : "text-foreground")}>{formatDate(capa.dueDate)}</span>
                         {capa.resolvedDate && <> · Çözüm: {formatDate(capa.resolvedDate)}</>}
                       </p>
-                      {!isDone && (
-                        <Button size="sm" variant="outline" onClick={() => advanceStatus(capa.id)}>
-                          Sonraki Aşamaya Geçir
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Button size="sm" variant="outline" startContent={<FileText className="size-3.5" aria-hidden="true" />} onClick={() => viewReport(capa)}>
+                          Raporu Görüntüle
                         </Button>
-                      )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          startContent={<Mail className="size-3.5" aria-hidden="true" />}
+                          loading={sendingEmailId === capa.id}
+                          disabled={!capa.customerId}
+                          title={!capa.customerId ? "Bu kayıt bir müşteriye bağlı değil" : undefined}
+                          onClick={() => sendEmail(capa)}
+                        >
+                          Mail Gönder
+                        </Button>
+                        {!isDone && (
+                          <Button size="sm" variant="outline" onClick={() => advanceStatus(capa.id)}>
+                            Sonraki Aşamaya Geçir
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

@@ -190,7 +190,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: "BRCGS", href: "/dashboard/client/brcgs", icon: Award },
         { label: "ISO 22000", href: "/dashboard/client/iso-22000", icon: BadgeCheck },
         { label: "FSSC", href: "/dashboard/client/fssc", icon: FileCheck },
-        { label: "Düzeltici Faaliyetler", href: "/dashboard/client/corrective-actions", icon: ShieldAlert },
+        { label: "Düzeltici Önleyici Faaliyetler", href: "/dashboard/client/corrective-actions", icon: ShieldAlert },
         { label: "Risk Yönetimi", href: "/dashboard/client/risk-management", icon: AlertOctagon },
       ],
     },

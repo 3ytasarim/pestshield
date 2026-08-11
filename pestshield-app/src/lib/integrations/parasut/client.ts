@@ -34,6 +34,8 @@ export interface ParasutContact {
   district: string;
   phone: string;
   fax: string;
+  /** Müşterinin firmaya olan borcu (Paraşüt "Alacak Bakiyesi") — aynı contacts response'unda gelir, ayrı bir istek gerekmez. */
+  tradeReceivableBalance: number;
 }
 
 export class ParasutApiError extends Error {
@@ -116,18 +118,19 @@ async function listContactsPage(accessToken: string, companyId: string, page: nu
   if (!res.ok) {
     throw new ParasutApiError(data?.errors?.[0]?.detail ?? "Paraşüt müşteri listesi alınamadı.", res.status);
   }
-  const items: Array<{ id: string; attributes: Record<string, string | null> }> = data?.data ?? [];
+  const items: Array<{ id: string; attributes: Record<string, string | number | null> }> = data?.data ?? [];
   const contacts = items.map((item) => ({
     id: item.id,
-    name: item.attributes.name ?? "",
-    address: item.attributes.address ?? "",
-    taxNumber: item.attributes.tax_number ?? "",
-    taxOffice: item.attributes.tax_office ?? "",
-    email: item.attributes.email ?? "",
-    city: item.attributes.city ?? "",
-    district: item.attributes.district ?? "",
-    phone: item.attributes.phone ?? "",
-    fax: item.attributes.fax ?? "",
+    name: String(item.attributes.name ?? ""),
+    address: String(item.attributes.address ?? ""),
+    taxNumber: String(item.attributes.tax_number ?? ""),
+    taxOffice: String(item.attributes.tax_office ?? ""),
+    email: String(item.attributes.email ?? ""),
+    city: String(item.attributes.city ?? ""),
+    district: String(item.attributes.district ?? ""),
+    phone: String(item.attributes.phone ?? ""),
+    fax: String(item.attributes.fax ?? ""),
+    tradeReceivableBalance: Number(item.attributes.trade_receivable_balance ?? 0),
   }));
   return { contacts, totalPages: data?.meta?.total_pages ?? 1 };
 }

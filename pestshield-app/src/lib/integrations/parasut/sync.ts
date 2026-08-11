@@ -45,6 +45,8 @@ function mapContactToCustomerFields(contact: ParasutContact) {
     district: contact.district,
     contactPhone: contact.phone,
     fax: contact.fax,
+    /// Paraşüt'teki güncel kalan borç bakiyesi — Cari Hesap/Tahsilatlar ekranlarında gösterilen pendingCollection'ı besler.
+    pendingCollection: contact.tradeReceivableBalance,
   };
 }
 

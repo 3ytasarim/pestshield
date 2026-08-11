@@ -2,7 +2,7 @@
 // başlangıç/bitiş saatleri, çalışma süresi ve saha rotası özetini içeren rapor.
 
 import { formatDate } from "@/components/crm/crm-format";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 
 export interface PdksRow {
   workdayId: string;
@@ -129,7 +129,7 @@ export async function printPdksReport(
   </div>
 
   <div class="footer">
-    <span>PestShield AI — PDKS Personel Çalışma Saatleri Raporu</span>
+    <span>${footerBrandLabel()} — PDKS Personel Çalışma Saatleri Raporu</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

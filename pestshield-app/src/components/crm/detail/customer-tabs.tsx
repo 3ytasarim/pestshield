@@ -50,7 +50,7 @@ const TAB_ITEMS = [
   { value: "files", label: "Dosyalar", icon: FileText },
   { value: "notes", label: "Notlar", icon: StickyNote },
   { value: "account", label: "Cari Hesap", icon: Wallet },
-  { value: "audit", label: "Audit", icon: ShieldCheck },
+  { value: "audit", label: "DÖF", icon: ShieldCheck },
   { value: "ai-insights", label: "AI İçgörüleri", icon: Sparkles },
 ];
 
@@ -116,7 +116,7 @@ export function CustomerTabs({ customer, value, onValueChange }: CustomerTabsPro
         <CurrentAccountTab customerId={customer.id} />
       </TabsContent>
       <TabsContent value="audit" className="mt-4">
-        <AuditTab />
+        <AuditTab customerId={customer.id} customerName={customer.companyName} />
       </TabsContent>
       <TabsContent value="ai-insights" className="mt-4 max-w-2xl">
         <div className="flex flex-col gap-4">

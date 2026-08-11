@@ -2,7 +2,7 @@
 // gerçekleşen tüm tahsilatların (nakit/kart/havale) dökümü.
 
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 import { PAYMENT_METHOD_LABELS } from "@/components/finance/finance-labels";
 import type { LedgerEntry } from "@/lib/mock/finance";
 
@@ -99,7 +99,7 @@ export async function printTahsilatRaporu(rows: TahsilatReportRow[], dateRangeLa
   </div>
 
   <div class="footer">
-    <span>PestShield AI — Tahsilat Raporu</span>
+    <span>${footerBrandLabel()} — Tahsilat Raporu</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

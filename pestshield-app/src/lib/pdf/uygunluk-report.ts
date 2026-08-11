@@ -2,7 +2,7 @@
 // maddelerinin uygunluk durumunu özetleyen denetim raporu.
 
 import { formatDate } from "@/components/crm/crm-format";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 import { STANDARD_LABELS } from "@/lib/audit-report-data";
 import type { ChecklistItem } from "@/lib/mock/audit";
 
@@ -83,7 +83,7 @@ export async function printUygunlukRaporu(rows: ChecklistItem[], standardLabel: 
   </div>
 
   <div class="footer">
-    <span>PestShield AI — Uygunluk Durum Raporu</span>
+    <span>${footerBrandLabel()} — Uygunluk Durum Raporu</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

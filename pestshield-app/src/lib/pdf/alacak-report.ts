@@ -2,7 +2,7 @@
 // (gecikmiş/gecikmemiş, gecikme gün sayısı) tek tabloda özetleyen yaşlandırma raporu.
 
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 
 export interface AlacakReportRow {
   customerName: string;
@@ -92,7 +92,7 @@ export async function printAlacakRaporu(rows: AlacakReportRow[]) {
   </div>
 
   <div class="footer">
-    <span>PestShield AI — Alacak / Vade Raporu</span>
+    <span>${footerBrandLabel()} — Alacak / Vade Raporu</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

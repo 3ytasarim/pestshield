@@ -102,7 +102,7 @@ export function CapaReportPage({ initialCapas, customers }: CapaReportPageProps)
 
           <Card className="min-w-0 gap-0 overflow-hidden rounded-2xl border-border/60 py-0 shadow-sm">
             <CardHeader className="flex-row items-center justify-between gap-2 border-b border-border/60 bg-muted/30 px-4 py-3.5">
-              <span className="text-sm font-semibold text-foreground">Düzeltici Faaliyetler</span>
+              <span className="text-sm font-semibold text-foreground">Düzeltici Önleyici Faaliyetler</span>
               <Button variant="outline" size="sm" loading={printing} onClick={handlePrint}>
                 <Printer className="size-3.5" />
                 Yazdır / PDF

@@ -21,7 +21,7 @@ export function AiCorrectiveActionList({ correctiveActions }: { correctiveAction
           </li>
         ))}
       </ul>
-      <AiNavigationAction action={{ label: "Düzeltici Faaliyetler'de Aç", href: AI_ROUTES.correctiveActions() }} />
+      <AiNavigationAction action={{ label: "Düzeltici Önleyici Faaliyetler'de Aç", href: AI_ROUTES.correctiveActions() }} />
     </div>
   );
 }

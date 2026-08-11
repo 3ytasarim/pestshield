@@ -6,7 +6,7 @@
 // diğer raporlarla tutarlıdır).
 
 import { formatDate } from "@/components/crm/crm-format";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 import type { AiChartSpec, AiDataQuality, AiExecutiveSummaryData, AiKpiItem, AiMetricDelta, AiRiskDistributionSlice } from "@/lib/ai/types";
 
 /** Bu üretici sadece bu alanları kullanır — hem canlı rapor hem de persist edilmiş rapor geçmişi aynı şekli üretebilir. */
@@ -133,7 +133,7 @@ ${LETTERHEAD_STYLES}
   <div class="footer">
     <span>Rapor No: ${reportNo}</span>
     <span>Oluşturma: ${formatDate(new Date().toISOString())}</span>
-    <span>PestShield AI Command Center — İç kullanım içindir</span>
+    <span>${footerBrandLabel()} — İç kullanım içindir</span>
   </div>
 </body>
 </html>`;

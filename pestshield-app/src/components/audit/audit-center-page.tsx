@@ -192,7 +192,7 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
 
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Son Düzeltici Faaliyetler</h2>
+            <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Son Düzeltici Önleyici Faaliyetler</h2>
             <Link href="/dashboard/client/corrective-actions" className="text-xs font-medium text-primary hover:underline">
               Tümünü Gör
             </Link>

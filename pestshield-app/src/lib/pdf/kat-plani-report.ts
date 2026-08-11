@@ -3,7 +3,7 @@
 
 import { formatDate } from "@/components/crm/crm-format";
 import { KROKI_STATION_TYPES, stationLabel } from "@/components/crm/kroki-constants";
-import { LETTERHEAD_STYLES, escapeHtml, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
+import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 import { statusSummary, type StationReportRow } from "@/lib/kat-plani-report-data";
 import type { Customer, KrokiSketch } from "@/lib/mock/crm";
 
@@ -103,7 +103,7 @@ export async function printKatPlaniIstasyonRaporu(
   ${rowsHtml()}
 
   <div class="footer">
-    <span>PestShield AI — Kat Planı İstasyon Raporu</span>
+    <span>${footerBrandLabel()} — Kat Planı İstasyon Raporu</span>
     <span>Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</span>
   </div>
 </body>

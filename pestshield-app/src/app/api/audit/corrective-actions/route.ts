@@ -5,11 +5,15 @@ import { capaFormSchema } from "@/lib/validations/audit";
 import { serializeCorrectiveAction } from "@/lib/audit/serialize";
 import { todayStr } from "@/lib/date-utils";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { ownerId, error } = await requireClientOwner();
   if (error) return error;
 
-  const capas = await prisma.correctiveAction.findMany({ where: { ownerId }, orderBy: { createdDate: "desc" } });
+  const customerId = new URL(request.url).searchParams.get("customerId");
+  const capas = await prisma.correctiveAction.findMany({
+    where: { ownerId, ...(customerId ? { customerId } : {}) },
+    orderBy: { createdDate: "desc" },
+  });
   return NextResponse.json({ capas: capas.map(serializeCorrectiveAction) });
 }
 

@@ -111,6 +111,7 @@ describe("parasutClient.listAllContacts", () => {
                 district: "Kadıköy",
                 phone: "05551112233",
                 fax: "02121112233",
+                trade_receivable_balance: 1500.5,
               },
             },
           ],
@@ -133,6 +134,7 @@ describe("parasutClient.listAllContacts", () => {
         district: "Kadıköy",
         phone: "05551112233",
         fax: "02121112233",
+        tradeReceivableBalance: 1500.5,
       },
     ]);
   });
