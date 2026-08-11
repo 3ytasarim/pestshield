@@ -47,7 +47,15 @@ export async function printRiskRaporu(rows: RiskRow[]) {
   .kpi-box { flex: 1; min-width: 130px; border-radius: 10px; padding: 11px 13px; background: #fef2f2; border: 1px solid #fecaca; }
   .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #991b1b; margin: 0 0 3px; }
   .kpi-value { font-size: 13px; font-weight: 800; color: #7f1d1d; margin: 0; }
-  @media print { .gradient-banner, .kpi-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  .risk-detail-row td { background: #f8fafc; padding: 4px 10px 12px; border-bottom: 2px solid #eef1f5; }
+  .risk-detail-grid { display: flex; gap: 18px; font-size: 10.5px; }
+  .risk-detail-grid > div { flex: 1; }
+  .risk-detail-label { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #64748b; font-size: 9px; margin: 0 0 2px; }
+  .risk-detail-value { color: #334155; margin: 0; }
+  @media print {
+    .gradient-banner, .kpi-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .risk-detail-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>
@@ -90,6 +98,20 @@ export async function printRiskRaporu(rows: RiskRow[]) {
           <td>${escapeHtml(r.owner)}</td>
           <td>${formatDate(r.reviewDate)}</td>
           <td>${escapeHtml(STATUS_LABELS[r.status])}</td>
+        </tr>
+        <tr class="risk-detail-row">
+          <td colspan="7">
+            <div class="risk-detail-grid">
+              <div>
+                <p class="risk-detail-label">Açıklama</p>
+                <p class="risk-detail-value">${escapeHtml(r.description) || "—"}</p>
+              </div>
+              <div>
+                <p class="risk-detail-label">Önlem</p>
+                <p class="risk-detail-value">${escapeHtml(r.mitigation) || "—"}</p>
+              </div>
+            </div>
+          </td>
         </tr>`,
                 )
                 .join("")

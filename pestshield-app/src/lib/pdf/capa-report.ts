@@ -1,4 +1,4 @@
-// "CAPA Durum Raporu" — düzeltici/önleyici faaliyetlerin durumu, önceliği
+// "Düzeltici Önleyici Faaliyet Raporu" — düzeltici/önleyici faaliyetlerin durumu, önceliği
 // ve gecikme bilgisini özetleyen denetim raporu.
 
 import { formatDate } from "@/components/crm/crm-format";
@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<CapaRow["status"], string> = {
 };
 
 export async function printCapaRaporu(rows: CapaRow[]) {
-  const reportNo = `CAPA-${Date.now().toString().slice(-8)}`;
+  const reportNo = `DOF-${Date.now().toString().slice(-8)}`;
   const overdueCount = rows.filter((r) => r.overdue).length;
   const criticalCount = rows.filter((r) => r.severity === "critical").length;
   const openCount = rows.filter((r) => r.status === "open" || r.status === "in_progress").length;
@@ -29,7 +29,7 @@ export async function printCapaRaporu(rows: CapaRow[]) {
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<title>CAPA Durum Raporu</title>
+<title>Düzeltici Önleyici Faaliyet Raporu</title>
 <style>
   ${LETTERHEAD_STYLES}
   .gradient-banner { margin-top: 22px; border-radius: 14px; padding: 16px 20px; background: linear-gradient(135deg, #b45309, #dc2626); color: #fff; }
@@ -52,7 +52,7 @@ export async function printCapaRaporu(rows: CapaRow[]) {
 </style>
 </head>
 <body>
-  ${renderLetterhead({ docTitle: "CAPA Durum Raporu", docNo: reportNo, docDate: new Date().toISOString() })}
+  ${renderLetterhead({ docTitle: "Düzeltici Önleyici Faaliyet Raporu", docNo: reportNo, docDate: new Date().toISOString() })}
 
   <div class="gradient-banner">
     <div class="g-title">Düzeltici / Önleyici Faaliyet Özeti</div>

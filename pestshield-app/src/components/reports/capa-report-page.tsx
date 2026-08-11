@@ -61,7 +61,7 @@ export function CapaReportPage({ initialCapas, customers }: CapaReportPageProps)
       >
         <h1 className="flex items-center gap-2 text-[2rem] leading-tight font-semibold tracking-tight text-foreground">
           <ClipboardList className="size-7 text-primary" />
-          CAPA Durum Raporu
+          Düzeltici Önleyici Faaliyet Raporu
         </h1>
         <p className="max-w-xl text-sm text-muted-foreground">
           Düzeltici/Önleyici Faaliyetlerin durumu, önceliği ve vade takibi — açık ve gecikmiş faaliyetleri tek bakışta görün.

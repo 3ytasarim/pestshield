@@ -27,7 +27,7 @@ const REPORTS: ReportCardDef[] = [
   {
     href: "/dashboard/client/reports/audit/capa",
     icon: ClipboardList,
-    title: "CAPA Durum Raporu",
+    title: "Düzeltici Önleyici Faaliyet Raporu",
     description: "Düzeltici/Önleyici Faaliyetlerin durumu, önceliği ve vade takibi.",
     accent: "amber",
   },
