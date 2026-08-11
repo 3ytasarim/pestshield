@@ -36,7 +36,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       await tx.krokiStation.deleteMany({ where: { krokiSketchId: id } });
       if (stations.length > 0) {
         await tx.krokiStation.createMany({
-          data: stations.map((s) => ({ ownerId, krokiSketchId: id, type: s.type, x: s.x, y: s.y, stationId: s.stationId })),
+          data: stations.map((s) => ({ ownerId, krokiSketchId: id, type: s.type, x: s.x, y: s.y, stationId: s.stationId, number: s.number ?? null })),
         });
       }
     }

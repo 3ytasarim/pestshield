@@ -8,6 +8,7 @@ const krokiStationSchema = z.object({
   x: z.number(),
   y: z.number(),
   stationId: z.string().default(""),
+  number: z.number().nullable().optional(),
 });
 
 export const createKrokiSketchSchema = z.object({

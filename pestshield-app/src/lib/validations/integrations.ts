@@ -43,6 +43,13 @@ export const smtpConnectSchema = z.object({
 
 export type SmtpConnectValues = z.infer<typeof smtpConnectSchema>;
 
+export const smtpSignatureSchema = z.object({
+  signatureEnabled: z.boolean(),
+  signatureTitle: z.string().optional(),
+});
+
+export type SmtpSignatureValues = z.infer<typeof smtpSignatureSchema>;
+
 export const whatsAppConnectSchema = z.object({
   accessToken: z.string().min(1, "Erişim jetonu (access token) zorunludur"),
   phoneNumberId: z.string().min(1, "Telefon Numarası ID'si zorunludur"),

@@ -246,6 +246,7 @@ export interface KrokiStation {
   x: number;
   y: number;
   stationId: string;
+  number: number | null;
 }
 
 export interface KrokiSketch {

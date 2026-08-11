@@ -7,6 +7,8 @@ export interface ResolvedSmtpTransport {
   transporter: nodemailer.Transporter;
   fromName: string | null;
   fromEmail: string;
+  signatureEnabled: boolean;
+  signatureTitle: string | null;
 }
 
 /** Kiracı başına DB'de şifreli saklanan SMTP ayarlarından bir nodemailer transporter kurar; yapılandırılmamışsa `null` döner. */
@@ -25,5 +27,11 @@ export async function getSmtpTransport(ownerId: string): Promise<ResolvedSmtpTra
     connectionTimeout: 10_000,
   });
 
-  return { transporter, fromName: integration.fromName, fromEmail: integration.fromEmail };
+  return {
+    transporter,
+    fromName: integration.fromName,
+    fromEmail: integration.fromEmail,
+    signatureEnabled: integration.signatureEnabled,
+    signatureTitle: integration.signatureTitle,
+  };
 }

@@ -155,6 +155,21 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
     setTab("duzenle");
   }
 
+  /** Diğer krokilerdeki (aynı hizmet siparişindeki) en yüksek istasyon numarasını/sayısını bulur —
+   * yeni yerleştirilen istasyonlar buradan devam etsin diye (bkz. kroki-constants.ts numberStations). */
+  function siblingOffset(sketch: KrokiSketch | null): number {
+    if (!sketch) return 0;
+    let max = 0;
+    for (const sk of sketches) {
+      if (sk.id === sketch.id) continue;
+      max = Math.max(max, sk.stations.length);
+      for (const s of sk.stations) {
+        if (s.number != null) max = Math.max(max, s.number);
+      }
+    }
+    return max;
+  }
+
   async function handlePrintKatPlani(sketch: KrokiSketch) {
     if (!serviceOrderId || !customerId) return;
     const customerRes = await fetch(`/api/crm/customers/${customerId}`);
@@ -345,7 +360,12 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
 
           {editingSketch ? (
             <TabsContent value="duzenle" className="mt-4">
-              <KrokiEditor sketch={editingSketch} onCancel={() => { setEditingSketch(null); setTab("listele"); }} onSave={handleEditorSave} />
+              <KrokiEditor
+                sketch={editingSketch}
+                startOffset={siblingOffset(editingSketch)}
+                onCancel={() => { setEditingSketch(null); setTab("listele"); }}
+                onSave={handleEditorSave}
+              />
             </TabsContent>
           ) : (
             <TabsContent value="ekle" className="mt-4">
@@ -399,6 +419,7 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
       open={!!stationIdSketch}
       onOpenChange={(o) => !o && setStationIdSketch(null)}
       sketch={stationIdSketch}
+      startOffset={siblingOffset(stationIdSketch)}
       onSave={handleStationIdSave}
     />
     </>
@@ -436,11 +457,12 @@ export function downloadKroki(sketch: KrokiSketch) {
 
 interface KrokiEditorProps {
   sketch: KrokiSketch;
+  startOffset: number;
   onCancel: () => void;
   onSave: (updated: KrokiSketch) => void;
 }
 
-function KrokiEditor({ sketch, onCancel, onSave }: KrokiEditorProps) {
+function KrokiEditor({ sketch, startOffset, onCancel, onSave }: KrokiEditorProps) {
   const [name, setName] = useState(sketch.name);
   const [date, setDate] = useState(sketch.createdDate);
   const [stations, setStations] = useState<KrokiStation[]>(sketch.stations);
@@ -465,7 +487,7 @@ function KrokiEditor({ sketch, onCancel, onSave }: KrokiEditorProps) {
     if (!placementMode || draggingId) return;
     const coords = coordsFromEvent(e);
     if (!coords) return;
-    setStations((prev) => [...prev, { id: `station-${Date.now()}`, type: placementMode, stationId: "", ...coords }]);
+    setStations((prev) => [...prev, { id: `station-${Date.now()}`, type: placementMode, stationId: "", number: null, ...coords }]);
     if (!continuous) setPlacementMode(null);
   }
 
@@ -500,7 +522,7 @@ function KrokiEditor({ sketch, onCancel, onSave }: KrokiEditorProps) {
     setPlacementMode((prev) => (prev === type ? null : type));
   }
 
-  const stationNumbering = numberStations(stations);
+  const stationNumbering = numberStations(stations, startOffset);
 
   return (
     <div className="flex flex-col gap-3">
@@ -660,7 +682,15 @@ function KrokiEditor({ sketch, onCancel, onSave }: KrokiEditorProps) {
         <Button
           type="button"
           onClick={() =>
-            onSave({ ...sketch, name: name.trim() || sketch.name, createdDate: date, stations, stationSize, heatMapEnabled, layerVisibility })
+            onSave({
+              ...sketch,
+              name: name.trim() || sketch.name,
+              createdDate: date,
+              stations: stations.map((s) => ({ ...s, number: stationNumbering.get(s.id) ?? s.number })),
+              stationSize,
+              heatMapEnabled,
+              layerVisibility,
+            })
           }
         >
           Kaydet

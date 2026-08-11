@@ -65,6 +65,110 @@ const STATUS_STYLES: Record<string, string> = {
   skipped_not_configured: "bg-muted text-muted-foreground border-border",
 };
 
+interface CompanyBrandingDTO {
+  companyName: string;
+  authorizedName: string;
+  phone: string;
+  logo: string | null;
+}
+
+function EmailSignatureCard() {
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [signatureEnabled, setSignatureEnabled] = useState(true);
+  const [signatureTitle, setSignatureTitle] = useState("");
+  const [branding, setBranding] = useState<CompanyBrandingDTO | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [smtpRes, brandingRes] = await Promise.all([
+          fetch("/api/integrations/smtp"),
+          fetch("/api/account/company-settings"),
+        ]);
+        const smtpData = smtpRes.ok ? await smtpRes.json() : null;
+        const brandingData = brandingRes.ok ? await brandingRes.json() : null;
+        setConnected(!!smtpData?.connected);
+        setSignatureEnabled(smtpData?.signatureEnabled ?? true);
+        setSignatureTitle(smtpData?.signatureTitle ?? "");
+        setBranding(brandingData ?? null);
+      } catch {
+        setConnected(false);
+      }
+    })();
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/integrations/smtp/signature", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signatureEnabled, signatureTitle }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "İmza ayarları kaydedilemedi");
+        return;
+      }
+      toast.success("İmza ayarları kaydedildi");
+    } catch {
+      toast.error("İmza ayarları kaydedilemedi — sunucuya ulaşılamadı");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (connected === false) {
+    return (
+      <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+        <CardContent className="flex items-start gap-2 text-xs text-muted-foreground">
+          <Info className="mt-0.5 size-3.5 shrink-0" />
+          Otomatik imza için önce Entegrasyonlar sayfasından SMTP bağlantınızı kurmanız gerekiyor.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const nameLine = [branding?.authorizedName, signatureTitle].filter(Boolean).join(" — ");
+
+  return (
+    <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex items-center justify-between rounded-xl border border-border/60 p-3.5">
+          <div>
+            <Label className="mb-0.5">Otomatik İmza</Label>
+            <p className="text-xs text-muted-foreground">Açıksa logonuz, adınız ve firma bilgileriniz her mailin altına otomatik eklenir.</p>
+          </div>
+          <Switch checked={signatureEnabled} onCheckedChange={setSignatureEnabled} />
+        </div>
+
+        <div className="max-w-xs">
+          <Label className="mb-1.5">Unvan (opsiyonel)</Label>
+          <Input value={signatureTitle} onChange={(e) => setSignatureTitle(e.target.value)} placeholder="Genel Müdür" className="h-11 rounded-xl px-3.5" />
+        </div>
+
+        {signatureEnabled && (
+          <div>
+            <Label className="mb-1.5 text-xs text-muted-foreground">Önizleme</Label>
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-xs text-foreground/80">
+              {branding?.logo && <img src={branding.logo} alt={branding.companyName || "Logo"} className="mb-2 max-h-14 max-w-[180px] object-contain" />}
+              {nameLine && <div>{nameLine}</div>}
+              {branding?.companyName && <div>{branding.companyName}</div>}
+              {branding?.phone && <div>{branding.phone}</div>}
+            </div>
+          </div>
+        )}
+
+        <Button onClick={handleSave} loading={saving} className="w-fit">
+          <Save className="size-4" />
+          İmzayı Kaydet
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ChannelForm({ channel, template, onSaved }: { channel: Channel; template: MessageTemplateDTO | null; onSaved: (t: MessageTemplateDTO) => void }) {
   const [isActive, setIsActive] = useState(template?.isActive ?? true);
   const [subject, setSubject] = useState(template?.subject ?? "");
@@ -262,8 +366,9 @@ export function MessageTemplatesPage() {
               WhatsApp
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="email">
+          <TabsContent value="email" className="flex flex-col gap-4">
             <ChannelForm channel="email" template={emailTemplate} onSaved={handleSaved} />
+            <EmailSignatureCard />
           </TabsContent>
           <TabsContent value="whatsapp">
             <ChannelForm channel="whatsapp" template={whatsappTemplate} onSaved={handleSaved} />

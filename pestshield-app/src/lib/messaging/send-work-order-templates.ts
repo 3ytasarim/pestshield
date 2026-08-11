@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { getSmtpTransport } from "@/lib/mail/get-smtp-transport";
+import { buildEmailSignatureHtml } from "@/lib/mail/build-signature";
 import { getWhatsAppProvider } from "@/lib/whatsapp/get-whatsapp-provider";
 import { toE164, isValidE164 } from "@/lib/whatsapp/phone-normalizer";
 import { formatDate } from "@/components/crm/crm-format";
@@ -8,8 +9,19 @@ import type { MessageTemplateChannel, MessageTemplateTrigger } from "@/generated
 
 type TemplateVariables = Record<string, string>;
 
+interface OwnerBrandingInfo {
+  name: string | null;
+  companyName: string | null;
+  logoUrl: string | null;
+  phone: string | null;
+}
+
 function fillTemplate(text: string, vars: TemplateVariables): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => vars[key] ?? "");
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 }
 
 /** Meta template'leri pozisyonel ({{1}}, {{2}}, ...) olduğundan, değişkenleri şablon metnindeki GÖRÜNME SIRASIYLE çıkarır. */
@@ -69,8 +81,15 @@ export async function sendWorkOrderTemplates(
       firmaTelefon: owner.phone ?? "",
     };
 
+    const ownerBranding: OwnerBrandingInfo = {
+      name: owner.name,
+      companyName: owner.companyName,
+      logoUrl: owner.logoUrl,
+      phone: owner.phone,
+    };
+
     await Promise.all([
-      sendEmailTemplate(ownerId, order.id, order.customer.contactEmail, trigger, vars),
+      sendEmailTemplate(ownerId, order.id, order.customer.contactEmail, trigger, vars, ownerBranding),
       sendWhatsAppTemplate(ownerId, order.id, order.customer.contactPhone, trigger, vars),
     ]);
   } catch {
@@ -84,6 +103,7 @@ async function sendEmailTemplate(
   contactEmail: string,
   trigger: MessageTemplateTrigger,
   vars: TemplateVariables,
+  ownerBranding: OwnerBrandingInfo,
 ) {
   const template = await prisma.messageTemplate.findUnique({
     where: { ownerId_channel_trigger: { ownerId, channel: "email", trigger } },
@@ -104,12 +124,24 @@ async function sendEmailTemplate(
   const subject = fillTemplate(template.subject || "Servis Bildirimi", vars);
   const body = fillTemplate(template.body, vars);
 
+  const signatureHtml = resolved.signatureEnabled
+    ? buildEmailSignatureHtml({
+        name: ownerBranding.name,
+        title: resolved.signatureTitle,
+        companyName: ownerBranding.companyName,
+        logoUrl: ownerBranding.logoUrl,
+        phone: ownerBranding.phone,
+      })
+    : "";
+  const bodyHtml = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1e293b;white-space:pre-wrap;">${escapeHtml(body)}</div>${signatureHtml}`;
+
   try {
     await resolved.transporter.sendMail({
       from: resolved.fromName ? `"${resolved.fromName}" <${resolved.fromEmail}>` : resolved.fromEmail,
       to: contactEmail,
       subject,
       text: body,
+      html: bodyHtml,
     });
     await logSend(ownerId, "email", trigger, workOrderId, contactEmail, "sent");
   } catch (err) {

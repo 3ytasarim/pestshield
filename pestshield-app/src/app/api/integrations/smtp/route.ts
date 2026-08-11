@@ -19,6 +19,8 @@ export async function GET() {
     username: integration.username,
     fromName: integration.fromName,
     fromEmail: integration.fromEmail,
+    signatureEnabled: integration.signatureEnabled,
+    signatureTitle: integration.signatureTitle,
     connectedAt: integration.connectedAt,
     lastSyncAt: integration.lastSyncAt,
     lastSyncStatus: integration.lastSyncStatus,

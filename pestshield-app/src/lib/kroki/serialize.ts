@@ -12,6 +12,7 @@ export function serializeKrokiStation(station: PrismaKrokiStation): KrokiStation
     x: station.x,
     y: station.y,
     stationId: station.stationId,
+    number: station.number,
   };
 }
 

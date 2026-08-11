@@ -26,10 +26,11 @@ interface KrokiStationIdDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sketch: KrokiSketch | null;
+  startOffset?: number;
   onSave: (stations: KrokiStation[]) => void;
 }
 
-export function KrokiStationIdDialog({ open, onOpenChange, sketch, onSave }: KrokiStationIdDialogProps) {
+export function KrokiStationIdDialog({ open, onOpenChange, sketch, startOffset = 0, onSave }: KrokiStationIdDialogProps) {
   const [stations, setStations] = useState<KrokiStation[]>([]);
 
   useEffect(() => {
@@ -38,14 +39,21 @@ export function KrokiStationIdDialog({ open, onOpenChange, sketch, onSave }: Kro
     }
   }, [open, sketch]);
 
-  const numbering = numberStations(stations);
+  const numbering = numberStations(stations, startOffset);
 
   function handleIdChange(stationId: string, value: string) {
     setStations((prev) => prev.map((s) => (s.id === stationId ? { ...s, stationId: value } : s)));
   }
 
-  function handleSave() {
-    onSave(stations);
+  function handleNumberChange(stationId: string, value: string) {
+    const parsed = value.trim() === "" ? null : Number(value);
+    setStations((prev) =>
+      prev.map((s) => (s.id === stationId ? { ...s, number: Number.isFinite(parsed) ? parsed : null } : s)),
+    );
+  }
+
+  function handleSaveClick() {
+    onSave(stations.map((s) => ({ ...s, number: s.number ?? numbering.get(s.id) ?? null })));
     toast.success("İstasyon ID'leri kaydedildi");
   }
 
@@ -69,14 +77,21 @@ export function KrokiStationIdDialog({ open, onOpenChange, sketch, onSave }: Kro
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>İstasyon</TableHead>
+                      <TableHead className="w-20">No</TableHead>
                       <TableHead>İstasyon ID</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {typeStations.map((s) => (
                       <TableRow key={s.id}>
-                        <TableCell className="text-xs font-medium">İstasyon {numbering.get(s.id)}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={s.number ?? numbering.get(s.id) ?? ""}
+                            onChange={(e) => handleNumberChange(s.id, e.target.value)}
+                            className="h-8 w-16 rounded-lg px-2 text-xs"
+                          />
+                        </TableCell>
                         <TableCell>
                           <Input
                             value={s.stationId ?? ""}
@@ -98,7 +113,7 @@ export function KrokiStationIdDialog({ open, onOpenChange, sketch, onSave }: Kro
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Vazgeç
           </Button>
-          <Button type="button" onClick={handleSave}>
+          <Button type="button" onClick={handleSaveClick}>
             Kaydet
           </Button>
         </DialogFooter>

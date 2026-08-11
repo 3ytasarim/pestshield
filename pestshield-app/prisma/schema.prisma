@@ -1321,6 +1321,8 @@ model KrokiStation {
   x         Float
   y         Float
   stationId String           @default("")
+  /// Krokiler arası devam eden sıra numarası — manuel değiştirilebilir, null ise henüz atanmamış eski kayıt.
+  number    Int?
 
   inspections StationInspection[]
 
@@ -1712,6 +1714,11 @@ model SmtpIntegration {
   connectedAt    DateTime?
   lastSyncAt     DateTime?
   lastSyncStatus String?
+
+  /// Giden e-postalara otomatik imza (logo + isim + unvan) eklensin mi.
+  signatureEnabled Boolean @default(true)
+  /// İmzada isim altında gösterilecek unvan/pozisyon (opsiyonel).
+  signatureTitle   String?
 
   @@map("smtp_integrations")
 }
