@@ -240,6 +240,31 @@ enum PeriyotDonem {
   monthly
 }
 
+enum PestCategory {
+  kemirgen
+  surunen_hasere
+  ucan_hasere
+  depo_zararlisi
+}
+
+enum PestIconKey {
+  rodent
+  roach
+  ant
+  fly
+  mosquito
+  spider
+  wasp
+  beetle
+}
+
+enum EquipmentCategory {
+  trap
+  bait
+  uv
+  pheromone
+}
+
 model User {
   id            String    @id @default(uuid())
   name          String?
@@ -341,6 +366,8 @@ model User {
   vehicleDocuments    VehicleDocument[]
   companyRolesOwned  CompanyRole[] @relation("CompanyRoleOwner")
   companyUsersOwned  CompanyUser[] @relation("CompanyUserOwner")
+  pestSpeciesEntries    PestSpeciesEntry[]
+  equipmentGuideEntries EquipmentGuideEntry[]
   companyUserProfile CompanyUser?  @relation("CompanyUserLogin")
   customerProfile    Customer?     @relation("CustomerUser")
 
@@ -1761,6 +1788,58 @@ model MessageSendLog {
 
   @@index([ownerId])
   @@map("message_send_logs")
+}
+
+/// Firma (CLIENT) tarafından yönetilen zararlı türü kataloğu. İlk çağrıda
+/// varsayılan tür seti otomatik tohumlanır (bkz. seedDefaultPestManagementData),
+/// sonrasında firma tamamen serbestçe ekler/düzenler/siler.
+model PestSpeciesEntry {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name           String
+  scientificName String        @default("")
+  category       PestCategory
+  riskLevel      RiskLevel     @default(medium)
+  activeSeason   String        @default("")
+  icon           PestIconKey   @default(roach)
+
+  /// Açıklama + kontrol yöntemi — TipTap zengin metin (resim dahil, base64 data URL).
+  contentHtml String @db.Text @default("")
+
+  guides EquipmentGuideEntry[] @relation("GuideTargetSpecies")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@map("pest_species_entries")
+}
+
+/// Firma tarafından yönetilen ekipman/uygulama rehberi kataloğu (Tuzak/Yem/UV/Feromon).
+/// PestSpeciesEntry ile aynı tohumlama deseni.
+model EquipmentGuideEntry {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  category EquipmentCategory
+  title    String
+
+  /// Açıklama + kullanım notu — TipTap zengin metin (resim dahil, base64 data URL).
+  contentHtml String @db.Text @default("")
+
+  targetSpecies         PestSpeciesEntry[] @relation("GuideTargetSpecies")
+  /// Envanter ürün adı eşleştirme anahtar kelimeleri (bkz. getRelatedProducts).
+  relatedProductKeywords String[]          @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([category])
+  @@map("equipment_guide_entries")
 }
 
 /// PestShield tarafından üretilip yeni müşteri firmalara iletilen katılım kodu.
