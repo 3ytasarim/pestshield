@@ -3,6 +3,7 @@
 
 import {
   isCapaOverdue,
+  riskScore,
   STANDARD_LABELS,
   type CapaSeverity,
   type CapaStatus,
@@ -10,6 +11,8 @@ import {
   type ChecklistStatus,
   type ComplianceStandard,
   type CorrectiveAction,
+  type Risk,
+  type RiskStatus,
 } from "@/lib/mock/audit";
 
 export { STANDARD_LABELS };
@@ -50,4 +53,24 @@ export function getCapaRows(
       overdue: isCapaOverdue(c),
     }))
     .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
+}
+
+export interface RiskRow extends Risk {
+  customerName: string;
+  score: number;
+}
+
+export function getRiskRows(
+  risks: Risk[],
+  customers: { id: string; companyName: string }[],
+  options: { status?: RiskStatus } = {},
+): RiskRow[] {
+  return risks
+    .filter((r) => !options.status || r.status === options.status)
+    .map((r) => ({
+      ...r,
+      customerName: r.customerId ? (customers.find((cu) => cu.id === r.customerId)?.companyName ?? "—") : "Genel",
+      score: riskScore(r),
+    }))
+    .sort((a, b) => b.score - a.score);
 }

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, ClipboardList, ShieldCheck } from "lucide-react";
+import { ArrowRight, ClipboardList, ShieldAlert, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -29,6 +29,13 @@ const REPORTS: ReportCardDef[] = [
     icon: ClipboardList,
     title: "CAPA Durum Raporu",
     description: "Düzeltici/Önleyici Faaliyetlerin durumu, önceliği ve vade takibi.",
+    accent: "amber",
+  },
+  {
+    href: "/dashboard/client/reports/audit/risk",
+    icon: ShieldAlert,
+    title: "Risk Durum Raporu",
+    description: "Risk kayıtlarının kategorisi, skoru ve önlem durumu.",
     accent: "amber",
   },
 ];
