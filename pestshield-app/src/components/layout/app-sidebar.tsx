@@ -170,7 +170,7 @@ export function AppSidebar({ role, userName, userEmail, visibleNavHrefs = null, 
               <img
                 src={effectiveLogo}
                 alt="Firma logosu"
-                className="h-9 max-w-full shrink-0 object-contain object-left group-data-[collapsible=icon]:hidden"
+                className="h-11 max-w-full shrink-0 rounded-md bg-white object-contain object-left p-1 group-data-[collapsible=icon]:hidden"
               />
             </>
           ) : (
