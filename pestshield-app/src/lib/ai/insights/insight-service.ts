@@ -100,7 +100,7 @@ export async function generateOperationalInsights(provider: AiDataProvider, toda
       severity: "warning",
       title: "Gecikmiş düzeltici faaliyetler var",
       description: `${overdueCapa.length} düzeltici/önleyici faaliyet son tarihini geçmiş durumda.`,
-      evidence: `Kaynak: ${overdueCapa.length} gecikmiş CAPA kaydı.`,
+      evidence: `Kaynak: ${overdueCapa.length} gecikmiş düzeltici faaliyet kaydı.`,
       sourceRecordCount: overdueCapa.length,
       navigationAction: { label: "Düzeltici Önleyici Faaliyetler'de Aç", href: AI_ROUTES.correctiveActions() },
       createdAt: now,

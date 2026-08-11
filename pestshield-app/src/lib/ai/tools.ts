@@ -149,7 +149,7 @@ export const AI_TOOLS: ToolDef[] = [
   },
   {
     name: "get_open_corrective_actions",
-    description: "Kapanmamış düzeltici/önleyici faaliyetleri (CAPA) listeler.",
+    description: "Kapanmamış düzeltici/önleyici faaliyetleri listeler.",
     input_schema: { type: "object", properties: {} },
   },
 

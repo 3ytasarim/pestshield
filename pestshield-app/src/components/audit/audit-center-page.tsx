@@ -128,7 +128,7 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
         <CrmKpiCard
           label="Açık Düzeltici Faaliyet"
           value={openCapaCount}
-          description="Açık veya devam eden CAPA"
+          description="Açık veya devam eden düzeltici faaliyet"
           changePercent={openCapaCount > 0 ? 10 : -10}
           icon={AlertTriangle}
           accent="amber"

@@ -123,7 +123,7 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
       >
         <div className="flex flex-col gap-1.5">
           <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Düzeltici Önleyici Faaliyetler</h1>
-          <p className="max-w-xl text-sm text-muted-foreground">Denetim bulguları ve uygunsuzluklar için CAPA takibi.</p>
+          <p className="max-w-xl text-sm text-muted-foreground">Denetim bulguları ve uygunsuzluklar için düzeltici faaliyet takibi.</p>
         </div>
         <Button onClick={() => setFormOpen(true)}>
           <Plus className="size-4" />
