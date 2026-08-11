@@ -32,6 +32,7 @@ export const ALERT_THRESHOLDS = {
   technicianDailyServiceLimit: 6,
   risingPestActivityMinIncreasePercent: 30,
   risingPestActivityWindowDays: 30,
+  auditReminderDays: 5,
 };
 
 const ALL_ROLES: Array<"ADMIN" | "TECH" | "CLIENT"> = ["ADMIN", "TECH", "CLIENT"];
@@ -173,6 +174,16 @@ export const ALERT_RULES: Record<AlertCategory, AlertRule> = {
     severity: "warning",
     isEnabled: true,
     threshold: ALERT_THRESHOLDS.risingPestActivityMinIncreasePercent,
+  }),
+  upcoming_audit: rule({
+    code: "upcoming_audit",
+    name: "Yaklaşan Denetim",
+    description: `Önümüzdeki ${ALERT_THRESHOLDS.auditReminderDays} gün içinde planlanmış HACCP/BRCGS gibi bir standart denetimi — bulguları önceden tamamlamak için hatırlatma.`,
+    category: "upcoming_audit",
+    severity: "warning",
+    isEnabled: true,
+    threshold: ALERT_THRESHOLDS.auditReminderDays,
+    targetRoles: MANAGEMENT_ROLES,
   }),
 };
 

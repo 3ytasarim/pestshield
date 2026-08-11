@@ -27,7 +27,8 @@ export type AlertCategory =
   | "expiring_contract"
   | "critical_risk"
   | "unresolved_corrective_action"
-  | "rising_pest_activity";
+  | "rising_pest_activity"
+  | "upcoming_audit";
 
 export type AlertSeverity = "info" | "warning" | "high" | "critical";
 
@@ -63,7 +64,7 @@ export interface AlertInstance {
   description: string;
   /** Uyarının dayandığı somut, doğrulanabilir kanıt cümlesi — LLM açıklaması BUNU KULLANIR, uydurmaz. */
   evidence: string;
-  sourceEntityType: "occurrence" | "invoice" | "customer" | "risk" | "corrective_action" | "technician" | null;
+  sourceEntityType: "occurrence" | "invoice" | "customer" | "risk" | "corrective_action" | "technician" | "audit" | null;
   sourceEntityId: string | null;
   relatedCustomerId: string | null;
   relatedCustomerName: string | null;

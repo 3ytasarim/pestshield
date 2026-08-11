@@ -8,9 +8,10 @@
 import { AI_ROUTES } from "@/lib/ai/routes";
 import { comparePeriods, previousPeriodOf } from "@/lib/ai/analysis/period-comparison";
 import { ALERT_RULES, ALERT_THRESHOLDS, rulesForRole } from "@/lib/ai/alerts/rules";
+import { STANDARD_LABELS, type ComplianceStandard } from "@/lib/mock/audit";
 import { getAlertByDedupKey, updateAlert, upsertAlert, listAlerts } from "@/lib/ai/alerts/alert-store";
 import type { AlertInstance } from "@/lib/ai/alerts/types";
-import type { AiDataProvider, AiServiceOccurrence } from "@/lib/ai/providers/data-provider";
+import type { AiDataProvider, AiServiceOccurrence, AiUpcomingAuditRecord } from "@/lib/ai/providers/data-provider";
 
 function addDaysIso(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -103,13 +104,14 @@ function resolveStale(ruleCode: keyof typeof ALERT_RULES, stillActiveDedupKeys: 
 export const ProactiveAlertEngine = {
   /** Tüm etkin kuralları bir kez değerlendirir ve alert-store'u günceller. Dönüş değeri sadece bu çalıştırmada tespit edilen/güncellenen dedupKey'lerdir (test/gözlemlenebilirlik için). */
   async evaluate(provider: AiDataProvider, todayIso: string): Promise<void> {
-    const [occurrences, invoices, customers, openRisks, allRisks, correctiveActions] = await Promise.all([
+    const [occurrences, invoices, customers, openRisks, allRisks, correctiveActions, upcomingAudits] = await Promise.all([
       provider.getServiceOccurrences(),
       provider.getInvoices(),
       provider.getCustomers(),
       provider.getOpenRisks(),
       provider.getAllRisks(),
       provider.getOpenCorrectiveActions(),
+      provider.getUpcomingAudits(),
     ]);
 
     const tomorrow = addDaysIso(todayIso, 1);
@@ -127,6 +129,7 @@ export const ProactiveAlertEngine = {
     evaluateCriticalRisks(openRisks);
     evaluateUnresolvedCorrectiveActions(correctiveActions);
     evaluateRisingPestActivity(allRisks, todayIso);
+    evaluateUpcomingAudits(upcomingAudits, todayIso);
   },
 };
 
@@ -374,6 +377,25 @@ function evaluateRisingPestActivity(allRisks: Awaited<ReturnType<AiDataProvider[
   }
   upsertConditions("rising_pest_activity", conditions);
   resolveStale("rising_pest_activity", new Set(conditions.map((c) => c.dedupKey)));
+}
+
+function evaluateUpcomingAudits(audits: AiUpcomingAuditRecord[], todayIso: string) {
+  const threshold = addDaysIso(todayIso, ALERT_THRESHOLDS.auditReminderDays);
+  const upcoming = audits.filter((a) => a.scheduledDate >= todayIso && a.scheduledDate <= threshold);
+  const conditions: DetectedCondition[] = upcoming.map((a) => ({
+    dedupKey: `upcoming_audit:${a.id}`,
+    title: `Yaklaşan denetim — ${STANDARD_LABELS[a.standard as ComplianceStandard] ?? a.standard}`,
+    description: `${a.customerName ?? "—"} için ${STANDARD_LABELS[a.standard as ComplianceStandard] ?? a.standard} denetimi ${a.scheduledDate} tarihinde (${a.auditor}) yapılacak — bulguları önceden tamamlayın.`,
+    evidence: `Planlanan tarih: ${a.scheduledDate}, bugün: ${todayIso}.`,
+    sourceEntityType: "audit",
+    sourceEntityId: a.id,
+    relatedCustomerId: a.customerId,
+    relatedCustomerName: a.customerName,
+    relatedTechnicianName: null,
+    navigationHref: AI_ROUTES.auditCenter(),
+  }));
+  upsertConditions("upcoming_audit", conditions);
+  resolveStale("upcoming_audit", new Set(conditions.map((c) => c.dedupKey)));
 }
 
 export { rulesForRole };

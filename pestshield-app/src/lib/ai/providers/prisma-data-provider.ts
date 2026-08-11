@@ -23,6 +23,7 @@ import type {
   AiRiskRecord,
   AiServiceOccurrence,
   AiTechnicianRecord,
+  AiUpcomingAuditRecord,
 } from "@/lib/ai/providers/data-provider";
 
 export class PrismaAiDataProvider implements AiDataProvider {
@@ -180,5 +181,20 @@ export class PrismaAiDataProvider implements AiDataProvider {
   async getChecklistItems(): Promise<AiChecklistRecord[]> {
     const items = await prisma.complianceChecklistItem.findMany({ where: { ownerId: this.ownerId } });
     return items.map((i) => ({ id: i.id, standard: i.standard, status: i.status, reviewDate: i.reviewDate }));
+  }
+
+  async getUpcomingAudits(): Promise<AiUpcomingAuditRecord[]> {
+    const audits = await prisma.auditRecord.findMany({
+      where: { ownerId: this.ownerId, result: "scheduled" },
+      include: { customer: { select: { companyName: true } } },
+    });
+    return audits.map((a) => ({
+      id: a.id,
+      standard: a.standard,
+      auditor: a.auditor,
+      scheduledDate: a.scheduledDate,
+      customerId: a.customerId,
+      customerName: a.customer?.companyName ?? null,
+    }));
   }
 }

@@ -18,6 +18,7 @@ import type {
   AiRiskRecord,
   AiServiceOccurrence,
   AiTechnicianRecord,
+  AiUpcomingAuditRecord,
 } from "@/lib/ai/providers/data-provider";
 
 async function getJson<T>(path: string): Promise<T> {
@@ -67,5 +68,9 @@ export class RemoteAiDataProvider implements AiDataProvider {
 
   getChecklistItems(): Promise<AiChecklistRecord[]> {
     return getJson("checklist-items");
+  }
+
+  getUpcomingAudits(): Promise<AiUpcomingAuditRecord[]> {
+    return getJson("upcoming-audits");
   }
 }

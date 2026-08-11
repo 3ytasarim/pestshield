@@ -26,3 +26,21 @@ export const riskFormSchema = z.object({
 });
 
 export type RiskFormValues = z.infer<typeof riskFormSchema>;
+
+export const auditRecordFormSchema = z.object({
+  customerId: z.string().min(1, "Müşteri seçiniz"),
+  standard: z.enum(["haccp", "brcgs", "iso22000", "fssc"]),
+  type: z.enum(["internal", "external", "certification"]),
+  auditor: z.string().min(2, "Denetçi/kurum adı zorunludur"),
+  scheduledDate: z.string().min(1, "Tarih zorunludur"),
+});
+
+export type AuditRecordFormValues = z.infer<typeof auditRecordFormSchema>;
+
+export const auditRecordResultFormSchema = z.object({
+  result: z.enum(["passed", "passed_with_findings", "failed"]),
+  completedDate: z.string().min(1, "Tamamlanma tarihi zorunludur"),
+  score: z.number().min(0).max(100).nullable().optional(),
+});
+
+export type AuditRecordResultFormValues = z.infer<typeof auditRecordResultFormSchema>;

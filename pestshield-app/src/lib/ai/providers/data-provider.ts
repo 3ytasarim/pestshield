@@ -103,6 +103,16 @@ export interface AiChecklistRecord {
   reviewDate: string;
 }
 
+/** Faz 4: "N gün kala hatırlat" kuralı için planlanmış (result=scheduled) denetimler. */
+export interface AiUpcomingAuditRecord {
+  id: string;
+  standard: string;
+  auditor: string;
+  scheduledDate: string;
+  customerId: string;
+  customerName: string | null;
+}
+
 /**
  * AI Command Center'ın ihtiyaç duyduğu tüm salt-okunur veri erişimi bu
  * arayüzden geçer. Her yeni backend (Prisma, REST API vb.) bu arayüzü
@@ -123,4 +133,6 @@ export interface AiDataProvider {
   getAllCorrectiveActions(): Promise<AiCorrectiveActionHistoryRecord[]>;
   /** Faz 2 — denetim hazırlık skoru için checklist maddeleri. */
   getChecklistItems(): Promise<AiChecklistRecord[]>;
+  /** Faz 4 — "N gün kala hatırlat" kuralı için planlanmış denetimler. */
+  getUpcomingAudits(): Promise<AiUpcomingAuditRecord[]>;
 }

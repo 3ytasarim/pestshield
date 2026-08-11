@@ -61,6 +61,9 @@ class FakeAiDataProvider implements AiDataProvider {
   async getChecklistItems() {
     return this.fixtures.checklistItems ?? [];
   }
+  async getUpcomingAudits() {
+    return [];
+  }
 }
 
 function occ(overrides: Partial<AiServiceOccurrence> = {}): AiServiceOccurrence {

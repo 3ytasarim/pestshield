@@ -18,4 +18,5 @@ export const AI_ROUTES = {
   servicePlanning: () => "/dashboard/client/service-planning",
   technicians: () => "/dashboard/client/technicians",
   reports: () => "/dashboard/client/reports/operations",
+  auditCenter: () => "/dashboard/client/audit-center",
 } as const;

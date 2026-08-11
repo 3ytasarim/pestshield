@@ -56,6 +56,9 @@ class FakeProvider implements AiDataProvider {
   async getChecklistItems(): Promise<AiChecklistRecord[]> {
     return [];
   }
+  async getUpcomingAudits() {
+    return [];
+  }
 }
 
 function occ(overrides: Partial<AiServiceOccurrence>): AiServiceOccurrence {

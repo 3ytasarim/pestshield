@@ -34,6 +34,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ meth
       return NextResponse.json(await provider.getAllCorrectiveActions());
     case "checklist-items":
       return NextResponse.json(await provider.getChecklistItems());
+    case "upcoming-audits":
+      return NextResponse.json(await provider.getUpcomingAudits());
     default:
       return NextResponse.json({ message: "Bilinmeyen veri metodu." }, { status: 404 });
   }

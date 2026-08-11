@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { AlertTriangle, CalendarClock, ClipboardCheck, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CalendarClock, ClipboardCheck, Plus, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -12,6 +14,8 @@ import { formatDate } from "@/components/crm/crm-format";
 import { StandardSummaryCard } from "@/components/audit/standard-summary-card";
 import { CapaSeverityBadge, CapaStatusBadge } from "@/components/audit/audit-badges";
 import { AUDIT_TYPE_LABELS } from "@/components/audit/audit-labels";
+import { AuditRecordForm } from "@/components/audit/audit-record-form";
+import { AuditRecordResultForm } from "@/components/audit/audit-record-result-form";
 import {
   STANDARD_LABELS,
   getStandardReadiness,
@@ -20,6 +24,7 @@ import {
   type ComplianceStandard,
   type CorrectiveAction,
 } from "@/lib/mock/audit";
+import type { AuditRecordFormValues, AuditRecordResultFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
 const STANDARDS: ComplianceStandard[] = ["haccp", "brcgs", "iso22000", "fssc"];
@@ -31,7 +36,44 @@ interface AuditCenterPageProps {
   customers: { id: string; companyName: string }[];
 }
 
-export function AuditCenterPage({ checklistItems, correctiveActions, auditRecords, customers }: AuditCenterPageProps) {
+export function AuditCenterPage({ checklistItems, correctiveActions, auditRecords: initialAuditRecords, customers }: AuditCenterPageProps) {
+  const [auditRecords, setAuditRecords] = useState(initialAuditRecords);
+  const [planFormOpen, setPlanFormOpen] = useState(false);
+  const [resultTarget, setResultTarget] = useState<AuditRecord | null>(null);
+
+  async function handlePlanSubmit(values: AuditRecordFormValues) {
+    const res = await fetch("/api/audit/records", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Denetim planlanamadı");
+      return;
+    }
+    const { record } = await res.json();
+    setAuditRecords((prev) => [...prev, record]);
+    toast.success("Denetim planlandı");
+    setPlanFormOpen(false);
+  }
+
+  async function handleResultSubmit(values: AuditRecordResultFormValues) {
+    if (!resultTarget) return;
+    const res = await fetch(`/api/audit/records/${resultTarget.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
+      toast.error("Denetim sonucu kaydedilemedi");
+      return;
+    }
+    const { record } = await res.json();
+    setAuditRecords((prev) => prev.map((a) => (a.id === record.id ? record : a)));
+    toast.success("Denetim sonucu kaydedildi");
+    setResultTarget(null);
+  }
+
   const overallReadiness = useMemo(
     () => Math.round(STANDARDS.reduce((sum, s) => sum + getStandardReadiness(s, checklistItems), 0) / STANDARDS.length),
     [checklistItems],
@@ -59,12 +101,17 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-col gap-1.5"
+        className="flex items-start justify-between gap-4"
       >
-        <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Audit Center</h1>
-        <p className="max-w-xl text-sm text-muted-foreground">
-          Tüm uyumluluk standartlarının genel görünümü, yaklaşan denetimler ve açık bulgular tek ekranda.
-        </p>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Audit Center</h1>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Tüm uyumluluk standartlarının genel görünümü, yaklaşan denetimler ve açık bulgular tek ekranda.
+          </p>
+        </div>
+        <Button onClick={() => setPlanFormOpen(true)} startContent={<Plus className="size-4" aria-hidden="true" />}>
+          Denetim Planla
+        </Button>
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -118,7 +165,12 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
                 const customer = customers.find((c) => c.id === audit.customerId);
                 const days = daysUntil(audit.scheduledDate);
                 return (
-                  <div key={audit.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
+                  <button
+                    key={audit.id}
+                    type="button"
+                    onClick={() => setResultTarget(audit)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
+                  >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">
                         {STANDARD_LABELS[audit.standard]} · {AUDIT_TYPE_LABELS[audit.type]}
@@ -131,7 +183,7 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
                       <p className="text-sm font-semibold text-foreground">{formatDate(audit.scheduledDate)}</p>
                       <p className="text-xs text-primary">{days} gün kaldı</p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </Card>
@@ -167,6 +219,9 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
           )}
         </div>
       </div>
+
+      <AuditRecordForm open={planFormOpen} onOpenChange={setPlanFormOpen} onSubmit={handlePlanSubmit} customers={customers} />
+      <AuditRecordResultForm open={!!resultTarget} onOpenChange={(open) => !open && setResultTarget(null)} onSubmit={handleResultSubmit} audit={resultTarget} />
     </div>
   );
 }
