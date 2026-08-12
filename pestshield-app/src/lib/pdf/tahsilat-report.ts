@@ -2,6 +2,7 @@
 // gerçekleşen tüm tahsilatların (nakit/kart/havale) dökümü.
 
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
+import { getCompanySettings } from "@/lib/company-settings";
 import { LETTERHEAD_STYLES, escapeHtml, footerBrandLabel, openPrintWindow, renderLetterhead } from "@/lib/pdf/shared";
 import { PAYMENT_METHOD_LABELS } from "@/components/finance/finance-labels";
 import type { LedgerEntry } from "@/lib/mock/finance";
@@ -38,7 +39,7 @@ export async function printTahsilatRaporu(rows: TahsilatReportRow[], dateRangeLa
 </style>
 </head>
 <body>
-  ${renderLetterhead({ docTitle: "Tahsilat Raporu", docNo: reportNo, docDate: new Date().toISOString() })}
+  ${renderLetterhead({ docTitle: "Tahsilat Raporu", docNo: reportNo, docDate: new Date().toISOString(), templateImage: getCompanySettings().tahsilatLetterheadImage })}
 
   <div class="party-grid">
     <div class="party-card">

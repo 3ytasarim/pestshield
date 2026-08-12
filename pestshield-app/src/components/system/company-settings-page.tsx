@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Award, Building2, CheckCircle2, CreditCard, FileBarChart, FileImage, Globe, ImagePlus, KeyRound, Landmark, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
+import { Award, Building2, CheckCircle2, CreditCard, FileBarChart, FileImage, FileText, Globe, ImagePlus, KeyRound, Landmark, Loader2, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   type CompanySettings,
   type LetterheadMode,
 } from "@/lib/company-settings";
+import { rasterizeTemplateFile } from "@/lib/pdf/template-rasterize";
 import {
   getCertificateTemplate,
   readSealFile,
@@ -48,6 +49,14 @@ const LETTERHEAD_MODE_OPTIONS: { value: LetterheadMode; label: string; descripti
   { value: "background", label: "Tam Sayfa Arkaplan", description: "Görsel, belgenin tamamına arkaplan olarak yerleştirilir." },
 ];
 
+type TemplateKey = "contract" | "offer" | "tahsilat";
+
+const TEMPLATE_DEFS: { key: TemplateKey; title: string; hint: string }[] = [
+  { key: "contract", title: "Sözleşme Şablonu", hint: "Sözleşme çıktısında antetli kağıt yerine kullanılır." },
+  { key: "offer", title: "Teklif Şablonu", hint: "Teklif çıktısında antetli kağıt yerine kullanılır." },
+  { key: "tahsilat", title: "Tahsilat Raporu Şablonu", hint: "Tahsilat Raporu çıktısında antetli kağıt yerine kullanılır." },
+];
+
 export function CompanySettingsPage() {
   const [settings, setSettings] = useState<CompanySettings>(() => getCompanySettings());
   const [companyName, setCompanyName] = useState(() => getCompanySettings().companyName);
@@ -65,6 +74,17 @@ export function CompanySettingsPage() {
   const [letterheadImage, setLetterheadImage] = useState<string | null>(() => getCompanySettings().letterheadImage);
   const [letterheadMode, setLetterheadMode] = useState<LetterheadMode>(() => getCompanySettings().letterheadMode);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
+  const [templateImages, setTemplateImages] = useState<Record<TemplateKey, string | null>>(() => ({
+    contract: getCompanySettings().contractLetterheadImage,
+    offer: getCompanySettings().offerLetterheadImage,
+    tahsilat: getCompanySettings().tahsilatLetterheadImage,
+  }));
+  const [templateUploading, setTemplateUploading] = useState<Record<TemplateKey, boolean>>({
+    contract: false,
+    offer: false,
+    tahsilat: false,
+  });
+  const templateInputRefs = useRef<Record<TemplateKey, HTMLInputElement | null>>({ contract: null, offer: null, tahsilat: null });
   const [permitDate, setPermitDate] = useState(() => getCompanySettings().permitDate);
   const [permitNumber, setPermitNumber] = useState(() => getCompanySettings().permitNumber);
   const [activityField, setActivityField] = useState(() => getCompanySettings().activityField);
@@ -111,6 +131,9 @@ export function CompanySettingsPage() {
           reportLogo: data.reportLogo ?? null,
           letterheadImage: data.letterheadImage ?? null,
           letterheadMode: data.letterheadMode === "background" ? "background" : "header",
+          contractLetterheadImage: data.contractLetterheadImage ?? null,
+          offerLetterheadImage: data.offerLetterheadImage ?? null,
+          tahsilatLetterheadImage: data.tahsilatLetterheadImage ?? null,
           permitDate: data.permitDate ?? "",
           permitNumber: data.permitNumber ?? "",
           activityField: data.activityField ?? "",
@@ -135,6 +158,11 @@ export function CompanySettingsPage() {
         setReportLogo(next.reportLogo);
         setLetterheadImage(next.letterheadImage);
         setLetterheadMode(next.letterheadMode);
+        setTemplateImages({
+          contract: next.contractLetterheadImage,
+          offer: next.offerLetterheadImage,
+          tahsilat: next.tahsilatLetterheadImage,
+        });
         setPermitDate(next.permitDate);
         setPermitNumber(next.permitNumber);
         setActivityField(next.activityField);
@@ -208,6 +236,25 @@ export function CompanySettingsPage() {
     if (letterheadInputRef.current) letterheadInputRef.current.value = "";
   }
 
+  async function handleTemplateSelect(key: TemplateKey, file: File | undefined) {
+    if (!file) return;
+    setTemplateUploading((prev) => ({ ...prev, [key]: true }));
+    try {
+      const dataUrl = await rasterizeTemplateFile(file);
+      setTemplateImages((prev) => ({ ...prev, [key]: dataUrl }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Şablon yüklenemedi");
+    } finally {
+      setTemplateUploading((prev) => ({ ...prev, [key]: false }));
+      const input = templateInputRefs.current[key];
+      if (input) input.value = "";
+    }
+  }
+
+  function handleTemplateRemove(key: TemplateKey) {
+    setTemplateImages((prev) => ({ ...prev, [key]: null }));
+  }
+
   async function handleSave() {
     if (!companyName.trim()) {
       toast.error("Firma adını girin");
@@ -232,6 +279,9 @@ export function CompanySettingsPage() {
           reportLogo,
           letterheadImage,
           letterheadMode,
+          contractLetterheadImage: templateImages.contract,
+          offerLetterheadImage: templateImages.offer,
+          tahsilatLetterheadImage: templateImages.tahsilat,
           permitDate: permitDate.trim(),
           permitNumber: permitNumber.trim(),
           activityField: activityField.trim(),
@@ -260,6 +310,9 @@ export function CompanySettingsPage() {
         reportLogo: data.reportLogo ?? null,
         letterheadImage: data.letterheadImage ?? null,
         letterheadMode: data.letterheadMode === "background" ? "background" : "header",
+        contractLetterheadImage: data.contractLetterheadImage ?? null,
+        offerLetterheadImage: data.offerLetterheadImage ?? null,
+        tahsilatLetterheadImage: data.tahsilatLetterheadImage ?? null,
         permitDate: data.permitDate ?? "",
         permitNumber: data.permitNumber ?? "",
         activityField: data.activityField ?? "",
@@ -627,6 +680,86 @@ export function CompanySettingsPage() {
                 Görsel yüklenmezse belgeleriniz mevcut logo/firma adı başlığıyla oluşturulmaya devam eder.
               </p>
             </div>
+          </div>
+
+          <Button onClick={handleSave} loading={saving} className="w-fit">
+            <Save className="size-4" />
+            Kaydet
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <FileText className="size-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Belge Şablonları</p>
+              <p className="text-xs text-muted-foreground">
+                Sözleşme, Teklif ve Tahsilat Raporu için kendi tasarladığınız A4 sayfa şablonunu (PDF veya DOCX) yükleyin —
+                ilk sayfası taranıp o belge türünün tam sayfa arkaplanı olarak kullanılır, çıktı içeriği üzerine basılır.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {TEMPLATE_DEFS.map((def) => {
+              const image = templateImages[def.key];
+              const uploading = templateUploading[def.key];
+              return (
+                <div key={def.key} className="flex flex-col items-center gap-2.5 rounded-xl border border-border/60 p-3.5">
+                  <p className="text-center text-xs font-semibold text-foreground">{def.title}</p>
+                  <div
+                    className={cn(
+                      "flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/30",
+                      image && "border-solid border-primary/20 bg-white",
+                    )}
+                  >
+                    {uploading ? (
+                      <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                    ) : image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={image} alt={def.title} className="size-full object-contain p-1.5" />
+                    ) : (
+                      <FileText className="size-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={uploading}
+                      onClick={() => templateInputRefs.current[def.key]?.click()}
+                    >
+                      {image ? "Değiştir" : "Şablon Yükle"}
+                    </Button>
+                    {image && !uploading && (
+                      <Button
+                        size="icon-sm"
+                        variant="outline"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => handleTemplateRemove(def.key)}
+                        aria-label={`${def.title} kaldır`}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <input
+                    ref={(el) => {
+                      templateInputRefs.current[def.key] = el;
+                    }}
+                    type="file"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="hidden"
+                    onChange={(e) => handleTemplateSelect(def.key, e.target.files?.[0])}
+                  />
+                  <p className="text-center text-[10px] text-muted-foreground">{def.hint}</p>
+                </div>
+              );
+            })}
           </div>
 
           <Button onClick={handleSave} loading={saving} className="w-fit">

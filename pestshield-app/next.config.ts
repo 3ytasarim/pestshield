@@ -25,6 +25,21 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // pdfjs-dist, Node.js ortamı için opsiyonel bir "canvas" bağımlılığına
+  // (@napi-rs/canvas, native .node binary) sahip. Bu paket sadece tarayıcıda
+  // (client component içinde dynamic import ile) kullanılıyor, hiçbir zaman
+  // Node tarafında çalışmıyor — ama webpack build sırasında bu native modülü
+  // yine de çözmeye/bundle etmeye çalışıyor ve Windows'ta EPERM/glob
+  // hatasıyla build'i çökertiyor. Standart çözüm: webpack'e bu modülü hiç
+  // çözmemesini söylemek.
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvas: false,
+      "@napi-rs/canvas": false,
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

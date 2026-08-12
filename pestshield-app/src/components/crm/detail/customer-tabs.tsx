@@ -101,7 +101,7 @@ export function CustomerTabs({ customer, value, onValueChange }: CustomerTabsPro
         <OffersTab customerId={customer.id} customer={customer} />
       </TabsContent>
       <TabsContent value="contracts" className="mt-4">
-        <ContractsTab customerId={customer.id} />
+        <ContractsTab customerId={customer.id} customer={customer} />
       </TabsContent>
       <TabsContent value="photos" className="mt-4">
         <PhotosTab customerId={customer.id} />

@@ -30,6 +30,12 @@ export interface CompanySettings {
   reportLogo: string | null;
   letterheadImage: string | null;
   letterheadMode: LetterheadMode;
+  /// Sözleşme/Teklif/Tahsilat Raporu için yüklenen PDF/DOCX şablonundan tarayıcıda render
+  /// edilmiş tam sayfa PNG görüntüsü — doluysa o belge türünde antetli kağıt ayarının yerine
+  /// geçer (tam sayfa arkaplan olarak kullanılır).
+  contractLetterheadImage: string | null;
+  offerLetterheadImage: string | null;
+  tahsilatLetterheadImage: string | null;
   permitDate: string;
   permitNumber: string;
   activityField: string;
@@ -54,6 +60,9 @@ const DEFAULT_SETTINGS: CompanySettings = {
   reportLogo: null,
   letterheadImage: null,
   letterheadMode: "header",
+  contractLetterheadImage: null,
+  offerLetterheadImage: null,
+  tahsilatLetterheadImage: null,
   permitDate: "",
   permitNumber: "",
   activityField: "",

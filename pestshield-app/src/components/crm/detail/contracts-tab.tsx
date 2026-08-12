@@ -22,10 +22,11 @@ import { ContractStatusBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { ContractForm } from "@/components/crm/detail/contract-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import type { Contract } from "@/lib/mock/crm";
+import { printContract } from "@/components/crm/detail/print-contract";
+import type { Contract, Customer } from "@/lib/mock/crm";
 import type { ContractFormValues } from "@/lib/validations/crm";
 
-export function ContractsTab({ customerId }: { customerId: string }) {
+export function ContractsTab({ customerId, customer }: { customerId: string; customer: Customer }) {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -129,7 +130,7 @@ export function ContractsTab({ customerId }: { customerId: string }) {
                         <MoreHorizontal className="size-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => toast.info("Görüntüleme yakında eklenecek")}>
+                        <DropdownMenuItem onClick={() => customer && printContract(customer, contract)}>
                           <Eye className="size-3.5" />
                           Görüntüle
                         </DropdownMenuItem>

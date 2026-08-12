@@ -1,4 +1,5 @@
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
+import { getCompanySettings } from "@/lib/company-settings";
 import { escapeHtml, footerBrandLabel, LETTERHEAD_STYLES, openPrintWindow, renderLetterhead, renderSignatures } from "@/lib/pdf/shared";
 import type { Customer, Offer } from "@/lib/mock/crm";
 
@@ -32,7 +33,7 @@ export function printOffer(customer: Customer, offer: Offer) {
 <style>${LETTERHEAD_STYLES}</style>
 </head>
 <body>
-  ${renderLetterhead({ docTitle: "Teklif", docNo: offer.offerNo, docDate: offer.createdAt })}
+  ${renderLetterhead({ docTitle: "Teklif", docNo: offer.offerNo, docDate: offer.createdAt, templateImage: getCompanySettings().offerLetterheadImage })}
 
   <div class="party-grid">
     <div class="party-card">

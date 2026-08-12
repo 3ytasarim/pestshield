@@ -295,6 +295,12 @@ model User {
   letterheadImage String?
   /// "header" (üst başlık bandı) | "background" (tam sayfa arkaplan)
   letterheadMode  String?  @default("header")
+  /// Sözleşme/Teklif/Tahsilat Raporu için yüklenen PDF/DOCX şablonunun (tarayıcıda render
+  /// edilmiş) tam sayfa PNG görüntüsü — base64 data URL. Doluysa o belge türünde antetli
+  /// kağıt üst-bant/arkaplan ayarının yerine geçer, tam sayfa arkaplan olarak kullanılır.
+  contractLetterheadImage String?
+  offerLetterheadImage    String?
+  tahsilatLetterheadImage String?
 
   /// Biyosidal ürün uygulama ruhsatı - EK-1 formunun "Uygulamayı Yapana Ait
   /// Bilgiler" bölümüne otomatik yazılır.

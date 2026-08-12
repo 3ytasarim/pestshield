@@ -17,6 +17,9 @@ function serialize(user: {
   reportLogoUrl: string | null;
   letterheadImage: string | null;
   letterheadMode: string | null;
+  contractLetterheadImage: string | null;
+  offerLetterheadImage: string | null;
+  tahsilatLetterheadImage: string | null;
   permitDate: string | null;
   permitNumber: string | null;
   activityField: string | null;
@@ -40,6 +43,9 @@ function serialize(user: {
     reportLogo: user.reportLogoUrl,
     letterheadImage: user.letterheadImage,
     letterheadMode: user.letterheadMode === "background" ? "background" : "header",
+    contractLetterheadImage: user.contractLetterheadImage,
+    offerLetterheadImage: user.offerLetterheadImage,
+    tahsilatLetterheadImage: user.tahsilatLetterheadImage,
     permitDate: user.permitDate ?? "",
     permitNumber: user.permitNumber ?? "",
     activityField: user.activityField ?? "",
@@ -93,6 +99,9 @@ export async function PATCH(request: Request) {
       reportLogoUrl: values.reportLogo ?? null,
       letterheadImage: values.letterheadImage ?? null,
       letterheadMode: values.letterheadMode ?? "header",
+      contractLetterheadImage: values.contractLetterheadImage ?? null,
+      offerLetterheadImage: values.offerLetterheadImage ?? null,
+      tahsilatLetterheadImage: values.tahsilatLetterheadImage ?? null,
       permitDate: values.permitDate || null,
       permitNumber: values.permitNumber || null,
       activityField: values.activityField || null,

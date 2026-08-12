@@ -78,6 +78,12 @@ interface LetterheadOptions {
   docTitle: string;
   docNo: string;
   docDate?: string;
+  /**
+   * Sözleşme/Teklif/Tahsilat Raporu gibi belge türlerine özel, yüklenen PDF/DOCX şablonundan
+   * render edilmiş tam sayfa görüntü. Verilirse genel Antetli Kağıt ayarının (header/background)
+   * yerine geçer — belge her zaman bu görüntüyü tam sayfa arkaplan olarak kullanır.
+   */
+  templateImage?: string | null;
 }
 
 /**
@@ -88,8 +94,10 @@ interface LetterheadOptions {
  * Firma bir "Antetli Kağıt" görseli yüklediyse (Şirket Ayarları), kullanım şekline göre ya
  * belgenin en üstüne tam genişlikte bir banner olarak eklenir ("header") ya da sayfanın
  * tamamına arkaplan olarak basılır ("background") — ikinci durumda stil, body'ye enjekte edilir.
+ * `templateImage` verilirse (belge türüne özel yüklenmiş gerçek şablon) her zaman tam sayfa
+ * arkaplan olarak kullanılır, genel Antetli Kağıt ayarı görmezden gelinir.
  */
-export function renderLetterhead({ docTitle, docNo, docDate }: LetterheadOptions): string {
+export function renderLetterhead({ docTitle, docNo, docDate, templateImage }: LetterheadOptions): string {
   const company = getCompanySettings();
   const logo = company.reportLogo
     ? `<img class="report-logo" src="${company.reportLogo}" alt="Logo" />`
@@ -97,18 +105,19 @@ export function renderLetterhead({ docTitle, docNo, docDate }: LetterheadOptions
       ? `<img src="${company.logo}" alt="Logo" />`
       : "";
 
+  const backgroundImageUrl = templateImage || (company.letterheadMode === "background" ? company.letterheadImage : null);
+
   const letterheadBanner =
-    company.letterheadImage && company.letterheadMode !== "background"
+    !templateImage && company.letterheadImage && company.letterheadMode !== "background"
       ? `<img class="letterhead-banner" src="${company.letterheadImage}" alt="Antetli Kağıt" />`
       : "";
 
-  const backgroundStyle =
-    company.letterheadImage && company.letterheadMode === "background"
-      ? `<style>
-          body { background-image: url("${company.letterheadImage}"); background-size: 100% 100%; background-repeat: no-repeat; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @media print { body { background-image: url("${company.letterheadImage}"); background-size: 100% 100%; background-repeat: no-repeat; } }
+  const backgroundStyle = backgroundImageUrl
+    ? `<style>
+          body { background-image: url("${backgroundImageUrl}"); background-size: 100% 100%; background-repeat: no-repeat; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @media print { body { background-image: url("${backgroundImageUrl}"); background-size: 100% 100%; background-repeat: no-repeat; } }
         </style>`
-      : "";
+    : "";
 
   return `
   ${backgroundStyle}
