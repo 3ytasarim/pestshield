@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Award, Building2, CheckCircle2, CreditCard, FileImage, Globe, ImagePlus, KeyRound, Landmark, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
+import { Award, Building2, CheckCircle2, CreditCard, FileBarChart, FileImage, Globe, ImagePlus, KeyRound, Landmark, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
   getCompanySettings,
   readLetterheadFile,
   readLogoFile,
+  readReportLogoFile,
   saveCompanySettings,
   type CompanySettings,
   type LetterheadMode,
@@ -59,6 +60,8 @@ export function CompanySettingsPage() {
   const [phone, setPhone] = useState(() => getCompanySettings().phone);
   const [authorizedPhone, setAuthorizedPhone] = useState(() => getCompanySettings().authorizedPhone);
   const [logo, setLogo] = useState<string | null>(() => getCompanySettings().logo);
+  const [reportLogo, setReportLogo] = useState<string | null>(() => getCompanySettings().reportLogo);
+  const reportLogoInputRef = useRef<HTMLInputElement>(null);
   const [letterheadImage, setLetterheadImage] = useState<string | null>(() => getCompanySettings().letterheadImage);
   const [letterheadMode, setLetterheadMode] = useState<LetterheadMode>(() => getCompanySettings().letterheadMode);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +108,7 @@ export function CompanySettingsPage() {
           phone: data.phone ?? "",
           authorizedPhone: data.authorizedPhone ?? "",
           logo: data.logo ?? null,
+          reportLogo: data.reportLogo ?? null,
           letterheadImage: data.letterheadImage ?? null,
           letterheadMode: data.letterheadMode === "background" ? "background" : "header",
           permitDate: data.permitDate ?? "",
@@ -128,6 +132,7 @@ export function CompanySettingsPage() {
         setPhone(next.phone);
         setAuthorizedPhone(next.authorizedPhone);
         setLogo(next.logo);
+        setReportLogo(next.reportLogo);
         setLetterheadImage(next.letterheadImage);
         setLetterheadMode(next.letterheadMode);
         setPermitDate(next.permitDate);
@@ -163,6 +168,25 @@ export function CompanySettingsPage() {
   function handleRemoveLogo() {
     setLogo(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleReportLogoSelect(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Lütfen bir görsel dosyası seçin (PNG, JPG, SVG)");
+      return;
+    }
+    try {
+      const dataUrl = await readReportLogoFile(file);
+      setReportLogo(dataUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Rapor logosu yüklenemedi");
+    }
+  }
+
+  function handleRemoveReportLogo() {
+    setReportLogo(null);
+    if (reportLogoInputRef.current) reportLogoInputRef.current.value = "";
   }
 
   async function handleLetterheadSelect(file: File | undefined) {
@@ -205,6 +229,7 @@ export function CompanySettingsPage() {
           phone: phone.trim(),
           authorizedPhone: authorizedPhone.trim(),
           logo,
+          reportLogo,
           letterheadImage,
           letterheadMode,
           permitDate: permitDate.trim(),
@@ -232,6 +257,7 @@ export function CompanySettingsPage() {
         phone: data.phone ?? "",
         authorizedPhone: data.authorizedPhone ?? "",
         logo: data.logo ?? null,
+        reportLogo: data.reportLogo ?? null,
         letterheadImage: data.letterheadImage ?? null,
         letterheadMode: data.letterheadMode === "background" ? "background" : "header",
         permitDate: data.permitDate ?? "",
@@ -460,6 +486,63 @@ export function CompanySettingsPage() {
               <p className="text-[11px] text-muted-foreground sm:col-span-2">
                 Adres ve telefon, EK-1 Biyosidal Ürün Uygulama İşlem Formu&apos;nda &quot;Uygulamayı Yapana Ait Bilgiler&quot; bölümüne otomatik yazılır.
               </p>
+            </div>
+          </div>
+
+          <Button onClick={handleSave} loading={saving} className="w-fit">
+            <Save className="size-4" />
+            Kaydet
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <FileBarChart className="size-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Rapor Logosu</p>
+              <p className="text-xs text-muted-foreground">
+                Programın ürettiği raporların (DÖF, Risk, Trend Analiz vb.) üst kısmında büyük ve belirgin gösterilecek ayrı bir logo. Boş bırakırsanız yukarıdaki firma logonuz (küçük) kullanılır.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex shrink-0 flex-col items-center gap-2.5">
+              <div
+                className={cn(
+                  "flex size-28 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/30",
+                  reportLogo && "border-solid border-primary/20 bg-white",
+                )}
+              >
+                {reportLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={reportLogo} alt="Rapor logosu" className="size-full object-contain p-2" />
+                ) : (
+                  <ImagePlus className="size-7 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" onClick={() => reportLogoInputRef.current?.click()}>
+                  {reportLogo ? "Değiştir" : "Logo Yükle"}
+                </Button>
+                {reportLogo && (
+                  <Button size="icon-sm" variant="outline" className="text-destructive hover:bg-destructive/10" onClick={handleRemoveReportLogo} aria-label="Rapor logosunu kaldır">
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+              <input
+                ref={reportLogoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleReportLogoSelect(e.target.files?.[0])}
+              />
+              <p className="text-center text-[10px] text-muted-foreground">PNG, JPG veya SVG · maks. 5MB</p>
             </div>
           </div>
 

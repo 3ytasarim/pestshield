@@ -30,6 +30,7 @@ export const LETTERHEAD_STYLES = `
   }
   .brand-block { display: flex; align-items: center; gap: 12px; }
   .brand-block img { width: 42px; height: 42px; border-radius: 10px; object-fit: contain; background: #fff; }
+  .brand-block img.report-logo { width: 68px; height: 68px; }
   .brand-name { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: #0f2942; }
   .brand-tagline { font-size: 10.5px; color: #64748b; margin-top: 1px; }
   .doc-meta { text-align: right; }
@@ -90,7 +91,11 @@ interface LetterheadOptions {
  */
 export function renderLetterhead({ docTitle, docNo, docDate }: LetterheadOptions): string {
   const company = getCompanySettings();
-  const logo = company.logo ? `<img src="${company.logo}" alt="Logo" />` : "";
+  const logo = company.reportLogo
+    ? `<img class="report-logo" src="${company.reportLogo}" alt="Logo" />`
+    : company.logo
+      ? `<img src="${company.logo}" alt="Logo" />`
+      : "";
 
   const letterheadBanner =
     company.letterheadImage && company.letterheadMode !== "background"

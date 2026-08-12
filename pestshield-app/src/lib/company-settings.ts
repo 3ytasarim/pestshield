@@ -25,6 +25,9 @@ export interface CompanySettings {
   phone: string;
   authorizedPhone: string;
   logo: string | null;
+  /// Programın ürettiği raporların (DÖF, Risk, Trend vb.) üst kısmında büyük gösterilecek
+  /// ayrı bir logo — boşsa `logo`ya (küçük) düşülür.
+  reportLogo: string | null;
   letterheadImage: string | null;
   letterheadMode: LetterheadMode;
   permitDate: string;
@@ -48,6 +51,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   phone: "",
   authorizedPhone: "",
   logo: null,
+  reportLogo: null,
   letterheadImage: null,
   letterheadMode: "header",
   permitDate: "",
@@ -88,4 +92,9 @@ export function readLogoFile(file: File): Promise<string> {
 /** Seçilen antetli kağıt görselini base64 data URL'e çevirir (8MB üstü reddedilir — tam sayfa görseller daha büyük olabilir). */
 export function readLetterheadFile(file: File): Promise<string> {
   return readImageFile(file, 8);
+}
+
+/** Seçilen rapor logosunu base64 data URL'e çevirir (5MB üstü reddedilir). */
+export function readReportLogoFile(file: File): Promise<string> {
+  return readImageFile(file, 5);
 }

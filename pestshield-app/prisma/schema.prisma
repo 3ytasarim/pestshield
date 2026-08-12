@@ -288,6 +288,9 @@ model User {
   authorizedPhone String?
   /// Firma logosu — base64 data URL (bkz. src/lib/file-utils.ts readImageFile).
   logoUrl         String?
+  /// Rapor logosu — base64 data URL. Programın ürettiği raporların (DÖF, Risk, Trend vb.)
+  /// üst kısmında büyük/belirgin gösterilir; boşsa logoUrl'e (küçük) düşülür.
+  reportLogoUrl   String?
   /// Antetli kağıt görseli — base64 data URL. Raporlarda/tekliflerde logo yerine/yanında kullanılır.
   letterheadImage String?
   /// "header" (üst başlık bandı) | "background" (tam sayfa arkaplan)
