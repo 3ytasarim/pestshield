@@ -45,7 +45,7 @@ function todayIsoIstanbul(): string {
 
 export function AiCommandCenter() {
   const { data: session } = useSession();
-  const { open, setOpen } = useAiPanel();
+  const { open, setOpen, consumePendingPrompt } = useAiPanel();
   const [ready, setReady] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [showReports, setShowReports] = useState(false);
@@ -111,6 +111,14 @@ export function AiCommandCenter() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, userId, conversation]);
+
+  useEffect(() => {
+    if (open) {
+      const prompt = consumePendingPrompt();
+      if (prompt) setInput(prompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!userId || !role) return null;
 

@@ -10,14 +10,34 @@ interface AiPanelContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
   openAiPanel: () => void;
+  /** Panel açıldığında composer'a otomatik yazılacak metin — bkz. AI Copilot sayfasındaki hazır öneriler. */
+  pendingPrompt: string | null;
+  consumePendingPrompt: () => string | null;
+  openAiPanelWithPrompt: (prompt: string) => void;
 }
 
 const AiPanelContext = createContext<AiPanelContextValue | null>(null);
 
 export function AiPanelProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const openAiPanel = useCallback(() => setOpen(true), []);
-  const value = useMemo(() => ({ open, setOpen, openAiPanel }), [open, openAiPanel]);
+  const openAiPanelWithPrompt = useCallback((prompt: string) => {
+    setPendingPrompt(prompt);
+    setOpen(true);
+  }, []);
+  const consumePendingPrompt = useCallback(() => {
+    let value: string | null = null;
+    setPendingPrompt((prev) => {
+      value = prev;
+      return null;
+    });
+    return value;
+  }, []);
+  const value = useMemo(
+    () => ({ open, setOpen, openAiPanel, pendingPrompt, consumePendingPrompt, openAiPanelWithPrompt }),
+    [open, openAiPanel, pendingPrompt, consumePendingPrompt, openAiPanelWithPrompt],
+  );
 
   return <AiPanelContext.Provider value={value}>{children}</AiPanelContext.Provider>;
 }

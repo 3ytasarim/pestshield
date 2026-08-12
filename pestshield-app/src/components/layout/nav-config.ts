@@ -219,11 +219,11 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Yapay Zeka",
       icon: Bot,
       items: [
-        { label: "AI Copilot", href: "/dashboard/client/ai/copilot", icon: Bot, comingSoon: true },
-        { label: "AI Tavsiyeleri", href: "/dashboard/client/ai/recommendations", icon: Lightbulb, comingSoon: true },
-        { label: "Fotoğraf Analizi", href: "/dashboard/client/ai/photo-analysis", icon: Camera, comingSoon: true },
-        { label: "Risk Tahmini", href: "/dashboard/client/ai/risk-prediction", icon: TrendingUp, comingSoon: true },
-        { label: "Otomatik Rapor", href: "/dashboard/client/ai/auto-report", icon: FileBarChart, comingSoon: true },
+        { label: "AI Copilot", href: "/dashboard/client/ai/copilot", icon: Bot },
+        { label: "AI Tavsiyeleri", href: "/dashboard/client/ai/recommendations", icon: Lightbulb },
+        { label: "Fotoğraf Analizi", href: "/dashboard/client/ai/photo-analysis", icon: Camera },
+        { label: "Risk Tahmini", href: "/dashboard/client/ai/risk-prediction", icon: TrendingUp },
+        { label: "Otomatik Rapor", href: "/dashboard/client/ai/auto-report", icon: FileBarChart },
       ],
     },
     {
