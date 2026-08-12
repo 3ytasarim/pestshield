@@ -73,7 +73,12 @@ export async function syncWorkOrderToCalendar(ownerId: string, workOrderId: stri
     }
 
     const accessToken = await ensureFreshAccessToken(integration);
-    const calendarId = integration.calendarId || "primary";
+    // Teknisyenin kendi Google alt-takvimi varsa ÖNCELİKLE o kullanılır — "Bekleyen İçe
+    // Aktarımlar"dan onaylanan iş emirlerinin googleEventId'si o takvimdeki etkinliğe aittir;
+    // burada şirketin ortak takvimine (integration.calendarId) düşülürse upsertEvent 404 alır,
+    // yeni bir etkinlik oluşturup googleEventId'yi onunla değiştirir ve orijinal etkinlik hiçbir
+    // zaman "aktarıldı" olarak işaretlenmediği için sayfa yenilendiğinde tekrar bekleyen olarak görünür.
+    const calendarId = order.technician?.googleCalendarId || integration.calendarId || "primary";
 
     if (order.status === "cancelled") {
       if (order.googleEventId) {
