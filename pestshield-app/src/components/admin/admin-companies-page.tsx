@@ -123,6 +123,9 @@ export function AdminCompaniesPage({
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  const [deleteCodeTarget, setDeleteCodeTarget] = useState<CodeRow | null>(null);
+  const [deletingCode, setDeletingCode] = useState(false);
+
   const rows = useMemo(
     () =>
       companies.map((company) => ({
@@ -397,6 +400,24 @@ export function AdminCompaniesPage({
     }
   }
 
+  async function handleDeleteCode() {
+    if (!deleteCodeTarget) return;
+    setDeletingCode(true);
+    try {
+      const res = await fetch(`/api/admin/license-codes/${deleteCodeTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Lisans kodu silinemedi");
+        return;
+      }
+      setCodes((prev) => prev.filter((c) => c.id !== deleteCodeTarget.id));
+      toast.success("Lisans kodu silindi");
+      setDeleteCodeTarget(null);
+    } finally {
+      setDeletingCode(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -522,6 +543,7 @@ export function AdminCompaniesPage({
                 <TableHead>Tip</TableHead>
                 <TableHead>Oluşturulma</TableHead>
                 <TableHead>Durum</TableHead>
+                <TableHead className="text-right">İşlem</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -542,6 +564,19 @@ export function AdminCompaniesPage({
                       <Badge variant="secondary">Kullanıldı</Badge>
                     ) : (
                       <Badge variant="outline">Bekliyor</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {!c.redeemedAt && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        title="Sil"
+                        onClick={() => setDeleteCodeTarget(c)}
+                      >
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -819,6 +854,27 @@ export function AdminCompaniesPage({
               onClick={handleDelete}
             >
               Kalıcı Olarak Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteCodeTarget} onOpenChange={(open) => !open && setDeleteCodeTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lisans kodunu sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteCodeTarget?.code}&quot; kodunu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deletingCode}
+              onClick={handleDeleteCode}
+            >
+              Sil
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
