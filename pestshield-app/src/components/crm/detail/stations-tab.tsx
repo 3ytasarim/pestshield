@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { MapPinned, Plus, QrCode } from "lucide-react";
+import { MapPinned, Pencil, Plus, QrCode, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatDate } from "@/components/crm/crm-format";
 import { StationStatusBadge } from "@/components/operations/operations-badges";
@@ -28,6 +38,9 @@ export function StationsTab({ customerId }: { customerId: string }) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingStation, setEditingStation] = useState<Station | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Station | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/crm/stations?customerId=${customerId}`)
@@ -59,6 +72,41 @@ export function StationsTab({ customerId }: { customerId: string }) {
     toast.success("İstasyon eklendi");
   }
 
+  async function handleUpdate(values: StationFormValues) {
+    if (!editingStation) return;
+    const res = await fetch(`/api/crm/stations/${editingStation.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "İstasyon güncellenemedi");
+      return;
+    }
+    setStations((prev) => prev.map((s) => (s.id === editingStation.id ? data.station : s)));
+    toast.success("İstasyon güncellendi");
+    setEditingStation(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/stations/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "İstasyon silinemedi");
+        return;
+      }
+      setStations((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      toast.success("İstasyon silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -83,6 +131,7 @@ export function StationsTab({ customerId }: { customerId: string }) {
                 <TableHead className="hidden lg:table-cell">Son Kontrol</TableHead>
                 <TableHead className="hidden lg:table-cell">Sıradaki Kontrol</TableHead>
                 <TableHead>QR</TableHead>
+                <TableHead className="text-right">İşlem</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -106,6 +155,22 @@ export function StationsTab({ customerId }: { customerId: string }) {
                         <QrCode className="size-3.5" />
                       </Link>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="size-8" title="Düzenle" onClick={() => setEditingStation(station)}>
+                          <Pencil className="size-3.5" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Sil"
+                          onClick={() => setDeleteTarget(station)}
+                        >
+                          <Trash2 className="size-3.5" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -121,6 +186,35 @@ export function StationsTab({ customerId }: { customerId: string }) {
         customers={customer ? [{ id: customer.id, companyName: customer.companyName }] : []}
         defaultCustomerId={customerId}
       />
+      <StationForm
+        open={!!editingStation}
+        onOpenChange={(open) => !open && setEditingStation(null)}
+        onSubmit={handleUpdate}
+        customers={customer ? [{ id: customer.id, companyName: customer.companyName }] : []}
+        defaultCustomerId={customerId}
+        editing={editingStation}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>İstasyonu sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.label}&quot; istasyonunu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { SelectField, TextField } from "@/components/crm/form-fields";
 import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
 import { stationFormSchema, type StationFormValues } from "@/lib/validations/operations";
+import type { Station } from "@/lib/mock/operations";
 
 const TYPE_OPTIONS = Object.entries(STATION_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 
@@ -32,9 +33,10 @@ interface StationFormProps {
   onSubmit: (values: StationFormValues) => void;
   customers: { id: string; companyName: string }[];
   defaultCustomerId?: string;
+  editing?: (Station & { customer?: { id: string; companyName: string } | null }) | null;
 }
 
-export function StationForm({ open, onOpenChange, onSubmit, customers, defaultCustomerId }: StationFormProps) {
+export function StationForm({ open, onOpenChange, onSubmit, customers, defaultCustomerId, editing }: StationFormProps) {
   const {
     register,
     control,
@@ -49,8 +51,14 @@ export function StationForm({ open, onOpenChange, onSubmit, customers, defaultCu
   const customerOptions = customers.map((c) => ({ value: c.id, label: c.companyName }));
 
   useEffect(() => {
-    if (open) reset({ ...EMPTY, customerId: defaultCustomerId ?? "" });
-  }, [open, defaultCustomerId, reset]);
+    if (open) {
+      reset(
+        editing
+          ? { customerId: editing.customerId, locationId: editing.locationId, label: editing.label, type: editing.type }
+          : { ...EMPTY, customerId: defaultCustomerId ?? "" },
+      );
+    }
+  }, [open, editing, defaultCustomerId, reset]);
 
   const selectedCustomerId = useWatch({ control, name: "customerId" });
   const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([]);
@@ -77,9 +85,11 @@ export function StationForm({ open, onOpenChange, onSubmit, customers, defaultCu
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPinned className="size-4.5 text-primary" />
-            Yeni İstasyon Ekle
+            {editing ? "İstasyonu Düzenle" : "Yeni İstasyon Ekle"}
           </DialogTitle>
-          <DialogDescription>Bir müşteri lokasyonuna yeni tuzak/yem istasyonu ekleyin.</DialogDescription>
+          <DialogDescription>
+            {editing ? "İstasyon bilgilerini güncelleyin." : "Bir müşteri lokasyonuna yeni tuzak/yem istasyonu ekleyin."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3.5">
