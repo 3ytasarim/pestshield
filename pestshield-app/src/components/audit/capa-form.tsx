@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, TextareaField, SelectField } from "@/components/crm/form-fields";
 import { CAPA_SEVERITY_OPTIONS, CAPA_SOURCE_OPTIONS } from "@/components/audit/audit-labels";
-import { STANDARD_LABELS, type CapaSeverity } from "@/lib/mock/audit";
+import { STANDARD_LABELS, type CapaSeverity, type CorrectiveAction } from "@/lib/mock/audit";
 import { capaFormSchema, type CapaFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
@@ -44,9 +44,10 @@ interface CapaFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: CapaFormValues) => void;
   customers: { id: string; companyName: string }[];
+  editing?: CorrectiveAction | null;
 }
 
-export function CapaForm({ open, onOpenChange, onSubmit, customers }: CapaFormProps) {
+export function CapaForm({ open, onOpenChange, onSubmit, customers, editing }: CapaFormProps) {
   const CUSTOMER_OPTIONS = [
     { value: "none", label: "Genel (müşteriye bağlı değil)" },
     ...customers.map((c) => ({ value: c.id, label: c.companyName })),
@@ -61,8 +62,24 @@ export function CapaForm({ open, onOpenChange, onSubmit, customers }: CapaFormPr
   } = useForm<CapaFormValues>({ resolver: zodResolver(capaFormSchema), defaultValues: EMPTY });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              title: editing.title,
+              standard: editing.standard ?? "none",
+              customerId: editing.customerId ?? "none",
+              source: editing.source,
+              severity: editing.severity,
+              rootCause: editing.rootCause,
+              actionPlan: editing.actionPlan,
+              responsible: editing.responsible,
+              dueDate: editing.dueDate,
+            }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   function submit(values: CapaFormValues) {
     onSubmit(values);
@@ -75,9 +92,13 @@ export function CapaForm({ open, onOpenChange, onSubmit, customers }: CapaFormPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardCheck className="size-4.5 text-primary" />
-            Yeni Düzeltici Faaliyet
+            {editing ? "Düzeltici Faaliyeti Düzenle" : "Yeni Düzeltici Faaliyet"}
           </DialogTitle>
-          <DialogDescription>Bir uygunsuzluk veya bulgu için düzeltici faaliyet kaydı oluşturun.</DialogDescription>
+          <DialogDescription>
+            {editing
+              ? "Düzeltici faaliyet kaydını güncelleyin."
+              : "Bir uygunsuzluk veya bulgu için düzeltici faaliyet kaydı oluşturun."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex max-h-[70vh] flex-col gap-3.5 overflow-y-auto pr-1">

@@ -4,10 +4,20 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
-import { AlertOctagon, CheckCircle2, ClipboardCheck, Clock, FileText, Mail, Plus, Search } from "lucide-react";
+import { AlertOctagon, CheckCircle2, ClipboardCheck, Clock, FileText, Mail, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -48,6 +58,9 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [formOpen, setFormOpen] = useState(false);
+  const [editingCapa, setEditingCapa] = useState<CorrectiveAction | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CorrectiveAction | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -111,6 +124,41 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
     }
     setCapas((prev) => [data.capa, ...prev]);
     toast.success("Düzeltici faaliyet oluşturuldu");
+  }
+
+  async function handleUpdate(values: CapaFormValues) {
+    if (!editingCapa) return;
+    const res = await fetch(`/api/audit/corrective-actions/${editingCapa.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Düzeltici faaliyet güncellenemedi");
+      return;
+    }
+    setCapas((prev) => prev.map((c) => (c.id === editingCapa.id ? data.capa : c)));
+    setEditingCapa(null);
+    toast.success("Düzeltici faaliyet güncellendi");
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/audit/corrective-actions/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Düzeltici faaliyet silinemedi");
+        return;
+      }
+      setCapas((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      toast.success("Düzeltici faaliyet silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -282,6 +330,23 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
                             Sonraki Aşamaya Geçir
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          startContent={<Pencil className="size-3.5" aria-hidden="true" />}
+                          onClick={() => setEditingCapa(capa)}
+                        >
+                          Düzenle
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          startContent={<Trash2 className="size-3.5" aria-hidden="true" />}
+                          onClick={() => setDeleteTarget(capa)}
+                        >
+                          Sil
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -293,6 +358,34 @@ export function CorrectiveActionsPage({ initialCapas, customers }: CorrectiveAct
       )}
 
       <CapaForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
+      <CapaForm
+        open={!!editingCapa}
+        onOpenChange={(open) => !open && setEditingCapa(null)}
+        onSubmit={handleUpdate}
+        customers={customers}
+        editing={editingCapa}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Düzeltici faaliyeti sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.title}&quot; kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
