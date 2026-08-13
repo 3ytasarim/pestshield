@@ -2,13 +2,23 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { LifeBuoy, Plus, Send } from "lucide-react";
+import { LifeBuoy, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/components/crm/crm-format";
@@ -65,6 +75,11 @@ export function SupportTicketsPanel({
   const [creating, setCreating] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editSubject, setEditSubject] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SupportTicketDTO | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
   const loadTickets = useCallback(async () => {
@@ -149,6 +164,56 @@ export function SupportTicketsPanel({
     }
   }
 
+  function openEditDialog() {
+    if (!selected) return;
+    setEditSubject(selected.subject);
+    setEditDialogOpen(true);
+  }
+
+  async function handleEditSave() {
+    if (!selected || editSubject.trim().length < 3) {
+      toast.error("Konu en az 3 karakter olmalı");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/support/tickets/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: editSubject }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.message ?? "Talep güncellenemedi");
+        return;
+      }
+      setTickets((prev) => (prev ?? []).map((t) => (t.id === selected.id ? data.ticket : t)));
+      setEditDialogOpen(false);
+      toast.success("Talep güncellendi");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/support/tickets/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Talep silinemedi");
+        return;
+      }
+      setTickets((prev) => (prev ?? []).filter((t) => t.id !== deleteTarget.id));
+      if (selectedId === deleteTarget.id) setSelectedId(null);
+      toast.success("Talep silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -214,9 +279,23 @@ export function SupportTicketsPanel({
                           : formatDateTime(selected.createdAt)}
                     </p>
                   </div>
-                  <Badge variant="outline" className={cn("rounded-full font-medium", STATUS_STYLES[selected.status])}>
-                    {STATUS_LABELS[selected.status]}
-                  </Badge>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Badge variant="outline" className={cn("rounded-full font-medium", STATUS_STYLES[selected.status])}>
+                      {STATUS_LABELS[selected.status]}
+                    </Badge>
+                    <Button size="icon" variant="ghost" className="size-8" title="Düzenle" onClick={openEditDialog}>
+                      <Pencil className="size-3.5" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      title="Sil"
+                      onClick={() => setDeleteTarget(selected)}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
@@ -291,6 +370,47 @@ export function SupportTicketsPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Talebi Düzenle</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="support-edit-subject">Konu</Label>
+            <Input id="support-edit-subject" value={editSubject} onChange={(e) => setEditSubject(e.target.value)} placeholder="Kısaca konu başlığı" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Vazgeç
+            </Button>
+            <Button onClick={handleEditSave} loading={savingEdit}>
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Destek talebini sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.subject}&quot; talebini ve tüm mesajlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
