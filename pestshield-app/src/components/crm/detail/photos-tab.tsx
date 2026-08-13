@@ -46,6 +46,10 @@ export function PhotosTab({ customerId }: { customerId: string }) {
   const [deleting, setDeleting] = useState<Photo | null>(null);
   const [analyzing, setAnalyzing] = useState<Photo | null>(null);
   const [analyzeState, setAnalyzeState] = useState<"loading" | "done">("loading");
+  const [editing, setEditing] = useState<Photo | null>(null);
+  const [editCategory, setEditCategory] = useState<PhotoCategory>("general");
+  const [editDescription, setEditDescription] = useState("");
+  const [editLocation, setEditLocation] = useState("");
 
   function confirmUpload() {
     const newPhotos: Photo[] = pendingFiles.map((file, i) => ({
@@ -72,6 +76,22 @@ export function PhotosTab({ customerId }: { customerId: string }) {
     setTimeout(() => setAnalyzeState("done"), 1200);
   }
 
+  function openEdit(photo: Photo) {
+    setEditing(photo);
+    setEditCategory(photo.category);
+    setEditDescription(photo.description);
+    setEditLocation(photo.location);
+  }
+
+  function saveEdit() {
+    if (!editing) return;
+    setPhotos((prev) =>
+      prev.map((p) => (p.id === editing.id ? { ...p, category: editCategory, description: editDescription, location: editLocation } : p)),
+    );
+    toast.success("Fotoğraf güncellendi");
+    setEditing(null);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -85,7 +105,7 @@ export function PhotosTab({ customerId }: { customerId: string }) {
       {photos.length === 0 ? (
         <EmptyState icon={ImageIcon} title="Henüz fotoğraf yüklenmemiş" description="Saha fotoğraflarını buradan yükleyin." />
       ) : (
-        <PhotoGallery photos={photos} onAnalyze={analyze} onDelete={setDeleting} />
+        <PhotoGallery photos={photos} onAnalyze={analyze} onEdit={openEdit} onDelete={setDeleting} />
       )}
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
@@ -154,6 +174,45 @@ export function PhotosTab({ customerId }: { customerId: string }) {
           )}
           <DialogFooter>
             <Button onClick={() => setAnalyzing(null)}>Kapat</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="max-w-lg sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Fotoğrafı Düzenle</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div>
+              <Label className="mb-1.5">Kategori</Label>
+              <Select value={editCategory} onValueChange={(v) => setEditCategory(v as PhotoCategory)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PHOTO_CATEGORY_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1.5">Açıklama</Label>
+              <Textarea rows={2} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5">Konum</Label>
+              <Textarea rows={1} value={editLocation} onChange={(e) => setEditLocation(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Vazgeç
+            </Button>
+            <Button onClick={saveEdit}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

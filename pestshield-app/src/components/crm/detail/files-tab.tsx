@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, Eye, FileText, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, FileText, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { formatDate, formatFileSize } from "@/components/crm/crm-format";
 import { FileUploadCard } from "@/components/crm/detail/file-upload-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
@@ -39,6 +40,9 @@ export function FilesTab({ customerId }: { customerId: string }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [category, setCategory] = useState<FileCategory>("other");
+  const [editing, setEditing] = useState<FileItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState<FileCategory>("other");
 
   function confirmUpload() {
     const newFiles: FileItem[] = pendingFiles.map((file, i) => ({
@@ -54,6 +58,23 @@ export function FilesTab({ customerId }: { customerId: string }) {
     setPendingFiles([]);
     setUploadOpen(false);
     toast.success(`${newFiles.length} dosya yüklendi`);
+  }
+
+  function openEdit(file: FileItem) {
+    setEditing(file);
+    setEditName(file.name);
+    setEditCategory(file.category);
+  }
+
+  function saveEdit() {
+    if (!editing) return;
+    if (!editName.trim()) {
+      toast.error("Dosya adını girin");
+      return;
+    }
+    setFiles((prev) => prev.map((f) => (f.id === editing.id ? { ...f, name: editName.trim(), category: editCategory } : f)));
+    toast.success("Dosya güncellendi");
+    setEditing(null);
   }
 
   return (
@@ -110,6 +131,10 @@ export function FilesTab({ customerId }: { customerId: string }) {
                           <Download className="size-3.5" />
                           İndir
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(file)}>
+                          <Pencil className="size-3.5" />
+                          Düzenle
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
                           onClick={() => setFiles((prev) => prev.filter((f) => f.id !== file.id))}
@@ -163,6 +188,41 @@ export function FilesTab({ customerId }: { customerId: string }) {
             <Button onClick={confirmUpload} disabled={pendingFiles.length === 0}>
               Yükle
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="max-w-md sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Dosyayı Düzenle</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div>
+              <Label className="mb-1.5">Dosya Adı</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-11 rounded-xl px-3.5" />
+            </div>
+            <div>
+              <Label className="mb-1.5">Kategori</Label>
+              <Select value={editCategory} onValueChange={(v) => setEditCategory(v as FileCategory)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(FILE_CATEGORY_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Vazgeç
+            </Button>
+            <Button onClick={saveEdit}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

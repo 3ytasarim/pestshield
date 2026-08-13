@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, MapPin, MoreVertical, Sparkles, Trash2, User } from "lucide-react";
+import { Camera, MapPin, MoreVertical, Pencil, Sparkles, Trash2, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,11 @@ import type { Photo } from "@/lib/mock/crm";
 interface PhotoGalleryProps {
   photos: Photo[];
   onAnalyze: (photo: Photo) => void;
+  onEdit: (photo: Photo) => void;
   onDelete: (photo: Photo) => void;
 }
 
-export function PhotoGallery({ photos, onAnalyze, onDelete }: PhotoGalleryProps) {
+export function PhotoGallery({ photos, onAnalyze, onEdit, onDelete }: PhotoGalleryProps) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {photos.map((photo) => (
@@ -46,6 +47,10 @@ export function PhotoGallery({ photos, onAnalyze, onDelete }: PhotoGalleryProps)
                   <DropdownMenuItem onClick={() => onAnalyze(photo)}>
                     <Sparkles className="size-3.5" />
                     AI Analiz Et
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEdit(photo)}>
+                    <Pencil className="size-3.5" />
+                    Düzenle
                   </DropdownMenuItem>
                   <DropdownMenuItem variant="destructive" onClick={() => onDelete(photo)}>
                     <Trash2 className="size-3.5" />
