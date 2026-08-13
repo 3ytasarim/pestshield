@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { ArrowUpDown, Eye, FileText, Loader2, Plus, Search, Trash2, Upload } from "lucide-react";
+import { ArrowUpDown, Eye, FileText, Loader2, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RainbowButton } from "@/components/ui/rainbow-button";
@@ -64,6 +64,9 @@ export function DocumentsPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState<CompanyDocument | null>(null);
+  const [renameDoc, setRenameDoc] = useState<CompanyDocument | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
   const [file, setFile] = useState<{ dataUrl: string; fileName: string; sizeKb: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -159,6 +162,34 @@ export function DocumentsPage() {
       toast.error("Belge kaydedilemedi — sunucuya ulaşılamadı");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRename() {
+    if (!renameDoc) return;
+    if (!renameValue.trim()) {
+      toast.error("Belge adını girin");
+      return;
+    }
+    setRenaming(true);
+    try {
+      const res = await fetch(`/api/documents/${renameDoc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Belge güncellenemedi");
+        return;
+      }
+      toast.success("Belge güncellendi");
+      setRenameDoc(null);
+      await loadDocuments();
+    } catch {
+      toast.error("Belge güncellenemedi — sunucuya ulaşılamadı");
+    } finally {
+      setRenaming(false);
     }
   }
 
@@ -263,6 +294,17 @@ export function DocumentsPage() {
                           <Button
                             size="icon-sm"
                             variant="outline"
+                            onClick={() => {
+                              setRenameDoc(doc);
+                              setRenameValue(doc.name);
+                            }}
+                            aria-label="Belgeyi düzenle"
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                          <Button
+                            size="icon-sm"
+                            variant="outline"
                             className="text-destructive hover:bg-destructive/10"
                             onClick={() => handleDelete(doc.id)}
                             aria-label="Belgeyi sil"
@@ -360,6 +402,27 @@ export function DocumentsPage() {
               {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Kaydet
             </RainbowButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!renameDoc} onOpenChange={(open) => !open && setRenameDoc(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Belgeyi Düzenle</DialogTitle>
+            <DialogDescription>Belge adını güncelleyin.</DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label className="mb-1.5">Belge Adı</Label>
+            <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className="h-11 rounded-xl px-3.5" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRenameDoc(null)}>
+              Vazgeç
+            </Button>
+            <Button type="button" loading={renaming} onClick={handleRename}>
+              Kaydet
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

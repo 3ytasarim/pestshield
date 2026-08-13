@@ -8,3 +8,9 @@ export const createDocumentSchema = z.object({
 });
 
 export type CreateDocumentValues = z.infer<typeof createDocumentSchema>;
+
+export const renameDocumentSchema = z.object({
+  name: z.string().min(1, "Belge adı zorunludur"),
+});
+
+export type RenameDocumentValues = z.infer<typeof renameDocumentSchema>;
