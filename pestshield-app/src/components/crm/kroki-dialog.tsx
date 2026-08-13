@@ -235,7 +235,7 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
   return (
     <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className={cn("sm:max-w-3xl", tab === "duzenle" && "sm:max-w-4xl")}>
+      <DialogContent className={cn("sm:max-w-3xl", tab === "duzenle" && "w-[96vw] max-w-[1600px]")}>
         <DialogHeader>
           <DialogTitle>Kroki Tanımlama</DialogTitle>
         </DialogHeader>
@@ -608,7 +608,7 @@ function KrokiEditor({ sketch, startOffset, onCancel, onSave }: KrokiEditorProps
       </div>
 
       <div
-        className="relative max-h-[420px] overflow-auto rounded-xl border border-border/60 bg-muted/20"
+        className="relative max-h-[70vh] overflow-auto rounded-xl border border-border/60 bg-muted/20"
         onWheel={handleWheel}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
