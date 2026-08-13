@@ -36,9 +36,10 @@ interface WorkOrderFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: WorkOrderFormValues) => void;
   technicians: Technician[];
+  editing?: WorkOrderFormValues | null;
 }
 
-export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians }: WorkOrderFormProps) {
+export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians, editing }: WorkOrderFormProps) {
   const technicianOptions = technicians.filter((t) => t.status === "active").map((t) => ({ value: t.id, label: t.name }));
   const {
     register,
@@ -49,8 +50,8 @@ export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians }: Wor
   } = useForm<WorkOrderFormValues>({ resolver: zodResolver(workOrderFormSchema), defaultValues: EMPTY });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) reset(editing ?? EMPTY);
+  }, [open, editing, reset]);
 
   function submit(values: WorkOrderFormValues) {
     onSubmit(values);
@@ -63,9 +64,11 @@ export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians }: Wor
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="size-4.5 text-primary" />
-            Yeni İş Emri
+            {editing ? "İş Emrini Düzenle" : "Yeni İş Emri"}
           </DialogTitle>
-          <DialogDescription>Bu müşteri için yeni bir servis iş emri oluşturun.</DialogDescription>
+          <DialogDescription>
+            {editing ? "İş emri bilgilerini güncelleyin." : "Bu müşteri için yeni bir servis iş emri oluşturun."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3.5">
@@ -97,7 +100,7 @@ export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians }: Wor
             </Button>
             <Button type="submit" loading={isSubmitting}>
               <ClipboardList className="size-4" />
-              İş Emrini Oluştur
+              {editing ? "Kaydet" : "İş Emrini Oluştur"}
             </Button>
           </DialogFooter>
         </form>

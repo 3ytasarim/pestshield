@@ -10,6 +10,7 @@ import {
   History,
   MoreHorizontal,
   PenTool,
+  Pencil,
   Plus,
   RotateCcw,
   User,
@@ -51,6 +52,7 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [detailOrder, setDetailOrder] = useState<WorkOrder | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<WorkOrder | null>(null);
 
   useEffect(() => {
     fetch(`/api/crm/work-orders?customerId=${customerId}`)
@@ -114,6 +116,23 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
     });
   }
 
+  async function handleUpdate(values: WorkOrderFormValues) {
+    if (!editingOrder) return;
+    const res = await fetch(`/api/crm/work-orders/${editingOrder.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "İş emri güncellenemedi");
+      return;
+    }
+    setWorkOrders((prev) => prev.map((o) => (o.id === editingOrder.id ? data.workOrder : o)));
+    toast.success("İş emri güncellendi");
+    setEditingOrder(null);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -172,6 +191,10 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
                         <DropdownMenuItem onClick={() => setDetailOrder(order)}>
                           <Eye className="size-3.5" />
                           İş Detayı
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingOrder(order)}>
+                          <Pencil className="size-3.5" />
+                          Düzenle
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => toast.info("Rapor görüntüleme yakında eklenecek")}>
                           <FileText className="size-3.5" />
@@ -262,6 +285,26 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
       </Dialog>
 
       <WorkOrderForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} technicians={technicians} />
+      <WorkOrderForm
+        open={!!editingOrder}
+        onOpenChange={(open) => !open && setEditingOrder(null)}
+        onSubmit={handleUpdate}
+        technicians={technicians}
+        editing={
+          editingOrder
+            ? {
+                serviceType: editingOrder.serviceType,
+                technicianId: technicians.find((t) => t.name === editingOrder.technician)?.id ?? "",
+                plannedDate: editingOrder.plannedDate,
+                plannedStartTime: editingOrder.plannedStartTime ?? "",
+                plannedEndTime: editingOrder.plannedEndTime ?? "",
+                dispatchNote: editingOrder.dispatchNote,
+                syncToCalendar: editingOrder.syncToCalendar,
+                followUpDate: editingOrder.followUpDate ?? "",
+              }
+            : null
+        }
+      />
     </div>
   );
 }
