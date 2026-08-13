@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Eye, FileSignature, MoreHorizontal, Plus, RefreshCw, XCircle } from "lucide-react";
+import { Eye, FileSignature, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, XCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -18,6 +18,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ContractStatusBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { ContractForm } from "@/components/crm/detail/contract-form";
@@ -29,6 +39,9 @@ import type { ContractFormValues } from "@/lib/validations/crm";
 export function ContractsTab({ customerId, customer }: { customerId: string; customer: Customer }) {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Contract | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/crm/contracts?customerId=${customerId}`)
@@ -64,6 +77,41 @@ export function ContractsTab({ customerId, customer }: { customerId: string; cus
     const data = await res.json();
     setContracts((prev) => prev.map((c) => (c.id === contract.id ? data.contract : c)));
     toast.success("Sözleşme iptal edildi");
+  }
+
+  async function handleUpdate(values: ContractFormValues) {
+    if (!editingContract) return;
+    const res = await fetch(`/api/crm/contracts/${editingContract.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Sözleşme güncellenemedi");
+      return;
+    }
+    setContracts((prev) => prev.map((c) => (c.id === editingContract.id ? data.contract : c)));
+    toast.success("Sözleşme güncellendi");
+    setEditingContract(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/contracts/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Sözleşme silinemedi");
+        return;
+      }
+      setContracts((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      toast.success("Sözleşme silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function renewContract(contract: Contract) {
@@ -138,9 +186,17 @@ export function ContractsTab({ customerId, customer }: { customerId: string; cus
                           <RefreshCw className="size-3.5" />
                           Yenile
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingContract(contract)}>
+                          <Pencil className="size-3.5" />
+                          Düzenle
+                        </DropdownMenuItem>
                         <DropdownMenuItem variant="destructive" onClick={() => cancelContract(contract)}>
                           <XCircle className="size-3.5" />
                           İptal Et
+                        </DropdownMenuItem>
+                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(contract)}>
+                          <Trash2 className="size-3.5" />
+                          Sil
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -153,6 +209,33 @@ export function ContractsTab({ customerId, customer }: { customerId: string; cus
       )}
 
       <ContractForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleSubmit} />
+      <ContractForm
+        open={!!editingContract}
+        onOpenChange={(open) => !open && setEditingContract(null)}
+        onSubmit={handleUpdate}
+        editing={editingContract}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sözleşmeyi sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.contractNo}&quot; sözleşmesini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

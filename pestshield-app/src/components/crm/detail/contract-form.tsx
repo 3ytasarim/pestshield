@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { TextField, TextareaField, SelectField, CurrencyField } from "@/components/crm/form-fields";
 import { contractFormSchema, type ContractFormValues } from "@/lib/validations/crm";
 import { SERVICE_TYPE_OPTIONS, SERVICE_PERIOD_OPTIONS, CURRENCY_OPTIONS } from "@/components/crm/crm-labels";
+import type { Contract } from "@/lib/mock/crm";
 
 const EMPTY: ContractFormValues = {
   contractNo: "",
@@ -33,9 +34,10 @@ interface ContractFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: ContractFormValues) => void;
   defaultValues?: ContractFormValues;
+  editing?: Contract | null;
 }
 
-export function ContractForm({ open, onOpenChange, onSubmit, defaultValues }: ContractFormProps) {
+export function ContractForm({ open, onOpenChange, onSubmit, defaultValues, editing }: ContractFormProps) {
   const {
     register,
     control,
@@ -45,8 +47,23 @@ export function ContractForm({ open, onOpenChange, onSubmit, defaultValues }: Co
   } = useForm<ContractFormValues>({ resolver: zodResolver(contractFormSchema), defaultValues: defaultValues ?? EMPTY });
 
   useEffect(() => {
-    if (open) reset(defaultValues ?? EMPTY);
-  }, [open, defaultValues, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              contractNo: editing.contractNo,
+              serviceType: editing.serviceType,
+              startDate: editing.startDate,
+              endDate: editing.endDate,
+              servicePeriod: "",
+              monthlyAmount: editing.monthlyAmount,
+              currency: editing.currency,
+              description: "",
+            }
+          : (defaultValues ?? EMPTY),
+      );
+    }
+  }, [open, editing, defaultValues, reset]);
 
   function submit(values: ContractFormValues) {
     onSubmit(values);
@@ -57,7 +74,7 @@ export function ContractForm({ open, onOpenChange, onSubmit, defaultValues }: Co
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Yeni Sözleşme</DialogTitle>
+          <DialogTitle>{editing ? "Sözleşmeyi Düzenle" : "Yeni Sözleşme"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
