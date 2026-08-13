@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { ClipboardList, ListChecks, Plus, Repeat, Tag, Trash2 } from "lucide-react";
+import { ClipboardList, ListChecks, Pencil, Plus, Repeat, Tag, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
@@ -17,6 +17,7 @@ export function CheckpointsPage({ initialTemplates }: { initialTemplates: Checkl
   const [checklistTemplates, setChecklistTemplates] = useState<ChecklistTemplate[]>(initialTemplates);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<ChecklistTemplate | null>(null);
 
   const categories = useMemo(() => Array.from(new Set(checklistTemplates.map((c) => c.category))), [checklistTemplates]);
 
@@ -45,6 +46,22 @@ export function CheckpointsPage({ initialTemplates }: { initialTemplates: Checkl
     toast.success("Kontrol maddesi eklendi");
   }
 
+  async function handleUpdate(values: ChecklistTemplateFormValues) {
+    if (!editingTemplate) return;
+    const res = await fetch(`/api/operations/checklist-templates/${editingTemplate.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Kontrol maddesi güncellenemedi");
+      return;
+    }
+    setChecklistTemplates((prev) => prev.map((c) => (c.id === data.checklistTemplate.id ? data.checklistTemplate : c)));
+    toast.success("Kontrol maddesi güncellendi");
+  }
+
   async function handleDelete(id: string) {
     const res = await fetch(`/api/operations/checklist-templates/${id}`, { method: "DELETE" });
     if (!res.ok) {
@@ -70,7 +87,12 @@ export function CheckpointsPage({ initialTemplates }: { initialTemplates: Checkl
             Sertifikasyon denetim checklist&apos;leri için Denetim modülündeki HACCP/BRCGS/ISO/FSSC sayfalarına bakın.
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingTemplate(null);
+            setFormOpen(true);
+          }}
+        >
           <Plus className="size-4" />
           Yeni Kontrol Maddesi Ekle
         </Button>
@@ -126,7 +148,18 @@ export function CheckpointsPage({ initialTemplates }: { initialTemplates: Checkl
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">{item.frequency}</span>
-                    <Button variant="ghost" size="icon-sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(item.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => {
+                        setEditingTemplate(item);
+                        setFormOpen(true);
+                      }}
+                      title="Düzenle"
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(item.id)} title="Sil">
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>
@@ -142,7 +175,15 @@ export function CheckpointsPage({ initialTemplates }: { initialTemplates: Checkl
         ))}
       </div>
 
-      <ChecklistTemplateForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <ChecklistTemplateForm
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditingTemplate(null);
+        }}
+        onSubmit={editingTemplate ? handleUpdate : handleCreate}
+        editing={editingTemplate}
+      />
     </div>
   );
 }

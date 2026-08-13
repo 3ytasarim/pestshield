@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, TextareaField } from "@/components/crm/form-fields";
 import { checklistTemplateFormSchema, type ChecklistTemplateFormValues } from "@/lib/validations/operations";
+import type { ChecklistTemplate } from "@/lib/mock/operations";
 
 const EMPTY: ChecklistTemplateFormValues = {
   title: "",
@@ -27,9 +28,10 @@ interface ChecklistTemplateFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: ChecklistTemplateFormValues) => void;
+  editing?: ChecklistTemplate | null;
 }
 
-export function ChecklistTemplateForm({ open, onOpenChange, onSubmit }: ChecklistTemplateFormProps) {
+export function ChecklistTemplateForm({ open, onOpenChange, onSubmit, editing }: ChecklistTemplateFormProps) {
   const {
     register,
     handleSubmit,
@@ -38,8 +40,14 @@ export function ChecklistTemplateForm({ open, onOpenChange, onSubmit }: Checklis
   } = useForm<ChecklistTemplateFormValues>({ resolver: zodResolver(checklistTemplateFormSchema), defaultValues: EMPTY });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? { title: editing.title, category: editing.category, description: editing.description, frequency: editing.frequency }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   function submit(values: ChecklistTemplateFormValues) {
     onSubmit(values);
@@ -52,9 +60,11 @@ export function ChecklistTemplateForm({ open, onOpenChange, onSubmit }: Checklis
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="size-4.5 text-primary" />
-            Yeni Kontrol Maddesi Ekle
+            {editing ? "Kontrol Maddesini Düzenle" : "Yeni Kontrol Maddesi Ekle"}
           </DialogTitle>
-          <DialogDescription>Kontrol noktaları kütüphanesine yeni bir madde ekleyin.</DialogDescription>
+          <DialogDescription>
+            {editing ? "Kontrol maddesi bilgilerini güncelleyin." : "Kontrol noktaları kütüphanesine yeni bir madde ekleyin."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3.5">
