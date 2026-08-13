@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireClientOwner } from "@/lib/api-auth";
 import { serializeAuditRecord } from "@/lib/audit/serialize";
-import { auditRecordResultFormSchema } from "@/lib/validations/audit";
+import { auditRecordEditSchema } from "@/lib/validations/audit";
 
-/** Planlanmış bir denetimin sonucunu kaydeder (denetim gerçekleştikten sonra) — result artık "scheduled" değildir. */
+/**
+ * Denetim kaydını günceller — hem "denetim sonucu kaydet" (result alanları) hem de
+ * "denetimi düzenle" (planlama alanları: müşteri/standart/tür/denetçi/tarih) akışı
+ * bu tek uca tam kayıt gönderir (istemci mevcut kaydı okuyup değişmeyen alanları da yollar).
+ */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { ownerId, error } = await requireClientOwner();
   if (error) return error;
@@ -15,12 +19,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ message: "Denetim kaydı bulunamadı." }, { status: 404 });
   }
 
-  const parsed = auditRecordResultFormSchema.safeParse(await request.json());
+  const parsed = auditRecordEditSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Geçersiz istek" }, { status: 400 });
   }
 
-  const record = await prisma.auditRecord.update({ where: { id }, data: parsed.data });
+  const values = parsed.data;
+  const customer = await prisma.customer.findFirst({ where: { id: values.customerId, ownerId } });
+  if (!customer) {
+    return NextResponse.json({ message: "Müşteri bulunamadı." }, { status: 404 });
+  }
+
+  const record = await prisma.auditRecord.update({ where: { id }, data: values });
   return NextResponse.json({ record: serializeAuditRecord(record) });
 }
 

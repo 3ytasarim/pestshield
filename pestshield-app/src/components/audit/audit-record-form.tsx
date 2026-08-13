@@ -7,7 +7,7 @@ import { CalendarClock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField } from "@/components/crm/form-fields";
-import { STANDARD_LABELS, type ComplianceStandard } from "@/lib/mock/audit";
+import { STANDARD_LABELS, type AuditRecord, type ComplianceStandard } from "@/lib/mock/audit";
 import { AUDIT_TYPE_LABELS } from "@/components/audit/audit-labels";
 import { auditRecordFormSchema, type AuditRecordFormValues } from "@/lib/validations/audit";
 
@@ -34,9 +34,10 @@ interface AuditRecordFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: AuditRecordFormValues) => void;
   customers: { id: string; companyName: string }[];
+  editing?: AuditRecord | null;
 }
 
-export function AuditRecordForm({ open, onOpenChange, onSubmit, customers }: AuditRecordFormProps) {
+export function AuditRecordForm({ open, onOpenChange, onSubmit, customers, editing }: AuditRecordFormProps) {
   const {
     register,
     control,
@@ -49,8 +50,20 @@ export function AuditRecordForm({ open, onOpenChange, onSubmit, customers }: Aud
   });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              customerId: editing.customerId,
+              standard: editing.standard,
+              type: editing.type,
+              auditor: editing.auditor,
+              scheduledDate: editing.scheduledDate,
+            }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   const customerOptions = customers.map((c) => ({ value: c.id, label: c.companyName }));
 
@@ -60,9 +73,13 @@ export function AuditRecordForm({ open, onOpenChange, onSubmit, customers }: Aud
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarClock className="size-5 text-primary" />
-            Denetim Planla
+            {editing ? "Denetimi Düzenle" : "Denetim Planla"}
           </DialogTitle>
-          <DialogDescription>HACCP/BRCGS gibi bir standart denetiminin tarihini önceden planlayın — bildirim merkezinde hatırlatma alırsınız.</DialogDescription>
+          <DialogDescription>
+            {editing
+              ? "Denetim planlama bilgilerini güncelleyin."
+              : "HACCP/BRCGS gibi bir standart denetiminin tarihini önceden planlayın — bildirim merkezinde hatırlatma alırsınız."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -79,7 +96,7 @@ export function AuditRecordForm({ open, onOpenChange, onSubmit, customers }: Aud
               Vazgeç
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              Planla
+              {editing ? "Kaydet" : "Planla"}
             </Button>
           </DialogFooter>
         </form>

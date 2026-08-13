@@ -3,16 +3,26 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { AlertTriangle, CalendarClock, ClipboardCheck, Plus, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CalendarClock, ClipboardCheck, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { StandardSummaryCard } from "@/components/audit/standard-summary-card";
-import { CapaSeverityBadge, CapaStatusBadge } from "@/components/audit/audit-badges";
+import { AuditResultBadge, CapaSeverityBadge, CapaStatusBadge } from "@/components/audit/audit-badges";
 import { AUDIT_TYPE_LABELS } from "@/components/audit/audit-labels";
 import { AuditRecordForm } from "@/components/audit/audit-record-form";
 import { AuditRecordResultForm } from "@/components/audit/audit-record-result-form";
@@ -24,7 +34,7 @@ import {
   type ComplianceStandard,
   type CorrectiveAction,
 } from "@/lib/mock/audit";
-import type { AuditRecordFormValues, AuditRecordResultFormValues } from "@/lib/validations/audit";
+import type { AuditRecordEditValues, AuditRecordFormValues, AuditRecordResultFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
 const STANDARDS: ComplianceStandard[] = ["haccp", "brcgs", "iso22000", "fssc"];
@@ -40,6 +50,9 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
   const [auditRecords, setAuditRecords] = useState(initialAuditRecords);
   const [planFormOpen, setPlanFormOpen] = useState(false);
   const [resultTarget, setResultTarget] = useState<AuditRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<AuditRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AuditRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function handlePlanSubmit(values: AuditRecordFormValues) {
     const res = await fetch("/api/audit/records", {
@@ -59,10 +72,18 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
 
   async function handleResultSubmit(values: AuditRecordResultFormValues) {
     if (!resultTarget) return;
+    const payload: AuditRecordEditValues = {
+      customerId: resultTarget.customerId,
+      standard: resultTarget.standard,
+      type: resultTarget.type,
+      auditor: resultTarget.auditor,
+      scheduledDate: resultTarget.scheduledDate,
+      ...values,
+    };
     const res = await fetch(`/api/audit/records/${resultTarget.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       toast.error("Denetim sonucu kaydedilemedi");
@@ -72,6 +93,47 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
     setAuditRecords((prev) => prev.map((a) => (a.id === record.id ? record : a)));
     toast.success("Denetim sonucu kaydedildi");
     setResultTarget(null);
+  }
+
+  async function handleEditSubmit(values: AuditRecordFormValues) {
+    if (!editingRecord) return;
+    const payload: AuditRecordEditValues = {
+      ...values,
+      result: editingRecord.result,
+      completedDate: editingRecord.completedDate ?? null,
+      score: editingRecord.score ?? null,
+    };
+    const res = await fetch(`/api/audit/records/${editingRecord.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Denetim güncellenemedi");
+      return;
+    }
+    setAuditRecords((prev) => prev.map((a) => (a.id === data.record.id ? data.record : a)));
+    toast.success("Denetim güncellendi");
+    setEditingRecord(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/audit/records/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Denetim silinemedi");
+        return;
+      }
+      setAuditRecords((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      toast.success("Denetim silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const overallReadiness = useMemo(
@@ -84,6 +146,13 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
   );
   const upcomingAudits = useMemo(
     () => auditRecords.filter((a) => a.result === "scheduled").sort((a, b) => (a.scheduledDate < b.scheduledDate ? -1 : 1)),
+    [auditRecords],
+  );
+  const completedAudits = useMemo(
+    () =>
+      auditRecords
+        .filter((a) => a.result !== "scheduled")
+        .sort((a, b) => ((b.completedDate ?? b.scheduledDate) < (a.completedDate ?? a.scheduledDate) ? -1 : 1)),
     [auditRecords],
   );
   const recentCapas = useMemo(
@@ -165,25 +234,44 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
                 const customer = customers.find((c) => c.id === audit.customerId);
                 const days = daysUntil(audit.scheduledDate);
                 return (
-                  <button
-                    key={audit.id}
-                    type="button"
-                    onClick={() => setResultTarget(audit)}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
-                  >
-                    <div className="min-w-0">
+                  <div key={audit.id} className="flex w-full items-center justify-between gap-3 px-4 py-3.5">
+                    <button
+                      type="button"
+                      onClick={() => setResultTarget(audit)}
+                      className="min-w-0 flex-1 text-left"
+                    >
                       <p className="truncate text-sm font-medium text-foreground">
                         {STANDARD_LABELS[audit.standard]} · {AUDIT_TYPE_LABELS[audit.type]}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {customer?.companyName ?? "—"} · {audit.auditor}
                       </p>
-                    </div>
+                    </button>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-semibold text-foreground">{formatDate(audit.scheduledDate)}</p>
                       <p className="text-xs text-primary">{days} gün kaldı</p>
                     </div>
-                  </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8"
+                        title="Düzenle"
+                        onClick={() => setEditingRecord(audit)}
+                      >
+                        <Pencil className="size-3.5" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        title="Sil"
+                        onClick={() => setDeleteTarget(audit)}
+                      >
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
             </Card>
@@ -220,8 +308,77 @@ export function AuditCenterPage({ checklistItems, correctiveActions, auditRecord
         </div>
       </div>
 
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Tamamlanmış Denetimler</h2>
+        {completedAudits.length === 0 ? (
+          <EmptyState icon={ShieldCheck} title="Tamamlanmış denetim yok" description="Sonucu kaydedilmiş bir denetim bulunmuyor." />
+        ) : (
+          <Card className={cn(GLASS_CARD, "gap-0 divide-y divide-border/60 rounded-2xl p-0")}>
+            {completedAudits.map((audit) => {
+              const customer = customers.find((c) => c.id === audit.customerId);
+              return (
+                <div key={audit.id} className="flex w-full items-center justify-between gap-3 px-4 py-3.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {STANDARD_LABELS[audit.standard]} · {AUDIT_TYPE_LABELS[audit.type]}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {customer?.companyName ?? "—"} · {audit.auditor} · {formatDate(audit.completedDate ?? audit.scheduledDate)}
+                      {typeof audit.score === "number" && <> · Puan: {audit.score}</>}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <AuditResultBadge result={audit.result} />
+                    <Button size="icon" variant="ghost" className="size-8" title="Düzenle" onClick={() => setEditingRecord(audit)}>
+                      <Pencil className="size-3.5" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      title="Sil"
+                      onClick={() => setDeleteTarget(audit)}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        )}
+      </div>
+
       <AuditRecordForm open={planFormOpen} onOpenChange={setPlanFormOpen} onSubmit={handlePlanSubmit} customers={customers} />
+      <AuditRecordForm
+        open={!!editingRecord}
+        onOpenChange={(open) => !open && setEditingRecord(null)}
+        onSubmit={handleEditSubmit}
+        customers={customers}
+        editing={editingRecord}
+      />
       <AuditRecordResultForm open={!!resultTarget} onOpenChange={(open) => !open && setResultTarget(null)} onSubmit={handleResultSubmit} audit={resultTarget} />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Denetim kaydını sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && `${STANDARD_LABELS[deleteTarget.standard]} · ${AUDIT_TYPE_LABELS[deleteTarget.type]}`} kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

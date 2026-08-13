@@ -50,3 +50,11 @@ export const auditRecordResultFormSchema = z.object({
 });
 
 export type AuditRecordResultFormValues = z.infer<typeof auditRecordResultFormSchema>;
+
+export const auditRecordEditSchema = auditRecordFormSchema.extend({
+  result: z.enum(["scheduled", "passed", "passed_with_findings", "failed"]),
+  completedDate: z.string().nullable().optional(),
+  score: z.number().min(0).max(100).nullable().optional(),
+});
+
+export type AuditRecordEditValues = z.infer<typeof auditRecordEditSchema>;
