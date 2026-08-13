@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { warehouseFormSchema, type WarehouseFormValues } from "@/lib/validations/inventory";
 import { WAREHOUSE_TYPE_LABELS } from "@/components/inventory/inventory-labels";
-import type { WarehouseType } from "@/lib/mock/inventory";
+import type { Warehouse, WarehouseType } from "@/lib/mock/inventory";
 
 const TYPE_OPTIONS: { value: WarehouseType; label: string }[] = [
   { value: "main", label: WAREHOUSE_TYPE_LABELS.main },
@@ -39,9 +39,10 @@ interface WarehouseFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: WarehouseFormValues) => void;
+  editing?: Warehouse | null;
 }
 
-export function WarehouseForm({ open, onOpenChange, onSubmit }: WarehouseFormProps) {
+export function WarehouseForm({ open, onOpenChange, onSubmit, editing }: WarehouseFormProps) {
   const {
     register,
     control,
@@ -54,8 +55,21 @@ export function WarehouseForm({ open, onOpenChange, onSubmit }: WarehouseFormPro
   });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              name: editing.name,
+              type: editing.type,
+              address: editing.address,
+              manager: editing.manager,
+              phone: editing.phone,
+              capacityNote: editing.capacityNote,
+            }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   function submit(values: WarehouseFormValues) {
     onSubmit(values);
@@ -68,9 +82,11 @@ export function WarehouseForm({ open, onOpenChange, onSubmit }: WarehouseFormPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <WarehouseIcon className="size-4.5 text-primary" />
-            Yeni Depo Ekle
+            {editing ? "Depoyu Düzenle" : "Yeni Depo Ekle"}
           </DialogTitle>
-          <DialogDescription>Ana depo, araç stoğu veya şube deposu ekleyin.</DialogDescription>
+          <DialogDescription>
+            {editing ? "Depo bilgilerini güncelleyin." : "Ana depo, araç stoğu veya şube deposu ekleyin."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">

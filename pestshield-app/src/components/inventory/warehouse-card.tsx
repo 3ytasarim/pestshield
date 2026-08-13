@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertTriangle, MapPin, Phone, User } from "lucide-react";
+import { AlertTriangle, MapPin, Pencil, Phone, Trash2, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { WarehouseTypeBadge } from "@/components/inventory/inventory-badges";
 import { UNIT_LABELS } from "@/components/inventory/inventory-labels";
@@ -13,9 +14,11 @@ interface WarehouseCardProps {
   warehouse: Warehouse;
   products: Product[];
   delay?: number;
+  onEdit: (warehouse: Warehouse) => void;
+  onDelete: (warehouse: Warehouse) => void;
 }
 
-export function WarehouseCard({ warehouse, products: items, delay = 0 }: WarehouseCardProps) {
+export function WarehouseCard({ warehouse, products: items, delay = 0, onEdit, onDelete }: WarehouseCardProps) {
   const criticalCount = items.filter((p) => p.currentStock <= p.criticalLevel).length;
 
   return (
@@ -34,12 +37,26 @@ export function WarehouseCard({ warehouse, products: items, delay = 0 }: Warehou
                 <WarehouseTypeBadge type={warehouse.type} />
               </div>
             </div>
-            {criticalCount > 0 && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
-                <AlertTriangle className="size-3" />
-                {criticalCount} kritik
-              </span>
-            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {criticalCount > 0 && (
+                <span className="flex items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+                  <AlertTriangle className="size-3" />
+                  {criticalCount} kritik
+                </span>
+              )}
+              <Button variant="ghost" size="icon-sm" onClick={() => onEdit(warehouse)} title="Düzenle">
+                <Pencil className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-destructive hover:bg-destructive/10"
+                onClick={() => onDelete(warehouse)}
+                title="Sil"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
