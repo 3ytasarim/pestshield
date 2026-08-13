@@ -1,0 +1,38 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requireClientOwner } from "@/lib/api-auth";
+import { bankAccountFormSchema } from "@/lib/validations/finance";
+import { serializeBankAccount } from "@/lib/finance/serialize";
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
+  const { id } = await params;
+
+  const existing = await prisma.bankAccount.findFirst({ where: { id, ownerId } });
+  if (!existing) {
+    return NextResponse.json({ message: "Banka hesabı bulunamadı." }, { status: 404 });
+  }
+
+  const parsed = bankAccountFormSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Geçersiz istek" }, { status: 400 });
+  }
+
+  const account = await prisma.bankAccount.update({ where: { id }, data: parsed.data });
+  return NextResponse.json({ bankAccount: serializeBankAccount(account) });
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
+  const { id } = await params;
+
+  const existing = await prisma.bankAccount.findFirst({ where: { id, ownerId } });
+  if (!existing) {
+    return NextResponse.json({ message: "Banka hesabı bulunamadı." }, { status: 404 });
+  }
+
+  await prisma.bankAccount.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}

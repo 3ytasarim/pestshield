@@ -14,6 +14,16 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { BankAccountCard } from "@/components/finance/bank-account-card";
@@ -32,6 +42,9 @@ export function BankAccountsPage({
   const [accounts, setAccounts] = useState<BankAccount[]>(initialAccounts);
   const bankTransactions = initialTransactions;
   const [formOpen, setFormOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BankAccount | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const totalBalance = useMemo(() => accounts.reduce((sum, a) => sum + a.balance, 0), [accounts]);
 
@@ -62,6 +75,41 @@ export function BankAccountsPage({
     const { bankAccount } = (await res.json()) as { bankAccount: BankAccount };
     setAccounts((prev) => [...prev, bankAccount]);
     toast.success("Banka hesabı eklendi");
+  }
+
+  async function handleUpdate(values: BankAccountFormValues) {
+    if (!editingAccount) return;
+    const res = await fetch(`/api/finance/bank-accounts/${editingAccount.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Banka hesabı güncellenemedi");
+      return;
+    }
+    setAccounts((prev) => prev.map((a) => (a.id === editingAccount.id ? data.bankAccount : a)));
+    toast.success("Banka hesabı güncellendi");
+    setEditingAccount(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/finance/bank-accounts/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Banka hesabı silinemedi");
+        return;
+      }
+      setAccounts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      toast.success("Banka hesabı silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -122,6 +170,8 @@ export function BankAccountsPage({
             account={account}
             transactions={bankTransactions.filter((t) => t.bankAccountId === account.id).slice(0, 3)}
             delay={Math.min(index, 9) * 0.04}
+            onEdit={() => setEditingAccount(account)}
+            onDelete={() => setDeleteTarget(account)}
           />
         ))}
       </div>
@@ -164,6 +214,34 @@ export function BankAccountsPage({
       </Card>
 
       <BankAccountForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+      <BankAccountForm
+        open={!!editingAccount}
+        onOpenChange={(open) => !open && setEditingAccount(null)}
+        onSubmit={handleUpdate}
+        editing={editingAccount}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Banka hesabını sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.bankName} — {deleteTarget?.accountName}&quot; hesabını ve tüm hareket geçmişini
+              silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

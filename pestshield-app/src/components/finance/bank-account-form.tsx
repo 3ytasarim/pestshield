@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField, CurrencyField } from "@/components/crm/form-fields";
 import { bankAccountFormSchema, type BankAccountFormValues } from "@/lib/validations/finance";
+import type { BankAccount } from "@/lib/mock/finance";
 
 const EMPTY: BankAccountFormValues = {
   bankName: "",
@@ -28,9 +29,10 @@ interface BankAccountFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: BankAccountFormValues) => void;
+  editing?: BankAccount | null;
 }
 
-export function BankAccountForm({ open, onOpenChange, onSubmit }: BankAccountFormProps) {
+export function BankAccountForm({ open, onOpenChange, onSubmit, editing }: BankAccountFormProps) {
   const {
     register,
     control,
@@ -40,8 +42,20 @@ export function BankAccountForm({ open, onOpenChange, onSubmit }: BankAccountFor
   } = useForm<BankAccountFormValues>({ resolver: zodResolver(bankAccountFormSchema), defaultValues: EMPTY });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              bankName: editing.bankName,
+              accountName: editing.accountName,
+              iban: editing.iban,
+              currency: editing.currency as BankAccountFormValues["currency"],
+              balance: editing.balance,
+            }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   function submit(values: BankAccountFormValues) {
     onSubmit(values);
@@ -54,9 +68,11 @@ export function BankAccountForm({ open, onOpenChange, onSubmit }: BankAccountFor
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Landmark className="size-4.5 text-primary" />
-            Yeni Banka Hesabı
+            {editing ? "Banka Hesabını Düzenle" : "Yeni Banka Hesabı"}
           </DialogTitle>
-          <DialogDescription>Şirket adına yeni bir banka hesabı ekleyin.</DialogDescription>
+          <DialogDescription>
+            {editing ? "Banka hesabı bilgilerini güncelleyin." : "Şirket adına yeni bir banka hesabı ekleyin."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">

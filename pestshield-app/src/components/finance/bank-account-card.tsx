@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowDownLeft, ArrowUpRight, Landmark } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Landmark, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatCurrency } from "@/components/crm/crm-format";
 import type { BankAccount, BankTransaction } from "@/lib/mock/finance";
@@ -12,9 +13,11 @@ interface BankAccountCardProps {
   account: BankAccount;
   transactions: BankTransaction[];
   delay?: number;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export function BankAccountCard({ account, transactions, delay = 0 }: BankAccountCardProps) {
+export function BankAccountCard({ account, transactions, delay = 0, onEdit, onDelete }: BankAccountCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -33,6 +36,26 @@ export function BankAccountCard({ account, transactions, delay = 0 }: BankAccoun
                 <p className="text-xs text-muted-foreground">{account.accountName}</p>
               </div>
             </div>
+            {(onEdit || onDelete) && (
+              <div className="flex shrink-0 items-center gap-1">
+                {onEdit && (
+                  <Button size="icon" variant="ghost" className="size-8" title="Düzenle" onClick={onEdit}>
+                    <Pencil className="size-3.5" aria-hidden="true" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    title="Sil"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="size-3.5" aria-hidden="true" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           <p className="font-mono text-xs tracking-wide text-muted-foreground">{account.iban}</p>
