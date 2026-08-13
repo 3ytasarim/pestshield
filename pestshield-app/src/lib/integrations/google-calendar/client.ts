@@ -43,9 +43,14 @@ export interface GoogleCalendarEventInput {
   summary: string;
   description?: string;
   location?: string;
-  /** Tüm gün etkinlik — "YYYY-MM-DD" */
+  /** Tüm gün etkinlik — "YYYY-MM-DD". startDateTime/endDateTime verilirse bu alanlar YOK SAYILIR. */
   startDate: string;
   endDate: string;
+  /** Saatli etkinlik — tam ISO 8601 (ör. "2026-08-13T09:00:00+03:00"). İkisi de doluysa saatli etkinlik oluşturulur. */
+  startDateTime?: string;
+  endDateTime?: string;
+  /** startDateTime/endDateTime ile birlikte kullanılır — IANA zaman dilimi kimliği. */
+  timeZone?: string;
 }
 
 export class GoogleApiError extends Error {
@@ -169,12 +174,13 @@ async function upsertEvent(
   eventId: string | null,
   event: GoogleCalendarEventInput,
 ): Promise<{ id: string }> {
+  const timed = Boolean(event.startDateTime && event.endDateTime);
   const body = {
     summary: event.summary,
     description: event.description,
     location: event.location,
-    start: { date: event.startDate },
-    end: { date: event.endDate },
+    start: timed ? { dateTime: event.startDateTime, timeZone: event.timeZone } : { date: event.startDate },
+    end: timed ? { dateTime: event.endDateTime, timeZone: event.timeZone } : { date: event.endDate },
   };
   const url = eventId
     ? `${API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`

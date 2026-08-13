@@ -16,7 +16,7 @@ import { CalendarTimeGrid } from "@/components/calendar/calendar-time-grid";
 import { SERVICE_TYPE_OPTIONS } from "@/components/crm/crm-labels";
 import type { WorkOrder } from "@/lib/mock/crm";
 import { downloadIcsFile, generateIcsContent } from "@/lib/integrations/google-calendar";
-import { toKey, googleEventDayKey, monthGrid, startOfWeek, addDays, startOfDay } from "@/lib/calendar/date-utils";
+import { toKey, googleEventDayKey, googleEventTimeKey, monthGrid, startOfWeek, addDays, startOfDay } from "@/lib/calendar/date-utils";
 import type { MergedGoogleEvent } from "@/lib/calendar/types";
 import { cn } from "@/lib/utils";
 
@@ -197,6 +197,9 @@ export function CalendarPage() {
           technicianId: item.technicianId,
           serviceType: draft.serviceType,
           plannedDate: googleEventDayKey(item.start),
+          // Orijinal etkinlik saatliyse mutlaka gönderilir — aksi halde senkronizasyon bu
+          // etkinliği tüm-gün bir etkinlikle EZER (bkz. syncWorkOrderToCalendar).
+          ...(item.allDay ? {} : { plannedStartTime: googleEventTimeKey(item.start), plannedEndTime: googleEventTimeKey(item.end) }),
         }),
       });
       const data = await res.json();

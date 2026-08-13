@@ -48,6 +48,21 @@ function nextDay(dateStr: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+const CALENDAR_TIME_ZONE = "Europe/Istanbul";
+
+/** "YYYY-MM-DD" + "HH:mm" birleştirip Google'ın beklediği yerel (offsetsiz) ISO 8601 formatını üretir — timeZone alanı offset'i ayrıca belirtir. */
+function toLocalIso(dateStr: string, timeStr: string): string {
+  return `${dateStr}T${timeStr}:00`;
+}
+
+/** plannedEndTime boşsa (sadece başlangıç saati girildiyse) süre 1 saat kabul edilir — gece yarısını geçmez, 23:59'da sınırlanır. */
+function deriveEndTime(startTime: string, endTime: string | null): string {
+  if (endTime) return endTime;
+  const [h, m] = startTime.split(":").map(Number);
+  const totalMinutes = Math.min(h * 60 + m + 60, 23 * 60 + 59);
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+}
+
 /**
  * Bir iş emrini Google Takvim'e yazar/günceller/siler. Takvim bağlı değilse
  * sessizce başarı döner (iş emri işlemleri asla bundan etkilenmemeli).
@@ -99,13 +114,28 @@ export async function syncWorkOrderToCalendar(ownerId: string, workOrderId: stri
       order.riskFinding ? `Bulgu: ${order.riskFinding}` : null,
     ].filter(Boolean);
 
-    const eventInput = {
-      summary: `${order.serviceType} — ${order.customer.companyName}`,
-      description: descriptionParts.join("\n"),
-      location: addressParts.join(", "),
-      startDate: order.plannedDate,
-      endDate: nextDay(order.plannedDate),
-    };
+    // plannedStartTime doluysa SAATLİ etkinlik oluşturulur — aksi halde tüm-gün'e düşülür. Bu
+    // ayrım kritik: burada her zaman tüm-gün gönderilirse, "Bekleyen İçe Aktarımlar"dan aktarılan
+    // ve googleEventId'si ORİJİNAL saatli etkinliğe ait olan iş emirleri o etkinliği tüm-gün bir
+    // etkinlikle EZER (bkz. pending-imports/confirm/route.ts ve calendar-page.tsx confirmImport).
+    const eventInput = order.plannedStartTime
+      ? {
+          summary: `${order.serviceType} — ${order.customer.companyName}`,
+          description: descriptionParts.join("\n"),
+          location: addressParts.join(", "),
+          startDate: order.plannedDate,
+          endDate: nextDay(order.plannedDate),
+          startDateTime: toLocalIso(order.plannedDate, order.plannedStartTime),
+          endDateTime: toLocalIso(order.plannedDate, deriveEndTime(order.plannedStartTime, order.plannedEndTime)),
+          timeZone: CALENDAR_TIME_ZONE,
+        }
+      : {
+          summary: `${order.serviceType} — ${order.customer.companyName}`,
+          description: descriptionParts.join("\n"),
+          location: addressParts.join(", "),
+          startDate: order.plannedDate,
+          endDate: nextDay(order.plannedDate),
+        };
 
     let result;
     try {

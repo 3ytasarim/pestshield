@@ -27,10 +27,18 @@ const STATUS_OPTIONS: { value: WorkOrderStatus; label: string }[] = [
   { value: "cancelled", label: "İptal" },
 ];
 
+const timeOfDaySchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Saat GG:DD formatında olmalıdır")
+  .optional()
+  .or(z.literal(""));
+
 const editSchema = z.object({
   technicianId: z.string().min(1, "Teknisyen seçiniz"),
   serviceType: z.string().min(1, "Hizmet türü seçiniz"),
   plannedDate: z.string().min(1, "Planlanan tarih zorunludur"),
+  plannedStartTime: timeOfDaySchema,
+  plannedEndTime: timeOfDaySchema,
   status: z.enum(["planned", "in_progress", "completed", "delayed", "cancelled"]),
 });
 
@@ -61,6 +69,8 @@ export function WorkOrderEditDialog({ open, onOpenChange, order, technicians, on
       technicianId: currentTechnicianId,
       serviceType: order.serviceType,
       plannedDate: order.plannedDate,
+      plannedStartTime: order.plannedStartTime ?? "",
+      plannedEndTime: order.plannedEndTime ?? "",
       status: order.status,
     });
   }, [open, order, technicians, reset]);
@@ -108,6 +118,10 @@ export function WorkOrderEditDialog({ open, onOpenChange, order, technicians, on
             <SelectField label="Teknisyen" name="technicianId" control={control} options={technicianOptions} error={errors.technicianId?.message} />
             <SelectField label="Hizmet Türü" name="serviceType" control={control} options={serviceTypeOptions} error={errors.serviceType?.message} />
             <TextField label="Planlanan Tarih" type="date" required registration={register("plannedDate")} error={errors.plannedDate?.message} />
+            <div className="grid grid-cols-2 gap-3.5">
+              <TextField label="Başlangıç Saati (opsiyonel)" type="time" registration={register("plannedStartTime")} error={errors.plannedStartTime?.message} />
+              <TextField label="Bitiş Saati (opsiyonel)" type="time" registration={register("plannedEndTime")} error={errors.plannedEndTime?.message} />
+            </div>
             <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
 
             <DialogFooter>

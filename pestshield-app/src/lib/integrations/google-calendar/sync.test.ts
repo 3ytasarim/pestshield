@@ -141,6 +141,46 @@ describe("syncWorkOrderToCalendar", () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it("creates a TIMED event (not all-day) when the work order has a plannedStartTime — regression test for the bug that overwrote real Google Calendar events with all-day versions", async () => {
+    mockPrisma.googleCalendarIntegration.findUnique.mockResolvedValue(baseIntegration());
+    mockPrisma.workOrder.findUnique.mockResolvedValue(
+      baseOrder({ googleEventId: "existing-event", plannedStartTime: "09:30", plannedEndTime: "10:15" }),
+    );
+    mockClient.upsertEvent.mockResolvedValue({ id: "existing-event" });
+    mockPrisma.workOrder.update.mockResolvedValue({});
+    mockPrisma.googleCalendarIntegration.update.mockResolvedValue({});
+
+    await syncWorkOrderToCalendar(OWNER_ID, "order-1");
+
+    expect(mockClient.upsertEvent).toHaveBeenCalledWith(
+      "access-token",
+      "primary",
+      "existing-event",
+      expect.objectContaining({
+        startDateTime: "2026-08-01T09:30:00",
+        endDateTime: "2026-08-01T10:15:00",
+        timeZone: "Europe/Istanbul",
+      }),
+    );
+  });
+
+  it("derives a 1-hour end time when plannedEndTime is missing", async () => {
+    mockPrisma.googleCalendarIntegration.findUnique.mockResolvedValue(baseIntegration());
+    mockPrisma.workOrder.findUnique.mockResolvedValue(baseOrder({ plannedStartTime: "14:00", plannedEndTime: null }));
+    mockClient.upsertEvent.mockResolvedValue({ id: "gcal-event-1" });
+    mockPrisma.workOrder.update.mockResolvedValue({});
+    mockPrisma.googleCalendarIntegration.update.mockResolvedValue({});
+
+    await syncWorkOrderToCalendar(OWNER_ID, "order-1");
+
+    expect(mockClient.upsertEvent).toHaveBeenCalledWith(
+      "access-token",
+      "primary",
+      null,
+      expect.objectContaining({ startDateTime: "2026-08-01T14:00:00", endDateTime: "2026-08-01T15:00:00" }),
+    );
+  });
+
   it("recreates the event when the stored googleEventId returns 404 (deleted/stale) instead of failing the sync", async () => {
     mockPrisma.googleCalendarIntegration.findUnique.mockResolvedValue(baseIntegration());
     mockPrisma.workOrder.findUnique.mockResolvedValue(baseOrder({ googleEventId: "stale-event" }));

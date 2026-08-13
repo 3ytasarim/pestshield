@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const timeOfDaySchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Saat GG:DD formatında olmalıdır")
+  .optional()
+  .or(z.literal(""));
+
 export const customerFormSchema = z
   .object({
     // Firma Bilgileri
@@ -230,6 +236,8 @@ export const workOrderFormSchema = z.object({
   serviceType: z.string().min(1, "Hizmet türü seçiniz"),
   technicianId: z.string().min(1, "Teknisyen seçiniz"),
   plannedDate: z.string().min(1, "Planlanan tarih zorunludur"),
+  plannedStartTime: timeOfDaySchema,
+  plannedEndTime: timeOfDaySchema,
   dispatchNote: z.string(),
   syncToCalendar: z.boolean(),
   followUpDate: z.string().optional(),
@@ -240,6 +248,8 @@ export type WorkOrderFormValues = z.infer<typeof workOrderFormSchema>;
 export const workOrderPatchSchema = z.object({
   status: z.enum(["planned", "in_progress", "completed", "delayed", "cancelled"]).optional(),
   plannedDate: z.string().optional(),
+  plannedStartTime: timeOfDaySchema,
+  plannedEndTime: timeOfDaySchema,
   technicianId: z.string().min(1, "Teknisyen seçiniz").optional(),
   serviceType: z.string().min(1, "Hizmet türü seçiniz").optional(),
   dispatchNote: z.string().optional(),

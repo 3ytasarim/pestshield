@@ -395,6 +395,10 @@ export interface WorkOrder {
   serviceType: string;
   technician: string;
   plannedDate: string;
+  /** "HH:mm" — boşsa tüm gün kabul edilir (Google Takvim'e tüm-gün etkinlik olarak yazılır). */
+  plannedStartTime: string | null;
+  /** "HH:mm" — plannedStartTime doluysa ve bu boşsa süre 1 saat kabul edilir. */
+  plannedEndTime: string | null;
   completedDate: string | null;
   status: WorkOrderStatus;
   riskFinding: string | null;
@@ -882,6 +886,8 @@ export function getWorkOrders(customerId: string): WorkOrder[] {
     serviceType: customer.serviceType,
     technician: technicians[i % technicians.length],
     plannedDate: daysFromNow(status === "planned" ? 5 + i : -(i * 8 + 2)),
+    plannedStartTime: null,
+    plannedEndTime: null,
     completedDate: status === "completed" ? daysFromNow(-(i * 8 + 1)) : null,
     status,
     riskFinding:

@@ -22,6 +22,8 @@ const EMPTY: WorkOrderFormValues = {
   serviceType: SERVICE_TYPE_OPTIONS[0],
   technicianId: "",
   plannedDate: new Date().toISOString().slice(0, 10),
+  plannedStartTime: "",
+  plannedEndTime: "",
   dispatchNote: "",
   syncToCalendar: true,
   followUpDate: "",
@@ -70,6 +72,10 @@ export function WorkOrderForm({ open, onOpenChange, onSubmit, technicians }: Wor
           <SelectField label="Hizmet Türü" name="serviceType" control={control} options={SERVICE_TYPE_SELECT_OPTIONS} required error={errors.serviceType?.message} />
           <SelectField label="Teknisyen" name="technicianId" control={control} options={technicianOptions} required placeholder="Teknisyen seçiniz" error={errors.technicianId?.message} />
           <TextField label="Planlanan Tarih" type="date" required registration={register("plannedDate")} error={errors.plannedDate?.message} />
+          <div className="grid grid-cols-2 gap-3.5">
+            <TextField label="Başlangıç Saati (opsiyonel)" type="time" registration={register("plannedStartTime")} error={errors.plannedStartTime?.message} />
+            <TextField label="Bitiş Saati (opsiyonel)" type="time" registration={register("plannedEndTime")} error={errors.plannedEndTime?.message} />
+          </div>
           <TextareaField
             label="Personele Açıklama"
             placeholder="Kapı kodu, evcil hayvan uyarısı, dikkat edilecek notlar vb."

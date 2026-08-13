@@ -12,6 +12,17 @@ const confirmSchema = z.object({
   technicianId: z.string().min(1, "Teknisyen seçiniz"),
   serviceType: z.string().min(1, "Hizmet türü seçiniz"),
   plannedDate: z.string().min(1, "Planlanan tarih zorunludur"),
+  // Orijinal Google Takvim etkinliğinin saati — dolu göndermezse iş emri tüm-gün kabul edilir.
+  // Bu boş kalırsa syncWorkOrderToCalendar, gerçek (saatli) etkinliği tüm-gün bir etkinlikle
+  // EZER — bu bilgi mutlaka istemciden (pending-imports listesindeki orijinal start/end'den) gelmelidir.
+  plannedStartTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  plannedEndTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
 });
 
 // Google Calendar'da doğrudan oluşturulmuş bir etkinliği, kullanıcının
@@ -26,7 +37,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Geçersiz istek" }, { status: 400 });
   }
-  const { googleEventId, customerId, technicianId, serviceType, plannedDate } = parsed.data;
+  const { googleEventId, customerId, technicianId, serviceType, plannedDate, plannedStartTime, plannedEndTime } = parsed.data;
 
   const alreadyImported = await prisma.workOrder.findFirst({ where: { ownerId, googleEventId } });
   if (alreadyImported) {
@@ -51,6 +62,8 @@ export async function POST(request: Request) {
       technicianId,
       serviceType,
       plannedDate,
+      plannedStartTime,
+      plannedEndTime,
       googleEventId,
       orderNo: `IS-2026-${String(orderCount + 1).padStart(3, "0")}`,
       status: "planned",

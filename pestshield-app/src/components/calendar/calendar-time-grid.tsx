@@ -60,12 +60,33 @@ function eventAccentStyle(color?: string): React.CSSProperties {
   return { backgroundColor: `${color}26`, borderColor: color };
 }
 
+/** Saati olan bir yerel iş emrini, saatli takvim gridinde Google etkinlikleriyle AYNI şekilde yerleştirebilmek için ortak şekle çevirir. */
+function orderToTimedEvent(order: CalendarOrder): MergedGoogleEvent {
+  const endTime = order.plannedEndTime ?? order.plannedStartTime!;
+  return {
+    id: order.id,
+    calendarId: "local",
+    calendarName: "PestShield",
+    summary: `${order.customerName ?? "Müşteri"} — ${order.serviceType}`,
+    start: `${order.plannedDate}T${order.plannedStartTime}:00`,
+    end: `${order.plannedDate}T${endTime}:00`,
+    allDay: false,
+  };
+}
+
 export function CalendarTimeGrid({ days, orders, googleEvents }: CalendarTimeGridProps) {
   const todayKey = toKey(new Date());
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
 
   const ordersByDay = new Map<string, CalendarOrder[]>();
+  const timedOrdersByDay = new Map<string, MergedGoogleEvent[]>();
   orders.forEach((o) => {
+    if (o.plannedStartTime) {
+      const list = timedOrdersByDay.get(o.plannedDate) ?? [];
+      list.push(orderToTimedEvent(o));
+      timedOrdersByDay.set(o.plannedDate, list);
+      return;
+    }
     const list = ordersByDay.get(o.plannedDate) ?? [];
     list.push(o);
     ordersByDay.set(o.plannedDate, list);
@@ -151,7 +172,8 @@ export function CalendarTimeGrid({ days, orders, googleEvents }: CalendarTimeGri
           {days.map((day) => {
             const key = toKey(day);
             const isToday = key === todayKey;
-            const blocks = layoutOverlaps(timedGoogleByDay.get(key) ?? []);
+            const dayEvents = [...(timedOrdersByDay.get(key) ?? []), ...(timedGoogleByDay.get(key) ?? [])];
+            const blocks = layoutOverlaps(dayEvents);
             return (
               <div key={key} className="relative border-l border-border/40">
                 {HOURS.map((h) => (
@@ -160,25 +182,27 @@ export function CalendarTimeGrid({ days, orders, googleEvents }: CalendarTimeGri
                 {isToday && nowMinutes >= 0 && nowMinutes <= 1440 && (
                   <div className="absolute inset-x-0 z-10 border-t-2 border-destructive" style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }} />
                 )}
-                {blocks.map((block) => (
-                  <a
-                    key={block.event.id}
-                    href={block.event.htmlLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="absolute overflow-hidden rounded border px-1 py-0.5 text-[10px] font-medium text-foreground hover:z-20 hover:shadow-md"
-                    style={{
-                      top: (block.startMin / 60) * HOUR_HEIGHT,
-                      height: Math.max(((block.endMin - block.startMin) / 60) * HOUR_HEIGHT, 18),
-                      left: `${(block.col / block.cols) * 100}%`,
-                      width: `${100 / block.cols}%`,
-                      ...eventAccentStyle(block.event.color),
-                    }}
-                    title={`${block.event.summary} — Google Calendar (${block.event.calendarName})`}
-                  >
-                    {block.event.summary}
-                  </a>
-                ))}
+                {blocks.map((block) => {
+                  const isLocal = block.event.calendarId === "local";
+                  const style: React.CSSProperties = {
+                    top: (block.startMin / 60) * HOUR_HEIGHT,
+                    height: Math.max(((block.endMin - block.startMin) / 60) * HOUR_HEIGHT, 18),
+                    left: `${(block.col / block.cols) * 100}%`,
+                    width: `${100 / block.cols}%`,
+                    ...(isLocal ? { backgroundColor: "color-mix(in srgb, var(--primary) 15%, transparent)", borderColor: "var(--primary)" } : eventAccentStyle(block.event.color)),
+                  };
+                  const className = "absolute overflow-hidden rounded border px-1 py-0.5 text-[10px] font-medium text-foreground hover:z-20 hover:shadow-md";
+                  const title = isLocal ? block.event.summary : `${block.event.summary} — Google Calendar (${block.event.calendarName})`;
+                  return isLocal ? (
+                    <div key={block.event.id} className={className} style={style} title={title}>
+                      {block.event.summary}
+                    </div>
+                  ) : (
+                    <a key={block.event.id} href={block.event.htmlLink} target="_blank" rel="noreferrer" className={className} style={style} title={title}>
+                      {block.event.summary}
+                    </a>
+                  );
+                })}
               </div>
             );
           })}

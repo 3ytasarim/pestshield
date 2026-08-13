@@ -955,6 +955,10 @@ model WorkOrder {
   orderNo         String
   serviceType     String
   plannedDate     String
+  /// "HH:mm" — boşsa iş emri tüm gün olarak kabul edilir (Google Takvim'e tüm-gün etkinlik olarak yazılır).
+  plannedStartTime String?
+  /// "HH:mm" — plannedStartTime doluysa ve bu boşsa süre 1 saat kabul edilir.
+  plannedEndTime   String?
   completedDate   String?
   status          WorkOrderStatus @default(planned)
   riskFinding     String?
