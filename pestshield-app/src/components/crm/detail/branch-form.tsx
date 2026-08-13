@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TextField, SelectField } from "@/components/crm/form-fields";
+import { TextField, SelectField, TextareaField } from "@/components/crm/form-fields";
 import { branchFormSchema, type BranchFormValues } from "@/lib/validations/crm";
 import { CITY_OPTIONS } from "@/components/crm/crm-labels";
 
@@ -24,6 +24,7 @@ const EMPTY: BranchFormValues = {
   city: "",
   district: "",
   addressLine: "",
+  description: "",
   serviceStatus: "active",
   riskLevel: "low",
 };
@@ -105,6 +106,14 @@ export function BranchForm({ open, onOpenChange, onSubmit, defaultValues }: Bran
               className="sm:col-span-2"
               registration={register("addressLine")}
               error={errors.addressLine?.message}
+            />
+            <TextareaField
+              label="Açıklama"
+              className="sm:col-span-2"
+              rows={2}
+              placeholder="Bu şubeyle ilgili notlar (opsiyonel)"
+              registration={register("description")}
+              error={errors.description?.message}
             />
           </div>
           <DialogFooter>

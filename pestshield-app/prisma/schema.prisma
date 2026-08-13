@@ -577,6 +577,7 @@ model Branch {
   city            String         @default("")
   district        String         @default("")
   addressLine     String         @default("")
+  description     String         @default("")
   serviceStatus   CustomerStatus @default(active)
   riskLevel       RiskLevel      @default(low)
   lastServiceDate String         @default("")

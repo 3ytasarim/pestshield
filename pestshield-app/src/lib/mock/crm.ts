@@ -106,6 +106,7 @@ export interface Branch {
   city: string;
   district: string;
   addressLine: string;
+  description: string;
   serviceStatus: CustomerStatus;
   riskLevel: RiskLevel;
   lastServiceDate: string;
@@ -590,6 +591,7 @@ export function getBranches(customerId: string): Branch[] {
     city: customer.city,
     district: DISTRICTS[customer.city][(i + 1) % DISTRICTS[customer.city].length],
     addressLine: `${customer.district} Mahallesi, Sanayi Sokak No: ${i + 5}`,
+    description: "",
     serviceStatus: i === 0 ? customer.status : "active",
     riskLevel: (["low", "medium", "high"] as RiskLevel[])[(i + customer.riskScore) % 3],
     lastServiceDate: daysFromNow(-(2 + i * 6)),

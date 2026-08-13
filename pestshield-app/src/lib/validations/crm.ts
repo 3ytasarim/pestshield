@@ -80,6 +80,7 @@ export const branchFormSchema = z.object({
   city: z.string().min(1, "Şehir zorunludur"),
   district: z.string().min(1, "İlçe zorunludur"),
   addressLine: z.string().min(5, "Açık adres zorunludur"),
+  description: z.string().optional(),
   serviceStatus: z.enum(["active", "passive"]),
   riskLevel: z.enum(["low", "medium", "high", "critical"]),
 });
