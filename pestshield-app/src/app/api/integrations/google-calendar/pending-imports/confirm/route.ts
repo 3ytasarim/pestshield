@@ -8,6 +8,9 @@ import { sendWorkOrderTemplates } from "@/lib/messaging/send-work-order-template
 
 const confirmSchema = z.object({
   googleEventId: z.string().min(1),
+  // Teknisyenin Google Takvim'de yazdığı ORİJİNAL başlık — syncWorkOrderToCalendar bundan sonra
+  // hep bunu yazar, kendi ürettiği "Hizmet — Firma" başlığıyla ezmez (bkz. sync.ts).
+  googleEventTitle: z.string().min(1, "Etkinlik başlığı zorunludur"),
   customerId: z.string().min(1, "Müşteri seçiniz"),
   technicianId: z.string().min(1, "Teknisyen seçiniz"),
   serviceType: z.string().min(1, "Hizmet türü seçiniz"),
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Geçersiz istek" }, { status: 400 });
   }
-  const { googleEventId, customerId, technicianId, serviceType, plannedDate, plannedStartTime, plannedEndTime } = parsed.data;
+  const { googleEventId, googleEventTitle, customerId, technicianId, serviceType, plannedDate, plannedStartTime, plannedEndTime } = parsed.data;
 
   const alreadyImported = await prisma.workOrder.findFirst({ where: { ownerId, googleEventId } });
   if (alreadyImported) {
@@ -65,6 +68,7 @@ export async function POST(request: Request) {
       plannedStartTime,
       plannedEndTime,
       googleEventId,
+      googleEventTitle,
       orderNo: `IS-2026-${String(orderCount + 1).padStart(3, "0")}`,
       status: "planned",
     },

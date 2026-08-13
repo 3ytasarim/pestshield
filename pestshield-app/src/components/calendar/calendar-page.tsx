@@ -193,6 +193,9 @@ export function CalendarPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           googleEventId: item.googleEventId,
+          // Teknisyenin Google Takvim'de yazdığı orijinal başlık — sonraki her senkronda AYNEN
+          // korunur, bizim ürettiğimiz "Hizmet — Firma" başlığıyla değiştirilmez (bkz. sync.ts).
+          googleEventTitle: item.summary,
           customerId: draft.customerId,
           technicianId: item.technicianId,
           serviceType: draft.serviceType,

@@ -978,6 +978,11 @@ model WorkOrder {
 
   /// Bu iş emrine karşılık gelen Google Takvim etkinliğinin id'si (bkz. google-calendar/sync.ts).
   googleEventId String?
+  /// "Bekleyen İçe Aktarımlar"dan onaylanan bir etkinlikte, teknisyenin Google Takvim'de yazdığı
+  /// ORİJİNAL başlık — doluysa syncWorkOrderToCalendar summary olarak BUNU kullanır (serviceType —
+  /// companyName üretmez), aksi halde teknisyenin takvimindeki başlığı kendi ürettiğimiz farklı bir
+  /// başlıkla EZERİZ.
+  googleEventTitle String?
 
   @@index([ownerId])
   @@index([customerId])

@@ -141,6 +141,42 @@ describe("syncWorkOrderToCalendar", () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it("uses the imported work order's ORIGINAL Google Calendar title (googleEventTitle) instead of the generated summary — regression test for the bug that overwrote a technician's real event titles", async () => {
+    mockPrisma.googleCalendarIntegration.findUnique.mockResolvedValue(baseIntegration());
+    mockPrisma.workOrder.findUnique.mockResolvedValue(
+      baseOrder({ googleEventId: "existing-event", googleEventTitle: "ACME A.Ş. - Genel İlaçlama - 3.Kat" }),
+    );
+    mockClient.upsertEvent.mockResolvedValue({ id: "existing-event" });
+    mockPrisma.workOrder.update.mockResolvedValue({});
+    mockPrisma.googleCalendarIntegration.update.mockResolvedValue({});
+
+    await syncWorkOrderToCalendar(OWNER_ID, "order-1");
+
+    expect(mockClient.upsertEvent).toHaveBeenCalledWith(
+      "access-token",
+      "primary",
+      "existing-event",
+      expect.objectContaining({ summary: "ACME A.Ş. - Genel İlaçlama - 3.Kat" }),
+    );
+  });
+
+  it("falls back to the generated summary when googleEventTitle is not set (a work order created directly in PestShield, not imported)", async () => {
+    mockPrisma.googleCalendarIntegration.findUnique.mockResolvedValue(baseIntegration());
+    mockPrisma.workOrder.findUnique.mockResolvedValue(baseOrder({ googleEventTitle: null }));
+    mockClient.upsertEvent.mockResolvedValue({ id: "gcal-event-1" });
+    mockPrisma.workOrder.update.mockResolvedValue({});
+    mockPrisma.googleCalendarIntegration.update.mockResolvedValue({});
+
+    await syncWorkOrderToCalendar(OWNER_ID, "order-1");
+
+    expect(mockClient.upsertEvent).toHaveBeenCalledWith(
+      "access-token",
+      "primary",
+      null,
+      expect.objectContaining({ summary: "Genel İlaçlama — ACME A.Ş." }),
+    );
+  });
+
   it("creates a TIMED event (not all-day) when the work order has a plannedStartTime — regression test for the bug that overwrote real Google Calendar events with all-day versions", async () => {
     mockPrisma.googleCalendarIntegration.findUnique.mockResolvedValue(baseIntegration());
     mockPrisma.workOrder.findUnique.mockResolvedValue(

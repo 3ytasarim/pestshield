@@ -118,9 +118,15 @@ export async function syncWorkOrderToCalendar(ownerId: string, workOrderId: stri
     // ayrım kritik: burada her zaman tüm-gün gönderilirse, "Bekleyen İçe Aktarımlar"dan aktarılan
     // ve googleEventId'si ORİJİNAL saatli etkinliğe ait olan iş emirleri o etkinliği tüm-gün bir
     // etkinlikle EZER (bkz. pending-imports/confirm/route.ts ve calendar-page.tsx confirmImport).
+    //
+    // Aynı şekilde başlık: googleEventTitle doluysa (bu iş emri bir içe aktarımdan geldiyse)
+    // teknisyenin Google Takvim'de yazdığı ORİJİNAL başlık kullanılır — kendi ürettiğimiz
+    // "Hizmet — Firma" başlığı SADECE PestShield'de doğrudan oluşturulan (içe aktarılmamış)
+    // iş emirlerinde kullanılır.
+    const summary = order.googleEventTitle || `${order.serviceType} — ${order.customer.companyName}`;
     const eventInput = order.plannedStartTime
       ? {
-          summary: `${order.serviceType} — ${order.customer.companyName}`,
+          summary,
           description: descriptionParts.join("\n"),
           location: addressParts.join(", "),
           startDate: order.plannedDate,
@@ -130,7 +136,7 @@ export async function syncWorkOrderToCalendar(ownerId: string, workOrderId: stri
           timeZone: CALENDAR_TIME_ZONE,
         }
       : {
-          summary: `${order.serviceType} — ${order.customer.companyName}`,
+          summary,
           description: descriptionParts.join("\n"),
           location: addressParts.join(", "),
           startDate: order.plannedDate,
