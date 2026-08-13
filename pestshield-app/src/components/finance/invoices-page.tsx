@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Clock, FileText, Plus, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -16,6 +16,16 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
@@ -42,6 +52,9 @@ export function InvoicesPage({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [formOpen, setFormOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<InvoiceWithCustomer | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<InvoiceWithCustomer | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const enriched = useMemo(
     () => [...invoices].sort((a, b) => (a.issueDate < b.issueDate ? 1 : -1)),
@@ -79,6 +92,42 @@ export function InvoicesPage({
     const customer = customers.find((c) => c.id === values.customerId) ?? null;
     setInvoices((prev) => [{ ...invoice, customer }, ...prev]);
     toast.success(`${customer?.companyName ?? "Müşteri"} için fatura oluşturuldu`);
+  }
+
+  async function handleUpdate(values: InvoiceFormValues) {
+    if (!editingInvoice) return;
+    const res = await fetch(`/api/finance/invoices/${editingInvoice.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Fatura güncellenemedi");
+      return;
+    }
+    const customer = customers.find((c) => c.id === values.customerId) ?? null;
+    setInvoices((prev) => prev.map((i) => (i.id === editingInvoice.id ? { ...data.invoice, customer } : i)));
+    toast.success("Fatura güncellendi");
+    setEditingInvoice(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/finance/invoices/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Fatura silinemedi");
+        return;
+      }
+      setInvoices((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+      toast.success("Fatura silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -191,6 +240,7 @@ export function InvoicesPage({
                   </TableHead>
                   <TableHead>Tutar</TableHead>
                   <TableHead>Durum</TableHead>
+                  <TableHead className="text-right">İşlem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -212,6 +262,22 @@ export function InvoicesPage({
                     <TableCell>
                       <InvoiceStatusBadge status={inv.status} />
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="size-8" title="Düzenle" onClick={() => setEditingInvoice(inv)}>
+                          <Pencil className="size-3.5" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Sil"
+                          onClick={() => setDeleteTarget(inv)}
+                        >
+                          <Trash2 className="size-3.5" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -221,6 +287,34 @@ export function InvoicesPage({
       )}
 
       <InvoiceForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
+      <InvoiceForm
+        open={!!editingInvoice}
+        onOpenChange={(open) => !open && setEditingInvoice(null)}
+        onSubmit={handleUpdate}
+        customers={customers}
+        editing={editingInvoice}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Faturayı sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.invoiceNo}&quot; faturasını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, SelectField, CurrencyField } from "@/components/crm/form-fields";
 import { invoiceFormSchema, type InvoiceFormValues } from "@/lib/validations/finance";
+import type { Invoice } from "@/lib/mock/finance";
 
 const EMPTY: InvoiceFormValues = {
   customerId: "",
@@ -29,9 +30,10 @@ interface InvoiceFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: InvoiceFormValues) => void;
   customers: { id: string; companyName: string }[];
+  editing?: Invoice | null;
 }
 
-export function InvoiceForm({ open, onOpenChange, onSubmit, customers }: InvoiceFormProps) {
+export function InvoiceForm({ open, onOpenChange, onSubmit, customers, editing }: InvoiceFormProps) {
   const CUSTOMER_OPTIONS = customers.map((c) => ({ value: c.id, label: c.companyName }));
   const {
     register,
@@ -42,8 +44,20 @@ export function InvoiceForm({ open, onOpenChange, onSubmit, customers }: Invoice
   } = useForm<InvoiceFormValues>({ resolver: zodResolver(invoiceFormSchema), defaultValues: EMPTY });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              customerId: editing.customerId,
+              description: editing.description,
+              amount: editing.amount,
+              issueDate: editing.issueDate,
+              dueDate: editing.dueDate,
+            }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   function submit(values: InvoiceFormValues) {
     onSubmit(values);
@@ -56,9 +70,11 @@ export function InvoiceForm({ open, onOpenChange, onSubmit, customers }: Invoice
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="size-4.5 text-primary" />
-            Yeni Fatura
+            {editing ? "Faturayı Düzenle" : "Yeni Fatura"}
           </DialogTitle>
-          <DialogDescription>Müşteriye yeni bir fatura kaydı oluşturun.</DialogDescription>
+          <DialogDescription>
+            {editing ? "Fatura bilgilerini güncelleyin." : "Müşteriye yeni bir fatura kaydı oluşturun."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
