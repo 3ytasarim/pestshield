@@ -1,13 +1,23 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Building2, Check, CircleCheck, Copy, KeyRound, Plus } from "lucide-react";
+import { Building2, Check, CircleCheck, Copy, KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -41,6 +51,9 @@ interface CompanyRow {
   name: string | null;
   email: string | null;
   companyName: string | null;
+  address: string | null;
+  phone: string | null;
+  logoUrl: string | null;
   licenseType: LicenseType | null;
   licenseExpiresAt: string | null;
   createdAt: string;
@@ -95,6 +108,20 @@ export function AdminCompaniesPage({
   const [newCompanyLogo, setNewCompanyLogo] = useState<string | null>(null);
   const [creatingCompany, setCreatingCompany] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const [editTarget, setEditTarget] = useState<CompanyRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLogo, setEditLogo] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const editLogoInputRef = useRef<HTMLInputElement>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<CompanyRow | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const rows = useMemo(
     () =>
@@ -246,6 +273,9 @@ export function AdminCompaniesPage({
         name: null,
         email: data.company.email,
         companyName: data.company.companyName,
+        address: data.company.address,
+        phone: data.company.phone,
+        logoUrl: data.company.logoUrl,
         licenseType: data.company.licenseType,
         licenseExpiresAt: data.company.licenseExpiresAt,
         createdAt: data.company.createdAt,
@@ -260,6 +290,110 @@ export function AdminCompaniesPage({
       toast.error("Firma oluşturulamadı");
     } finally {
       setCreatingCompany(false);
+    }
+  }
+
+  function openEditDialog(company: CompanyRow) {
+    setEditTarget(company);
+    setEditName(company.companyName ?? "");
+    setEditEmail(company.email ?? "");
+    setEditPassword("");
+    setEditAddress(company.address ?? "");
+    setEditPhone(company.phone ?? "");
+    setEditLogo(company.logoUrl);
+    if (editLogoInputRef.current) editLogoInputRef.current.value = "";
+  }
+
+  async function handleEditLogoSelect(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Lütfen bir görsel dosyası seçin (PNG, JPG, SVG)");
+      return;
+    }
+    try {
+      const dataUrl = await readImageFile(file);
+      setEditLogo(dataUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Logo yüklenemedi");
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!editTarget) return;
+    if (editName.trim().length < 2) {
+      toast.error("Firma adını girin");
+      return;
+    }
+    if (!editEmail.trim()) {
+      toast.error("E-posta adresini girin");
+      return;
+    }
+    if (editPassword && editPassword.length < 8) {
+      toast.error("Şifre en az 8 karakter olmalıdır");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/admin/companies/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: editName.trim(),
+          email: editEmail.trim(),
+          password: editPassword || undefined,
+          address: editAddress.trim() || undefined,
+          phone: editPhone.trim() || undefined,
+          logoUrl: editLogo ?? undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Firma güncellenemedi");
+        return;
+      }
+      setCompanies((prev) =>
+        prev.map((c) =>
+          c.id === editTarget.id
+            ? {
+                ...c,
+                companyName: data.company.companyName,
+                email: data.company.email,
+                address: data.company.address,
+                phone: data.company.phone,
+                logoUrl: data.company.logoUrl,
+              }
+            : c,
+        ),
+      );
+      toast.success("Firma güncellendi");
+      setEditTarget(null);
+    } catch {
+      toast.error("Firma güncellenemedi");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  function openDeleteDialog(company: CompanyRow) {
+    setDeleteTarget(company);
+    setDeleteConfirmText("");
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/companies/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Firma silinemedi");
+        return;
+      }
+      setCompanies((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      toast.success("Firma ve tüm verileri silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -345,6 +479,18 @@ export function AdminCompaniesPage({
                         <Button size="sm" variant="outline" onClick={() => openDialog(row)}>
                           <KeyRound className="size-3.5" />
                           Lisans Oluştur
+                        </Button>
+                        <Button size="icon" variant="ghost" className="size-8" title="Düzenle" onClick={() => openEditDialog(row)}>
+                          <Pencil className="size-3.5" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Sil"
+                          onClick={() => openDeleteDialog(row)}
+                        >
+                          <Trash2 className="size-3.5" aria-hidden="true" />
                         </Button>
                       </div>
                     </TableCell>
@@ -573,6 +719,110 @@ export function AdminCompaniesPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Firmayı Düzenle</DialogTitle>
+            <DialogDescription>Firma kaydını ve giriş bilgilerini güncelleyin.</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
+                {editLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={editLogo} alt="Firma logosu" className="size-full object-contain p-1" />
+                ) : (
+                  <Building2 className="size-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Button type="button" size="sm" variant="outline" onClick={() => editLogoInputRef.current?.click()}>
+                  Logo Yükle
+                </Button>
+                <span className="text-[11px] text-muted-foreground">PNG, JPG veya SVG · maks. 5MB</span>
+                <input
+                  ref={editLogoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleEditLogoSelect(e.target.files?.[0])}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-company-name">Firma Adı</Label>
+              <Input id="edit-company-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-company-email">E-posta (giriş kullanıcı adı)</Label>
+              <Input id="edit-company-email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-company-password">Yeni Şifre (opsiyonel)</Label>
+              <Input
+                id="edit-company-password"
+                type="password"
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="Değiştirmek istemiyorsanız boş bırakın"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-company-phone">Telefon</Label>
+              <Input id="edit-company-phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-company-address">Adres</Label>
+              <Input id="edit-company-address" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>
+              Vazgeç
+            </Button>
+            <Button onClick={handleSaveEdit} loading={savingEdit}>
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Firmayı sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.companyName}&quot; firmasını ve buna bağlı TÜM verileri (müşteriler, iş emirleri,
+              faturalar, denetimler — her şey) kalıcı olarak silmek üzeresiniz. Bu işlem geri alınamaz. Onaylamak için
+              firma adını aşağıya yazın: <span className="font-semibold text-foreground">{deleteTarget?.companyName}</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="Firma adını yazın"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting || deleteConfirmText !== (deleteTarget?.companyName ?? "")}
+              onClick={handleDelete}
+            >
+              Kalıcı Olarak Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
