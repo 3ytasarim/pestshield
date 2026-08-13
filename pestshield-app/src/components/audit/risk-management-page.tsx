@@ -4,9 +4,19 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
-import { AlertTriangle, Plus, ShieldAlert, TrendingUp } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, ShieldAlert, Trash2, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -15,7 +25,7 @@ import { RiskLevelBadge } from "@/components/audit/audit-badges";
 import { RISK_CATEGORY_LABELS, RISK_STATUS_LABELS } from "@/components/audit/audit-labels";
 import { RiskForm } from "@/components/audit/risk-form";
 import { riskLevel, riskScore, type Risk, type RiskStatus } from "@/lib/mock/audit";
-import type { RiskFormValues } from "@/lib/validations/audit";
+import type { RiskPatchValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
 const CELL_STYLES: Record<string, string> = {
@@ -37,6 +47,8 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedCell, setSelectedCell] = useState<{ likelihood: number; impact: number } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingRisk, setEditingRisk] = useState<Risk | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Risk | null>(null);
 
   const activeRisks = useMemo(() => risks.filter((r) => r.status !== "closed"), [risks]);
   const highRisks = useMemo(() => activeRisks.filter((r) => riskScore(r) >= 9), [activeRisks]);
@@ -65,7 +77,7 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
       .sort((a, b) => riskScore(b) - riskScore(a));
   }, [risks, statusFilter, selectedCell]);
 
-  async function handleCreate(values: RiskFormValues) {
+  async function handleCreate(values: RiskPatchValues) {
     const res = await fetch("/api/audit/risks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -80,6 +92,34 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
     toast.success("Risk kaydı oluşturuldu");
   }
 
+  async function handleUpdate(values: RiskPatchValues) {
+    if (!editingRisk) return;
+    const res = await fetch(`/api/audit/risks/${editingRisk.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Risk kaydı güncellenemedi");
+      return;
+    }
+    setRisks((prev) => prev.map((r) => (r.id === data.risk.id ? data.risk : r)));
+    toast.success("Risk kaydı güncellendi");
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/audit/risks/${deleteTarget.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Risk kaydı silinemedi");
+      return;
+    }
+    setRisks((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+    toast.success("Risk kaydı silindi");
+    setDeleteTarget(null);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <motion.div
@@ -92,7 +132,12 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
           <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">Risk Yönetimi</h1>
           <p className="max-w-xl text-sm text-muted-foreground">Olasılık × etki matrisi ile risk kaydı ve önlem takibi.</p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingRisk(null);
+            setFormOpen(true);
+          }}
+        >
           <Plus className="size-4" />
           Yeni Risk Ekle
         </Button>
@@ -219,7 +264,29 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
                           {RISK_STATUS_LABELS[risk.status]}
                         </p>
                       </div>
-                      <RiskLevelBadge score={riskScore(risk)} className="shrink-0" />
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <RiskLevelBadge score={riskScore(risk)} />
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => {
+                            setEditingRisk(risk);
+                            setFormOpen(true);
+                          }}
+                          title="Düzenle"
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteTarget(risk)}
+                          title="Sil"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     </div>
                     <p className="text-sm text-foreground/80">{risk.description}</p>
                     <div className="rounded-xl bg-muted/30 p-3 text-xs">
@@ -237,7 +304,33 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
         </div>
       )}
 
-      <RiskForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
+      <RiskForm
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditingRisk(null);
+        }}
+        onSubmit={editingRisk ? handleUpdate : handleCreate}
+        customers={customers}
+        editing={editingRisk}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Risk Kaydını Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.title} risk kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90">
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

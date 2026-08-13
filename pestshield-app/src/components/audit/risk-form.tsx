@@ -15,8 +15,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField, TextareaField, SelectField } from "@/components/crm/form-fields";
 import { RISK_CATEGORY_OPTIONS } from "@/components/audit/audit-labels";
-import { riskFormSchema, type RiskFormValues } from "@/lib/validations/audit";
+import { riskPatchSchema, type RiskPatchValues } from "@/lib/validations/audit";
+import type { Risk } from "@/lib/mock/audit";
 import { cn } from "@/lib/utils";
+
+type RiskFormValues = RiskPatchValues;
+
+const STATUS_OPTIONS = [
+  { value: "open", label: "Açık" },
+  { value: "mitigating", label: "Önlem Alınıyor" },
+  { value: "closed", label: "Kapalı" },
+];
 
 const EMPTY: RiskFormValues = {
   title: "",
@@ -27,6 +36,7 @@ const EMPTY: RiskFormValues = {
   mitigation: "",
   owner: "",
   customerId: "none",
+  status: "open",
 };
 
 const SCALE = [1, 2, 3, 4, 5];
@@ -36,9 +46,10 @@ interface RiskFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: RiskFormValues) => void;
   customers: { id: string; companyName: string }[];
+  editing?: Risk | null;
 }
 
-export function RiskForm({ open, onOpenChange, onSubmit, customers }: RiskFormProps) {
+export function RiskForm({ open, onOpenChange, onSubmit, customers, editing }: RiskFormProps) {
   const CUSTOMER_OPTIONS = [
     { value: "none", label: "Genel (müşteriye bağlı değil)" },
     ...customers.map((c) => ({ value: c.id, label: c.companyName })),
@@ -50,11 +61,27 @@ export function RiskForm({ open, onOpenChange, onSubmit, customers }: RiskFormPr
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<RiskFormValues>({ resolver: zodResolver(riskFormSchema), defaultValues: EMPTY });
+  } = useForm<RiskFormValues>({ resolver: zodResolver(riskPatchSchema), defaultValues: EMPTY });
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              title: editing.title,
+              category: editing.category,
+              description: editing.description,
+              likelihood: editing.likelihood,
+              impact: editing.impact,
+              mitigation: editing.mitigation,
+              owner: editing.owner,
+              customerId: editing.customerId ?? "none",
+              status: editing.status,
+            }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   function submit(values: RiskFormValues) {
     onSubmit(values);
@@ -67,9 +94,11 @@ export function RiskForm({ open, onOpenChange, onSubmit, customers }: RiskFormPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldAlert className="size-4.5 text-primary" />
-            Yeni Risk Ekle
+            {editing ? "Riski Düzenle" : "Yeni Risk Ekle"}
           </DialogTitle>
-          <DialogDescription>Risk kaydını oluşturun ve olasılık/etki değerlendirmesi yapın.</DialogDescription>
+          <DialogDescription>
+            {editing ? "Risk kaydını güncelleyin." : "Risk kaydını oluşturun ve olasılık/etki değerlendirmesi yapın."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} className="flex max-h-[70vh] flex-col gap-3.5 overflow-y-auto pr-1">
@@ -79,6 +108,10 @@ export function RiskForm({ open, onOpenChange, onSubmit, customers }: RiskFormPr
             <SelectField label="Kategori" name="category" control={control} options={RISK_CATEGORY_OPTIONS} error={errors.category?.message} />
             <SelectField label="Müşteri" name="customerId" control={control} options={CUSTOMER_OPTIONS} error={errors.customerId?.message} />
           </div>
+
+          {editing && (
+            <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
+          )}
 
           <TextareaField label="Açıklama" rows={2} required registration={register("description")} error={errors.description?.message} />
 

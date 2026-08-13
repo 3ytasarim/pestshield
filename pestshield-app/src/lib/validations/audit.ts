@@ -27,6 +27,12 @@ export const riskFormSchema = z.object({
 
 export type RiskFormValues = z.infer<typeof riskFormSchema>;
 
+export const riskPatchSchema = riskFormSchema.extend({
+  status: z.enum(["open", "mitigating", "closed"]).optional(),
+});
+
+export type RiskPatchValues = z.infer<typeof riskPatchSchema>;
+
 export const auditRecordFormSchema = z.object({
   customerId: z.string().min(1, "Müşteri seçiniz"),
   standard: z.enum(["haccp", "brcgs", "iso22000", "fssc"]),
