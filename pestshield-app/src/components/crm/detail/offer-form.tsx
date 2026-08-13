@@ -21,6 +21,7 @@ import { offerFormSchema, type OfferFormValues } from "@/lib/validations/crm";
 import { SERVICE_TYPE_OPTIONS } from "@/components/crm/crm-labels";
 import { readImageFile } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
+import type { Offer } from "@/lib/mock/crm";
 
 const EMPTY: OfferFormValues = {
   title: "",
@@ -49,9 +50,10 @@ interface OfferFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: OfferFormValues) => void;
+  editing?: Offer | null;
 }
 
-export function OfferForm({ open, onOpenChange, onSubmit }: OfferFormProps) {
+export function OfferForm({ open, onOpenChange, onSubmit, editing }: OfferFormProps) {
   const {
     register,
     control,
@@ -100,8 +102,29 @@ export function OfferForm({ open, onOpenChange, onSubmit }: OfferFormProps) {
   }, [items, vatRate]);
 
   useEffect(() => {
-    if (open) reset(EMPTY);
-  }, [open, reset]);
+    if (open) {
+      reset(
+        editing
+          ? {
+              title: editing.title,
+              serviceType: "",
+              description: "",
+              items: editing.items.map((item) => ({
+                description: item.description,
+                unitPrice: item.unitPrice,
+                quantity: item.quantity,
+              })),
+              vatRate: 20,
+              validUntil: editing.validUntil,
+              notes: "",
+              fileDataUrl: editing.fileDataUrl,
+              fileName: editing.fileName,
+              fileSizeKb: editing.fileSizeKb,
+            }
+          : EMPTY,
+      );
+    }
+  }, [open, editing, reset]);
 
   function submit(values: OfferFormValues) {
     onSubmit(values);
@@ -112,7 +135,7 @@ export function OfferForm({ open, onOpenChange, onSubmit }: OfferFormProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Yeni Teklif</DialogTitle>
+          <DialogTitle>{editing ? "Teklifi Düzenle" : "Yeni Teklif"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)}>
           <ScrollArea className="h-[55vh] pr-4">

@@ -7,9 +7,11 @@ import {
   FileSpreadsheet,
   FileText,
   MoreHorizontal,
+  Pencil,
   Plus,
   Send,
   Repeat,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -27,6 +29,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { OfferStatusBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { OfferForm } from "@/components/crm/detail/offer-form";
@@ -38,6 +50,9 @@ import type { OfferFormValues } from "@/lib/validations/crm";
 export function OffersTab({ customerId, customer }: { customerId: string; customer: Customer }) {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Offer | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/crm/offers?customerId=${customerId}`)
@@ -73,6 +88,41 @@ export function OffersTab({ customerId, customer }: { customerId: string; custom
     const data = await res.json();
     setOffers((prev) => prev.map((o) => (o.id === offer.id ? data.offer : o)));
     toast.success(message);
+  }
+
+  async function handleUpdate(values: OfferFormValues) {
+    if (!editingOffer) return;
+    const res = await fetch(`/api/crm/offers/${editingOffer.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Teklif güncellenemedi");
+      return;
+    }
+    setOffers((prev) => prev.map((o) => (o.id === editingOffer.id ? data.offer : o)));
+    toast.success("Teklif güncellendi");
+    setEditingOffer(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/offers/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Teklif silinemedi");
+        return;
+      }
+      setOffers((prev) => prev.filter((o) => o.id !== deleteTarget.id));
+      toast.success("Teklif silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -141,6 +191,14 @@ export function OffersTab({ customerId, customer }: { customerId: string; custom
                           <Repeat className="size-3.5" />
                           Sözleşmeye Dönüştür
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingOffer(offer)}>
+                          <Pencil className="size-3.5" />
+                          Düzenle
+                        </DropdownMenuItem>
+                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(offer)}>
+                          <Trash2 className="size-3.5" />
+                          Sil
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -152,6 +210,33 @@ export function OffersTab({ customerId, customer }: { customerId: string; custom
       )}
 
       <OfferForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleSubmit} />
+      <OfferForm
+        open={!!editingOffer}
+        onOpenChange={(open) => !open && setEditingOffer(null)}
+        onSubmit={handleUpdate}
+        editing={editingOffer}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Teklifi sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.offerNo}&quot; teklifini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
