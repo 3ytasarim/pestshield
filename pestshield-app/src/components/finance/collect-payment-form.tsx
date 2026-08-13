@@ -20,6 +20,7 @@ import { collectPaymentFormSchema, type CollectPaymentFormValues } from "@/lib/v
 import { cn } from "@/lib/utils";
 import type { Customer } from "@/lib/mock/crm";
 import type { PaymentMethod } from "@/lib/mock/finance";
+import type { SerializedCollection } from "@/lib/finance/serialize";
 
 interface CollectPaymentFormProps {
   open: boolean;
@@ -27,9 +28,10 @@ interface CollectPaymentFormProps {
   customer: Customer | null;
   currentBalance: number;
   onSubmit: (values: CollectPaymentFormValues) => void;
+  editing?: SerializedCollection | null;
 }
 
-export function CollectPaymentForm({ open, onOpenChange, customer, currentBalance, onSubmit }: CollectPaymentFormProps) {
+export function CollectPaymentForm({ open, onOpenChange, customer, currentBalance, onSubmit, editing }: CollectPaymentFormProps) {
   const empty: CollectPaymentFormValues = {
     customerId: customer?.id ?? "",
     amount: 0,
@@ -50,9 +52,21 @@ export function CollectPaymentForm({ open, onOpenChange, customer, currentBalanc
   });
 
   useEffect(() => {
-    if (open) reset(empty);
+    if (open) {
+      reset(
+        editing
+          ? {
+              customerId: editing.customerId,
+              amount: editing.amount,
+              date: editing.date,
+              method: editing.method ?? "nakit",
+              description: editing.description,
+            }
+          : empty,
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customer?.id]);
+  }, [open, customer?.id, editing]);
 
   function submit(values: CollectPaymentFormValues) {
     onSubmit({ ...values, customerId: customer?.id ?? values.customerId });
@@ -65,7 +79,7 @@ export function CollectPaymentForm({ open, onOpenChange, customer, currentBalanc
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="size-4.5 text-primary" />
-            Tahsilat Al
+            {editing ? "Tahsilatı Düzenle" : "Tahsilat Al"}
           </DialogTitle>
           <DialogDescription>{customer?.companyName ?? "Müşteri"}</DialogDescription>
         </DialogHeader>

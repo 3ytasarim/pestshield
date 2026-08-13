@@ -8,8 +8,10 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   CreditCard,
+  Pencil,
   Printer,
   Search,
+  Trash2,
   Users,
   Wallet,
 } from "lucide-react";
@@ -17,6 +19,16 @@ import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
@@ -70,6 +82,9 @@ export function CurrentAccountPage({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("balance");
   const [collectOpen, setCollectOpen] = useState(false);
+  const [editingCollection, setEditingCollection] = useState<SerializedCollection | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SerializedCollection | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const rows = useMemo(
     () =>
@@ -147,6 +162,53 @@ export function CurrentAccountPage({
     }));
     setCollections((prev) => [collection, ...prev]);
     toast.success("Tahsilat kaydedildi");
+  }
+
+  async function handleUpdateCollection(values: CollectPaymentFormValues) {
+    if (!editingCollection) return;
+    const res = await fetch(`/api/finance/collections/${editingCollection.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Tahsilat güncellenemedi");
+      return;
+    }
+    const updated: SerializedCollection = data.collection;
+    const oldAmount = editingCollection.amount;
+    setCollections((prev) => prev.map((c) => (c.id === editingCollection.id ? updated : c)));
+    setCustomerBalances((prev) => {
+      const next = { ...prev };
+      next[editingCollection.customerId] = Math.max(0, (next[editingCollection.customerId] ?? 0) + oldAmount);
+      next[updated.customerId] = Math.max(0, (next[updated.customerId] ?? 0) - updated.amount);
+      return next;
+    });
+    toast.success("Tahsilat güncellendi");
+    setEditingCollection(null);
+  }
+
+  async function handleDeleteCollection() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/finance/collections/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Tahsilat silinemedi");
+        return;
+      }
+      setCollections((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      setCustomerBalances((prev) => ({
+        ...prev,
+        [deleteTarget.customerId]: Math.max(0, (prev[deleteTarget.customerId] ?? 0) + deleteTarget.amount),
+      }));
+      toast.success("Tahsilat silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -418,41 +480,62 @@ export function CurrentAccountPage({
                     <EmptyState icon={Wallet} title="Hareket yok" description="Bu müşteride cari hesap hareketi bulunmuyor." />
                   </div>
                 ) : (
-                  [...mergedEntries].reverse().map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between gap-4 px-4 py-3.5">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <span
-                          className={cn(
-                            "mt-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase",
-                            entry.type === "debt"
-                              ? "bg-destructive/10 text-destructive"
-                              : "bg-success/10 text-success",
+                  [...mergedEntries].reverse().map((entry) => {
+                    const collectionRecord = entry.type === "collection" ? collections.find((c) => c.id === entry.id) : undefined;
+                    return (
+                      <div key={entry.id} className="flex items-center justify-between gap-4 px-4 py-3.5">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span
+                            className={cn(
+                              "mt-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase",
+                              entry.type === "debt"
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-success/10 text-success",
+                            )}
+                          >
+                            {entry.type === "debt" ? "Borç" : "Tahsilat"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-foreground">{entry.description}</p>
+                            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              {formatDate(entry.date)}
+                              {entry.method && <PaymentMethodBadge method={entry.method} className="px-1.5 py-0 text-[10px]" />}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <div className="text-right">
+                            <p
+                              className={cn(
+                                "text-sm font-semibold tabular-nums",
+                                entry.type === "debt" ? "text-destructive" : "text-success",
+                              )}
+                            >
+                              {entry.type === "debt" ? "+" : "-"}
+                              {formatCurrency(entry.amount)}
+                            </p>
+                            <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(entry.balanceAfter)}</p>
+                          </div>
+                          {collectionRecord && (
+                            <div className="flex items-center gap-0.5">
+                              <Button size="icon" variant="ghost" className="size-7" title="Düzenle" onClick={() => setEditingCollection(collectionRecord)}>
+                                <Pencil className="size-3.5" aria-hidden="true" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                title="Sil"
+                                onClick={() => setDeleteTarget(collectionRecord)}
+                              >
+                                <Trash2 className="size-3.5" aria-hidden="true" />
+                              </Button>
+                            </div>
                           )}
-                        >
-                          {entry.type === "debt" ? "Borç" : "Tahsilat"}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm text-foreground">{entry.description}</p>
-                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            {formatDate(entry.date)}
-                            {entry.method && <PaymentMethodBadge method={entry.method} className="px-1.5 py-0 text-[10px]" />}
-                          </p>
                         </div>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <p
-                          className={cn(
-                            "text-sm font-semibold tabular-nums",
-                            entry.type === "debt" ? "text-destructive" : "text-success",
-                          )}
-                        >
-                          {entry.type === "debt" ? "+" : "-"}
-                          {formatCurrency(entry.amount)}
-                        </p>
-                        <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(entry.balanceAfter)}</p>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </Card>
             </>
@@ -467,6 +550,36 @@ export function CurrentAccountPage({
         currentBalance={selectedBalance}
         onSubmit={handleCollectPayment}
       />
+      <CollectPaymentForm
+        open={!!editingCollection}
+        onOpenChange={(open) => !open && setEditingCollection(null)}
+        customer={customers.find((c) => c.id === editingCollection?.customerId) ?? null}
+        currentBalance={editingCollection ? (customerBalances[editingCollection.customerId] ?? 0) : 0}
+        onSubmit={handleUpdateCollection}
+        editing={editingCollection}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tahsilatı sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && formatCurrency(deleteTarget.amount)} tutarındaki tahsilatı silmek istediğinize emin
+              misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDeleteCollection}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
