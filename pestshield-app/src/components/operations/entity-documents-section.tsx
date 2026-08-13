@@ -2,10 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, Trash2, Upload } from "lucide-react";
+import { FileText, Pencil, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { readImageFile } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +39,9 @@ export function EntityDocumentsSection({ apiBase }: { apiBase: string }) {
   const [dragOver, setDragOver] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [renameDoc, setRenameDoc] = useState<EntityDocument | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
 
   async function loadDocuments() {
     setLoading(true);
@@ -89,6 +100,32 @@ export function EntityDocumentsSection({ apiBase }: { apiBase: string }) {
     }
   }
 
+  async function handleRename() {
+    if (!renameDoc) return;
+    if (!renameValue.trim()) {
+      toast.error("Belge adını girin");
+      return;
+    }
+    setRenaming(true);
+    try {
+      const res = await fetch(`${apiBase}/${renameDoc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message ?? "Belge güncellenemedi");
+        return;
+      }
+      toast.success("Belge güncellendi");
+      setRenameDoc(null);
+      await loadDocuments();
+    } finally {
+      setRenaming(false);
+    }
+  }
+
   async function handleDelete(id: string) {
     const res = await fetch(`${apiBase}/${id}`, { method: "DELETE" });
     if (!res.ok) {
@@ -117,6 +154,17 @@ export function EntityDocumentsSection({ apiBase }: { apiBase: string }) {
                   <p className="truncate text-sm font-medium text-foreground">{doc.name}</p>
                   <p className="text-xs text-muted-foreground">{formatSize(doc.fileSizeKb)}</p>
                 </div>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="outline"
+                  onClick={() => {
+                    setRenameDoc(doc);
+                    setRenameValue(doc.name);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
                 <Button
                   type="button"
                   size="icon-xs"
@@ -173,6 +221,27 @@ export function EntityDocumentsSection({ apiBase }: { apiBase: string }) {
           Belge Ekle
         </Button>
       </div>
+
+      <Dialog open={!!renameDoc} onOpenChange={(open) => !open && setRenameDoc(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Belgeyi Düzenle</DialogTitle>
+            <DialogDescription>Belge adını güncelleyin.</DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label className="mb-1.5">Belge Adı</Label>
+            <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className="h-11 rounded-xl px-3.5" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRenameDoc(null)}>
+              Vazgeç
+            </Button>
+            <Button type="button" loading={renaming} onClick={handleRename}>
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
