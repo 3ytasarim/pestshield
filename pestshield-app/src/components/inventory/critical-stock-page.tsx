@@ -4,6 +4,16 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { AlertTriangle, PackageX, ShieldAlert, TrendingDown } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { AddStockForm } from "@/components/inventory/add-stock-form";
@@ -33,6 +43,7 @@ export function CriticalStockPage({
   const [stockTargetProduct, setStockTargetProduct] = useState<Product | null>(null);
   const [transferTargetProduct, setTransferTargetProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
   const criticalProducts = useMemo(
     () => [...getCriticalProducts(products)].sort((a, b) => criticalSeverity(b) - criticalSeverity(a)),
@@ -103,6 +114,18 @@ export function CriticalStockPage({
     setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? product : p)));
     setEditingProduct(null);
     toast.success("Ürün güncellendi");
+  }
+
+  async function handleDeleteProduct() {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/inventory/products/${deleteTarget.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Ürün silinemedi");
+      return;
+    }
+    setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+    toast.success("Ürün silindi");
+    setDeleteTarget(null);
   }
 
   return (
@@ -184,6 +207,7 @@ export function CriticalStockPage({
                 setTransferTargetProduct(p);
                 setTransferOpen(true);
               }}
+              onDelete={(p) => setDeleteTarget(p)}
             />
           ))}
         </div>
@@ -240,6 +264,24 @@ export function CriticalStockPage({
             : undefined
         }
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ürünü Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.name} ürününü silmek istediğinize emin misiniz? Bu ürüne ait tüm stok hareketleri de
+              silinecektir. Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-white hover:bg-destructive/90">
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

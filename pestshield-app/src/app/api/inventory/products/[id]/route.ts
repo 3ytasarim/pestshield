@@ -61,3 +61,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   });
   return NextResponse.json({ product: serializeProduct(product) });
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
+  const { id } = await params;
+
+  const existing = await prisma.product.findFirst({ where: { id, ownerId } });
+  if (!existing) {
+    return NextResponse.json({ message: "Ürün bulunamadı." }, { status: 404 });
+  }
+
+  // Ürüne ait stok hareketleri de (schema: onDelete Cascade) birlikte silinir.
+  await prisma.product.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}

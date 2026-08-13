@@ -3,9 +3,19 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Plus, Truck, User, Warehouse as WarehouseIcon, Wrench } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Trash2, Truck, User, Warehouse as WarehouseIcon, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
@@ -26,6 +36,7 @@ export function VehiclesPage({
   const [technicians] = useState<Technician[]>(initialTechnicians);
   const [formOpen, setFormOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Vehicle | null>(null);
 
   const activeCount = useMemo(() => vehicles.filter((v) => v.status === "active").length, [vehicles]);
   const dueSoonCount = useMemo(() => vehicles.filter(isVehicleDueSoon).length, [vehicles]);
@@ -64,6 +75,18 @@ export function VehiclesPage({
   function openEdit(vehicle: Vehicle) {
     setEditingVehicle(vehicle);
     setFormOpen(true);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/operations/vehicles/${deleteTarget.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Araç silinemedi");
+      return;
+    }
+    setVehicles((prev) => prev.filter((v) => v.id !== deleteTarget.id));
+    toast.success("Araç silindi");
+    setDeleteTarget(null);
   }
 
   function handleFormOpenChange(open: boolean) {
@@ -130,6 +153,15 @@ export function VehiclesPage({
                       <Button variant="ghost" size="icon-sm" onClick={() => openEdit(vehicle)} title="Düzenle">
                         <Pencil className="size-3.5" />
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteTarget(vehicle)}
+                        title="Sil"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
                     </div>
                   </div>
 
@@ -169,6 +201,23 @@ export function VehiclesPage({
         onSubmit={editingVehicle ? handleUpdate : handleCreate}
         editing={editingVehicle}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aracı Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.plate} plakalı aracı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90">
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

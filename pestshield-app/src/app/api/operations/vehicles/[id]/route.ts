@@ -37,3 +37,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   return NextResponse.json({ vehicle: serializeVehicle(vehicle) });
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
+
+  const existing = await prisma.vehicle.findFirst({ where: { id, ownerId } });
+  if (!existing) {
+    return NextResponse.json({ message: "Araç bulunamadı" }, { status: 404 });
+  }
+
+  await prisma.vehicle.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}

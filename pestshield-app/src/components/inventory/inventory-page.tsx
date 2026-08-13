@@ -14,6 +14,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { AddStockForm } from "@/components/inventory/add-stock-form";
@@ -61,6 +71,7 @@ export function InventoryPage({
   const [stockTargetProduct, setStockTargetProduct] = useState<Product | null>(null);
   const [transferTargetProduct, setTransferTargetProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -160,6 +171,18 @@ export function InventoryPage({
     const { product } = (await res.json()) as { product: Product };
     setProducts((prev) => [product, ...prev]);
     toast.success("Ürün eklendi");
+  }
+
+  async function handleDeleteProduct() {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/inventory/products/${deleteTarget.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Ürün silinemedi");
+      return;
+    }
+    setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+    toast.success("Ürün silindi");
+    setDeleteTarget(null);
   }
 
   return (
@@ -344,6 +367,7 @@ export function InventoryPage({
                     setTransferTargetProduct(p);
                     setTransferOpen(true);
                   }}
+                  onDelete={(p) => setDeleteTarget(p)}
                 />
               ))}
             </div>
@@ -406,6 +430,24 @@ export function InventoryPage({
             : undefined
         }
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ürünü Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.name} ürününü silmek istediğinize emin misiniz? Bu ürüne ait tüm stok hareketleri de
+              silinecektir. Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-white hover:bg-destructive/90">
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
