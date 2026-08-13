@@ -47,3 +47,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   return NextResponse.json({ ek1Form: serializeEk1Form(form) });
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
+
+  const { id } = await params;
+  const existing = await prisma.ek1Form.findFirst({ where: { periyotOccurrenceId: id, ownerId } });
+  if (!existing) {
+    return NextResponse.json({ message: "EK-1 formu bulunamadı." }, { status: 404 });
+  }
+
+  await prisma.ek1Form.delete({ where: { periyotOccurrenceId: id } });
+  return NextResponse.json({ success: true });
+}

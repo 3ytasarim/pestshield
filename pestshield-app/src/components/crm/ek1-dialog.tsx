@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FileText, Printer } from "lucide-react";
+import { FileText, Printer, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -111,6 +121,9 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
   const [customer, setCustomer] = useState<Ek1CustomerInfo | null>(null);
   const [technicianOptions, setTechnicianOptions] = useState<string[]>([]);
   const [biocidalProducts, setBiocidalProducts] = useState<Product[]>([]);
+  const [existsOnServer, setExistsOnServer] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -150,6 +163,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
       .then((data: { ek1Form?: Ek1Form | null } | null) => {
         if (cancelled) return;
         const base = data?.ek1Form ?? buildDefaultEk1Form(occurrence, customer, biocidalProducts);
+        setExistsOnServer(!!data?.ek1Form);
         setForm({
           ...base,
           ekipSorumlusuImzaData: base.ekipSorumlusuImzaData ?? null,
@@ -184,8 +198,29 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
     }
     const data = await res.json();
     setForm(data.ek1Form);
+    setExistsOnServer(true);
     toast.success("EK-1 formu kaydedildi");
     onSaved?.();
+  }
+
+  async function handleDelete() {
+    if (!occurrence) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/periyot/occurrences/${occurrence.id}/ek1`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "EK-1 formu silinemedi");
+        return;
+      }
+      setForm(buildDefaultEk1Form(occurrence, customer, biocidalProducts));
+      setExistsOnServer(false);
+      toast.success("EK-1 formu silindi");
+      setDeleteOpen(false);
+      onSaved?.();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handlePrint() {
@@ -297,10 +332,24 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
         )}
 
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">
-          <Button type="button" variant="outline" size="sm" loading={printing} disabled={!form} onClick={handlePrint}>
-            <Printer className="size-3.5" />
-            Yazdır / PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" loading={printing} disabled={!form} onClick={handlePrint}>
+              <Printer className="size-3.5" />
+              Yazdır / PDF
+            </Button>
+            {existsOnServer && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-3.5" />
+                Formu Sil
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Vazgeç
@@ -311,6 +360,27 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>EK-1 formunu sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu ziyarete ait kaydedilmiş EK-1 formunu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

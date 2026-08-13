@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -77,6 +87,9 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
   const [selectedSketchId, setSelectedSketchId] = useState<string | null>(null);
   const [inspections, setInspections] = useState<Record<string, StationInspection>>({});
   const [saving, setSaving] = useState(false);
+  const [hasSavedInspections, setHasSavedInspections] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!open || !serviceOrderId) return;
@@ -109,6 +122,7 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
       .then((data: { inspections?: StationInspection[] } | null) => {
         if (cancelled) return;
         const existing = data?.inspections ?? [];
+        setHasSavedInspections(existing.length > 0);
         const map: Record<string, StationInspection> = {};
         for (const station of selectedSketch.stations) {
           const found = existing.find((i) => i.krokiStationId === station.id);
@@ -155,7 +169,31 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
       toast.error("İstasyon denetimi kaydedilemedi");
       return;
     }
+    setHasSavedInspections(Object.keys(inspections).length > 0);
     toast.success("İstasyon denetimi kaydedildi");
+  }
+
+  async function handleDeleteInspections() {
+    if (!occurrence || !selectedSketch) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/periyot/occurrences/${occurrence.id}/station-inspections`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "İstasyon denetim kayıtları silinemedi");
+        return;
+      }
+      const map: Record<string, StationInspection> = {};
+      for (const station of selectedSketch.stations) {
+        map[station.id] = emptyInspection(station, occurrence.id, selectedSketch.id);
+      }
+      setInspections(map);
+      setHasSavedInspections(false);
+      toast.success("İstasyon denetim kayıtları silindi");
+      setDeleteOpen(false);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const summary = useMemo(() => {
@@ -284,15 +322,51 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
           </div>
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Vazgeç
-          </Button>
-          <Button type="button" loading={saving} disabled={!selectedSketch} onClick={handleSave}>
-            Kaydet
-          </Button>
+        <DialogFooter className="flex-wrap gap-2 sm:justify-between">
+          {hasSavedInspections && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-3.5" />
+              Denetim Kayıtlarını Sil
+            </Button>
+          )}
+          <div className="ml-auto flex gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Vazgeç
+            </Button>
+            <Button type="button" loading={saving} disabled={!selectedSketch} onClick={handleSave}>
+              Kaydet
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>İstasyon denetim kayıtlarını sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu ziyarete ait tüm istasyon denetim kayıtlarını silmek istediğinize emin misiniz? Bu işlem geri
+              alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDeleteInspections}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -41,3 +41,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   return NextResponse.json({ inspections: inspections.map(serializeStationInspection) });
 }
+
+/** Bu periyot ziyaretine ait tüm istasyon denetim kayıtlarını siler. */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
+
+  const { id } = await params;
+  const occurrence = await prisma.periyotOccurrence.findFirst({ where: { id, ownerId } });
+  if (!occurrence) {
+    return NextResponse.json({ message: "Periyot ziyareti bulunamadı." }, { status: 404 });
+  }
+
+  await prisma.stationInspection.deleteMany({ where: { periyotOccurrenceId: id, ownerId } });
+  return NextResponse.json({ success: true });
+}
