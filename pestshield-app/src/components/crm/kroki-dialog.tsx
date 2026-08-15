@@ -672,7 +672,7 @@ function KrokiEditor({ sketch, startOffset, onCancel, onSave }: KrokiEditorProps
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute z-10 rounded-sm border-2 border-white text-center text-[10px] font-bold text-foreground shadow-md outline-none"
+                  className="absolute z-10 rounded-sm border-2 border-white bg-white text-center text-[10px] font-bold text-black shadow-md outline-none"
                   style={{
                     left: `${s.x}%`,
                     top: `${s.y}%`,
