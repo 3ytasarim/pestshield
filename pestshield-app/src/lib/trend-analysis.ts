@@ -146,23 +146,35 @@ export async function computeTrendAnalysis(ownerId: string, serviceOrderId: stri
     return (inspectionsByOccurrence.get(occurrenceId) ?? []).filter((i) => sketchIds.has(i.krokiSketchId));
   }
 
-  const byMonth = new Map<string, TrendOccurrence>();
+  // Aynı ay içinde birden fazla periyot ziyareti olabilir (ör. zehirli istasyonlar bir
+  // ziyarette, zehirsiz istasyonlar başka bir ziyarette kontrol edilmiş olabilir). Sadece
+  // en son ziyareti temsilci almak, diğer ziyaretlerde girilen istasyon tiplerinin verisini
+  // sessizce kaybettiriyordu — bunun yerine o ayın TÜM ziyaretlerindeki kayıtlar istasyon
+  // bazında birleştirilir (occurrences zaten periodDate'e göre artan sırada geldiği için,
+  // aynı istasyon birden fazla ziyarette kontrol edilmişse en güncel kayıt kazanır).
+  const byMonth = new Map<string, { latestOccurrence: TrendOccurrence; inspections: Record<string, StationInspection> }>();
   for (const occ of occurrences) {
     const insp = inspectionsFor(occ.id);
     if (insp.length === 0) continue;
     const key = monthKeyOf(occ.periodDate);
-    const existing = byMonth.get(key);
-    if (!existing || occ.periodDate >= existing.periodDate) byMonth.set(key, occ);
+    let acc = byMonth.get(key);
+    if (!acc) {
+      acc = { latestOccurrence: occ, inspections: {} };
+      byMonth.set(key, acc);
+    }
+    for (const i of insp) acc.inspections[i.krokiStationId] = i;
+    if (occ.periodDate >= acc.latestOccurrence.periodDate) acc.latestOccurrence = occ;
   }
 
   let months: TrendMonthEntry[] = Array.from(byMonth.entries())
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .map(([monthKey, occ]) => {
-      const inspList = inspectionsFor(occ.id);
-      const inspections: Record<string, StationInspection> = {};
-      for (const i of inspList) inspections[i.krokiStationId] = i;
-      return { monthKey, monthLabel: monthLabelOf(occ.periodDate), occurrenceId: occ.id, occurrenceDate: occ.periodDate, inspections };
-    });
+    .map(([monthKey, acc]) => ({
+      monthKey,
+      monthLabel: monthLabelOf(acc.latestOccurrence.periodDate),
+      occurrenceId: acc.latestOccurrence.id,
+      occurrenceDate: acc.latestOccurrence.periodDate,
+      inspections: acc.inspections,
+    }));
 
   if (asOfMonthKey) months = months.filter((m) => m.monthKey <= asOfMonthKey);
 
