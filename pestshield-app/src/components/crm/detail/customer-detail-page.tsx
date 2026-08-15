@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ClipboardList, FileSignature, FileSpreadsheet, FileUp, StickyNote, Wallet, Wrench } from "lucide-react";
+import { toast } from "sonner";
+import { ClipboardList, FileSignature, FileSpreadsheet, FileUp, Pencil, StickyNote, Wallet, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CustomerSummaryCard } from "@/components/crm/detail/customer-summary-card";
 import { CustomerTabs } from "@/components/crm/detail/customer-tabs";
+import { CustomerForm } from "@/components/crm/customer-form";
+import type { CustomerFormValues } from "@/lib/validations/crm";
 import type { Customer } from "@/lib/mock/crm";
 
 interface CustomerDetailPageProps {
@@ -42,15 +45,32 @@ const QUICK_ACTIONS = [
 
 export function CustomerDetailPage({ customer, initialTab }: CustomerDetailPageProps) {
   const [activeTab, setActiveTab] = useState(VALID_TABS.includes(initialTab) ? initialTab : "overview");
+  const [customerData, setCustomerData] = useState(customer);
+  const [editOpen, setEditOpen] = useState(false);
 
   function goToTab(tab: string) {
     setActiveTab(tab);
     document.getElementById("customer-tabs-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  async function handleEditSubmit(values: CustomerFormValues) {
+    const res = await fetch(`/api/crm/customers/${customerData.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "Müşteri güncellenemedi");
+      return;
+    }
+    setCustomerData(data.customer);
+    toast.success("Müşteri güncellendi");
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <CustomerSummaryCard customer={customer} />
+      <CustomerSummaryCard customer={customerData} />
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -58,6 +78,10 @@ export function CustomerDetailPage({ customer, initialTab }: CustomerDetailPageP
         transition={{ duration: 0.3, delay: 0.1 }}
         className="flex flex-wrap gap-2"
       >
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+          <Pencil className="size-3.5" />
+          Müşteriyi Düzenle
+        </Button>
         {QUICK_ACTIONS.map((action) => (
           <Button key={action.label} variant="outline" size="sm" onClick={() => goToTab(action.tab)}>
             <action.icon className="size-3.5" />
@@ -67,8 +91,16 @@ export function CustomerDetailPage({ customer, initialTab }: CustomerDetailPageP
       </motion.div>
 
       <div id="customer-tabs-anchor">
-        <CustomerTabs customer={customer} value={activeTab} onValueChange={setActiveTab} />
+        <CustomerTabs customer={customerData} value={activeTab} onValueChange={setActiveTab} />
       </div>
+
+      <CustomerForm
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSubmit={handleEditSubmit}
+        defaultValues={customerData}
+        customer={customerData}
+      />
     </div>
   );
 }
