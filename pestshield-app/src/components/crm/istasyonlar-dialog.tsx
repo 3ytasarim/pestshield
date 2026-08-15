@@ -43,7 +43,9 @@ import {
   UCKUN_TUR_OPTIONS,
   FLORASAN_OPTIONS,
 } from "@/components/crm/istasyon-inspection-constants";
-import type { KrokiSketch, KrokiStation, KrokiStationType, PeriyotOccurrence, StationInspection } from "@/lib/mock/crm";
+import { compositeKrokiImage } from "@/lib/kroki-image";
+import { printKatPlaniIstasyonRaporu } from "@/lib/pdf/kat-plani-report";
+import type { Customer, KrokiSketch, KrokiStation, KrokiStationType, PeriyotOccurrence, StationInspection } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 function comingSoon(feature: string) {
@@ -77,12 +79,13 @@ interface IstasyonlarDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   serviceOrderId: string | null;
+  customerId: string | null;
   occurrence: PeriyotOccurrence | null;
   customerName: string;
   batchName: string;
 }
 
-export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurrence, customerName, batchName }: IstasyonlarDialogProps) {
+export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, customerId, occurrence, customerName, batchName }: IstasyonlarDialogProps) {
   const [sketches, setSketches] = useState<KrokiSketch[]>([]);
   const [selectedSketchId, setSelectedSketchId] = useState<string | null>(null);
   const [inspections, setInspections] = useState<Record<string, StationInspection>>({});
@@ -90,6 +93,7 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
   const [hasSavedInspections, setHasSavedInspections] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [printingReport, setPrintingReport] = useState(false);
 
   useEffect(() => {
     if (!open || !serviceOrderId) return;
@@ -171,6 +175,41 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
     }
     setHasSavedInspections(Object.keys(inspections).length > 0);
     toast.success("İstasyon denetimi kaydedildi");
+  }
+
+  async function handlePrintReport() {
+    if (!occurrence || !selectedSketch || !serviceOrderId || !customerId) return;
+    setPrintingReport(true);
+    try {
+      const saveRes = await fetch(`/api/crm/periyot/occurrences/${occurrence.id}/station-inspections`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inspections: Object.values(inspections) }),
+      });
+      if (!saveRes.ok) {
+        toast.error("İstasyon denetimi kaydedilemedi");
+        return;
+      }
+      setHasSavedInspections(Object.keys(inspections).length > 0);
+
+      const customerRes = await fetch(`/api/crm/customers/${customerId}`);
+      const customerData: { customer?: Customer } | null = customerRes.ok ? await customerRes.json() : null;
+      const customer = customerData?.customer ?? null;
+      if (!customer) {
+        toast.error("Müşteri bilgisi bulunamadı");
+        return;
+      }
+
+      const compositeImage = await compositeKrokiImage(selectedSketch);
+      const rowsRes = await fetch(`/api/reports/kat-plani?serviceOrderId=${serviceOrderId}&sketchId=${selectedSketch.id}`);
+      const rowsData = rowsRes.ok ? await rowsRes.json() : null;
+      const rows = rowsData?.rows ?? [];
+      await printKatPlaniIstasyonRaporu(selectedSketch, rows, compositeImage, customer, batchName);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Rapor oluşturulamadı");
+    } finally {
+      setPrintingReport(false);
+    }
   }
 
   async function handleDeleteInspections() {
@@ -256,7 +295,7 @@ export function IstasyonlarDialog({ open, onOpenChange, serviceOrderId, occurren
                 <Download className="size-3.5" />
                 İstasyon QR Kod Etiketi İndir
               </Button>
-              <Button variant="outline" size="sm" onClick={() => comingSoon("PDF Raporu")}>
+              <Button variant="outline" size="sm" loading={printingReport} onClick={handlePrintReport}>
                 <FileText className="size-3.5" />
                 PDF Raporu
               </Button>

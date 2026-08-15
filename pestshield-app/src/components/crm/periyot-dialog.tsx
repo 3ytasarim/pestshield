@@ -1478,6 +1478,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
       open={!!istasyonOccurrenceId}
       onOpenChange={(o) => !o && setIstasyonOccurrenceId(null)}
       serviceOrderId={serviceOrderId}
+      customerId={customerId}
       occurrence={occurrences.find((o) => o.id === istasyonOccurrenceId) ?? null}
       customerName={customerName}
       batchName={selectedBatch?.name ?? ""}
