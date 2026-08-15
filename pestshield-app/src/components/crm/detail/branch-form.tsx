@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -11,9 +11,22 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { TextField, SelectField, TextareaField } from "@/components/crm/form-fields";
 import { branchFormSchema, type BranchFormValues } from "@/lib/validations/crm";
 import { CITY_OPTIONS } from "@/components/crm/crm-labels";
+
+interface CustomerLite {
+  id: string;
+  companyName: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  city: string;
+  district: string;
+  addressLine: string;
+}
 
 const EMPTY: BranchFormValues = {
   name: "",
@@ -42,12 +55,42 @@ export function BranchForm({ open, onOpenChange, onSubmit, defaultValues }: Bran
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<BranchFormValues>({ resolver: zodResolver(branchFormSchema), defaultValues: defaultValues ?? EMPTY });
 
+  const [customers, setCustomers] = useState<CustomerLite[]>([]);
+  const [fillCustomerId, setFillCustomerId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (open) reset(defaultValues ?? EMPTY);
+    if (open) {
+      reset(defaultValues ?? EMPTY);
+      setFillCustomerId(null);
+    }
   }, [open, defaultValues, reset]);
+
+  useEffect(() => {
+    if (!open || defaultValues) return;
+    fetch("/api/crm/customers")
+      .then((res) => (res.ok ? res.json() : { customers: [] }))
+      .then((data: { customers: CustomerLite[] }) => setCustomers(data.customers ?? []))
+      .catch(() => setCustomers([]));
+  }, [open, defaultValues]);
+
+  const customerItems = useMemo(() => customers.map((c) => ({ value: c.id, label: c.companyName })), [customers]);
+
+  function handleFillFromCustomer(customerId: string | null) {
+    setFillCustomerId(customerId);
+    const source = customers.find((c) => c.id === customerId);
+    if (!source) return;
+    setValue("name", source.companyName, { shouldDirty: true });
+    setValue("contactName", source.contactName, { shouldDirty: true });
+    setValue("phone", source.contactPhone, { shouldDirty: true });
+    setValue("email", source.contactEmail, { shouldDirty: true });
+    setValue("city", source.city, { shouldDirty: true });
+    setValue("district", source.district, { shouldDirty: true });
+    setValue("addressLine", source.addressLine, { shouldDirty: true });
+  }
 
   function submit(values: BranchFormValues) {
     onSubmit(values);
@@ -61,6 +104,28 @@ export function BranchForm({ open, onOpenChange, onSubmit, defaultValues }: Bran
           <DialogTitle>{defaultValues ? "Şubeyi Düzenle" : "Yeni Şube Ekle"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-3">
+          {!defaultValues && (
+            <div>
+              <Label className="mb-1.5">Müşteriden Doldur (opsiyonel)</Label>
+              <Combobox
+                items={customerItems}
+                value={customerItems.find((c) => c.value === fillCustomerId) ?? null}
+                onValueChange={(selected) => handleFillFromCustomer(selected?.value ?? null)}
+              >
+                <ComboboxInput placeholder="Müşteri ara…" />
+                <ComboboxContent>
+                  {(option: { value: string; label: string }) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      {option.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxContent>
+              </Combobox>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Bir müşteri seçerseniz aşağıdaki alanlar o müşterinin bilgileriyle otomatik doldurulur, dilediğiniz gibi düzenleyebilirsiniz.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TextField label="Şube Adı" registration={register("name")} error={errors.name?.message} />
             <TextField label="Şube Kodu" registration={register("code")} error={errors.code?.message} />
