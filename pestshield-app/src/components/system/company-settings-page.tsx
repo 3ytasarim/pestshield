@@ -73,6 +73,7 @@ export function CompanySettingsPage() {
   const reportLogoInputRef = useRef<HTMLInputElement>(null);
   const [letterheadImage, setLetterheadImage] = useState<string | null>(() => getCompanySettings().letterheadImage);
   const [letterheadMode, setLetterheadMode] = useState<LetterheadMode>(() => getCompanySettings().letterheadMode);
+  const [letterheadUploading, setLetterheadUploading] = useState(false);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
   const [templateImages, setTemplateImages] = useState<Record<TemplateKey, string | null>>(() => ({
     contract: getCompanySettings().contractLetterheadImage,
@@ -219,15 +220,20 @@ export function CompanySettingsPage() {
 
   async function handleLetterheadSelect(file: File | undefined) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Lütfen bir görsel dosyası seçin (PNG, JPG, SVG)");
+    const name = file.name.toLowerCase();
+    const isDoc = file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || name.endsWith(".pdf") || name.endsWith(".docx");
+    if (!file.type.startsWith("image/") && !isDoc) {
+      toast.error("Lütfen bir görsel, PDF veya DOCX dosyası seçin");
       return;
     }
+    setLetterheadUploading(true);
     try {
-      const dataUrl = await readLetterheadFile(file);
+      const dataUrl = isDoc ? await rasterizeTemplateFile(file) : await readLetterheadFile(file);
       setLetterheadImage(dataUrl);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Antetli kağıt görseli yüklenemedi");
+      toast.error(error instanceof Error ? error.message : "Antetli kağıt yüklenemedi");
+    } finally {
+      setLetterheadUploading(false);
     }
   }
 
@@ -615,7 +621,7 @@ export function CompanySettingsPage() {
             <div>
               <p className="font-semibold text-foreground">Antetli Kağıt</p>
               <p className="text-xs text-muted-foreground">
-                Rapor, teklif ve audit raporu gönderirken kullanılacak antetli kağıt görseliniz.
+                Tüm raporlarınızın (rapor, teklif, sözleşme, audit vb.) arkaplanında kullanılacak antetli kağıt — görsel, PDF veya DOCX yükleyebilirsiniz.
               </p>
             </div>
           </div>
@@ -628,7 +634,9 @@ export function CompanySettingsPage() {
                   letterheadImage && "border-solid border-primary/20 bg-white",
                 )}
               >
-                {letterheadImage ? (
+                {letterheadUploading ? (
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                ) : letterheadImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={letterheadImage} alt="Antetli kağıt" className="size-full object-contain p-1.5" />
                 ) : (
@@ -636,10 +644,10 @@ export function CompanySettingsPage() {
                 )}
               </div>
               <div className="flex gap-1.5">
-                <Button size="sm" variant="outline" onClick={() => letterheadInputRef.current?.click()}>
-                  {letterheadImage ? "Değiştir" : "Görsel Yükle"}
+                <Button size="sm" variant="outline" loading={letterheadUploading} onClick={() => letterheadInputRef.current?.click()}>
+                  {letterheadImage ? "Değiştir" : "Dosya Yükle"}
                 </Button>
-                {letterheadImage && (
+                {letterheadImage && !letterheadUploading && (
                   <Button size="icon-sm" variant="outline" className="text-destructive hover:bg-destructive/10" onClick={handleRemoveLetterhead} aria-label="Antetli kağıdı kaldır">
                     <Trash2 className="size-3.5" />
                   </Button>
@@ -648,11 +656,11 @@ export function CompanySettingsPage() {
               <input
                 ref={letterheadInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="hidden"
                 onChange={(e) => handleLetterheadSelect(e.target.files?.[0])}
               />
-              <p className="text-center text-[10px] text-muted-foreground">PNG, JPG veya SVG · maks. 8MB</p>
+              <p className="text-center text-[10px] text-muted-foreground">PNG, JPG, SVG, PDF veya DOCX · maks. 8MB</p>
             </div>
 
             <div className="flex-1">
