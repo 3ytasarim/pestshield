@@ -235,7 +235,7 @@ export function KrokiDialog({ open, onOpenChange, serviceOrderId, onCountChange,
   return (
     <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className={cn("sm:max-w-3xl", tab === "duzenle" && "w-[96vw] max-w-[1600px]")}>
+      <DialogContent className={cn(tab === "duzenle" ? "w-[96vw] max-w-none sm:max-w-[96vw]" : "sm:max-w-3xl")}>
         <DialogHeader>
           <DialogTitle>Kroki Tanımlama</DialogTitle>
         </DialogHeader>
@@ -473,6 +473,8 @@ function KrokiEditor({ sketch, startOffset, onCancel, onSave }: KrokiEditorProps
   const [continuous, setContinuous] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [editingNumberId, setEditingNumberId] = useState<string | null>(null);
+  const [editingNumberValue, setEditingNumberValue] = useState("");
   const imageRef = useRef<HTMLImageElement>(null);
 
   function coordsFromEvent(e: { clientX: number; clientY: number }) {
@@ -510,6 +512,21 @@ function KrokiEditor({ sketch, startOffset, onCancel, onSave }: KrokiEditorProps
 
   function removeStation(id: string) {
     setStations((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  function startEditingNumber(id: string, currentNumber: number | undefined) {
+    setEditingNumberId(id);
+    setEditingNumberValue(currentNumber != null ? String(currentNumber) : "");
+  }
+
+  function commitEditingNumber() {
+    if (!editingNumberId) return;
+    const trimmed = editingNumberValue.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    setStations((prev) =>
+      prev.map((s) => (s.id === editingNumberId ? { ...s, number: parsed != null && Number.isFinite(parsed) ? parsed : null } : s)),
+    );
+    setEditingNumberId(null);
   }
 
   function handleWheel(e: React.WheelEvent) {
@@ -604,7 +621,7 @@ function KrokiEditor({ sketch, startOffset, onCancel, onSave }: KrokiEditorProps
         <Button type="button" size="sm" variant="outline" onClick={() => setZoom(1)}>
           Sığdır
         </Button>
-        <span className="text-xs text-muted-foreground">Ctrl + tekerlek ile yakınlaştır</span>
+        <span className="text-xs text-muted-foreground">Ctrl + tekerlek ile yakınlaştır · İstasyon numarasını değiştirmek için üzerine çift tıklayın</span>
       </div>
 
       <div
@@ -640,34 +657,64 @@ function KrokiEditor({ sketch, startOffset, onCancel, onSave }: KrokiEditorProps
             ))}
           {stations
             .filter((s) => layerVisibility[s.type] !== false)
-            .map((s) => (
-              <div
-                key={s.id}
-                onPointerDown={(e) => handleStationPointerDown(e, s.id)}
-                className="group absolute flex cursor-grab items-center justify-center rounded-sm text-[9px] font-bold text-white shadow-md active:cursor-grabbing"
-                style={{
-                  left: `${s.x}%`,
-                  top: `${s.y}%`,
-                  width: stationSize,
-                  height: stationSize,
-                  background: stationColor(s.type),
-                  transform: "translate(-50%, -50%)",
-                }}
-              >
-                {stationNumbering.get(s.id)}
-                <button
-                  type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeStation(s.id);
+            .map((s) =>
+              editingNumberId === s.id ? (
+                <input
+                  key={s.id}
+                  type="number"
+                  autoFocus
+                  value={editingNumberValue}
+                  onChange={(e) => setEditingNumberValue(e.target.value)}
+                  onBlur={commitEditingNumber}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitEditingNumber();
+                    if (e.key === "Escape") setEditingNumberId(null);
                   }}
-                  className="absolute -top-1.5 -right-1.5 flex size-3.5 items-center justify-center rounded-full bg-destructive text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute z-10 rounded-sm border-2 border-white text-center text-[10px] font-bold text-foreground shadow-md outline-none"
+                  style={{
+                    left: `${s.x}%`,
+                    top: `${s.y}%`,
+                    width: Math.max(stationSize, 32),
+                    height: stationSize,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
+              ) : (
+                <div
+                  key={s.id}
+                  onPointerDown={(e) => handleStationPointerDown(e, s.id)}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    startEditingNumber(s.id, stationNumbering.get(s.id));
+                  }}
+                  title="Numarayı elle değiştirmek için çift tıklayın"
+                  className="group absolute flex cursor-grab items-center justify-center rounded-sm text-[9px] font-bold text-white shadow-md active:cursor-grabbing"
+                  style={{
+                    left: `${s.x}%`,
+                    top: `${s.y}%`,
+                    width: stationSize,
+                    height: stationSize,
+                    background: stationColor(s.type),
+                    transform: "translate(-50%, -50%)",
+                  }}
                 >
-                  <X className="size-2.5" />
-                </button>
-              </div>
-            ))}
+                  {stationNumbering.get(s.id)}
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeStation(s.id);
+                    }}
+                    className="absolute -top-1.5 -right-1.5 flex size-3.5 items-center justify-center rounded-full bg-destructive text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X className="size-2.5" />
+                  </button>
+                </div>
+              ),
+            )}
         </div>
       </div>
 
