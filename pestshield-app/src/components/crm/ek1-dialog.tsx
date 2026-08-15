@@ -40,6 +40,7 @@ export interface Ek1CustomerInfo {
   district: string;
   city: string;
   contactName: string;
+  logo: string | null;
 }
 
 interface Ek1DialogProps {
@@ -227,7 +228,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
     if (!form || !occurrence) return;
     setPrinting(true);
     try {
-      await printEk1Form(form, occurrence, customer?.companyName ?? "", batchName);
+      await printEk1Form(form, occurrence, customer?.companyName ?? "", batchName, customer?.logo ?? null);
     } finally {
       setPrinting(false);
     }

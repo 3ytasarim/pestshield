@@ -3,6 +3,7 @@
 
 import { formatDate, formatDateLong } from "@/components/crm/crm-format";
 import { escapeHtml, footerBrandLabel, openPrintWindow } from "@/lib/pdf/shared";
+import { getCompanySettings } from "@/lib/company-settings";
 import type { Ek1Form, PeriyotOccurrence } from "@/lib/mock/crm";
 
 type Ek1PrintOccurrence = Pick<PeriyotOccurrence, "periodDate" | "startTime" | "endTime">;
@@ -16,8 +17,16 @@ function sectionHeader(title: string): string {
   return `<tr class="section"><td colspan="2">${escapeHtml(title)}</td></tr>`;
 }
 
-export async function printEk1Form(form: Ek1PrintFormFields, occurrence: Ek1PrintOccurrence, customerName: string, batchName: string) {
+export async function printEk1Form(
+  form: Ek1PrintFormFields,
+  occurrence: Ek1PrintOccurrence,
+  customerName: string,
+  batchName: string,
+  customerLogo?: string | null,
+) {
   const timeRange = `${formatDateLong(occurrence.periodDate)} ${occurrence.startTime} - ${occurrence.endTime}`;
+  const company = getCompanySettings();
+  const companyLogo = company.reportLogo || company.logo || null;
 
   const html = `<!doctype html>
 <html lang="tr">
@@ -30,8 +39,12 @@ export async function printEk1Form(form: Ek1PrintFormFields, occurrence: Ek1Prin
   body { font-family: "Segoe UI", Arial, sans-serif; color: #111; margin: 0; padding: 0; font-size: 11px; line-height: 1.4; }
   .title { font-size: 13px; font-weight: 800; }
   .subtitle { font-size: 10px; color: #333; margin-top: 2px; }
-  .meta { text-align: right; font-size: 10px; color: #333; }
-  .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .header-left { display: flex; align-items: flex-start; gap: 8px; }
+  .header-logo { width: 34px; height: 34px; object-fit: contain; flex-shrink: 0; }
+  .meta { display: flex; align-items: flex-start; gap: 8px; font-size: 10px; color: #333; }
+  .meta-logo { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+  .meta-text { text-align: right; }
   table { width: 100%; border-collapse: collapse; margin-top: 4px; }
   tr.section td { font-weight: 700; padding: 5px 6px; border: 1px solid #000; background: #fff; font-size: 11px; }
   th, td { border: 1px solid #000; padding: 5px 8px; text-align: left; vertical-align: top; font-size: 10.5px; }
@@ -50,14 +63,20 @@ export async function printEk1Form(form: Ek1PrintFormFields, occurrence: Ek1Prin
 </head>
 <body>
   <div class="header-row">
-    <div>
-      <div class="title">EK-1 BİYOSİDAL ÜRÜN UYGULAMA İŞLEM FORMU</div>
-      <div class="subtitle">(Değişik: RG-19/4/2014-28977)</div>
+    <div class="header-left">
+      ${companyLogo ? `<img src="${companyLogo}" class="header-logo" alt="Firma Logosu" />` : ""}
+      <div>
+        <div class="title">EK-1 BİYOSİDAL ÜRÜN UYGULAMA İŞLEM FORMU</div>
+        <div class="subtitle">(Değişik: RG-19/4/2014-28977)</div>
+      </div>
     </div>
     <div class="meta">
-      <div>${escapeHtml(customerName)}</div>
-      <div>${escapeHtml(batchName)}</div>
-      <div>${formatDate(occurrence.periodDate)}</div>
+      <div class="meta-text">
+        <div>${escapeHtml(customerName)}</div>
+        <div>${escapeHtml(batchName)}</div>
+        <div>${formatDate(occurrence.periodDate)}</div>
+      </div>
+      ${customerLogo ? `<img src="${customerLogo}" class="meta-logo" alt="Müşteri Logosu" />` : ""}
     </div>
   </div>
 
