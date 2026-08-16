@@ -121,6 +121,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
   const [printing, setPrinting] = useState(false);
   const [customer, setCustomer] = useState<Ek1CustomerInfo | null>(null);
   const [technicianOptions, setTechnicianOptions] = useState<string[]>([]);
+  const [mesulMudurOptions, setMesulMudurOptions] = useState<string[]>([]);
   const [biocidalProducts, setBiocidalProducts] = useState<Product[]>([]);
   const [existsOnServer, setExistsOnServer] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -140,6 +141,16 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
         setBiocidalProducts((data?.products ?? []).filter((p) => p.type === "biosidal"));
       })
       .catch(() => setBiocidalProducts([]));
+    fetch("/api/system/company-users")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { companyUsers?: { name: string; roleName: string; isActive: boolean }[] } | null) => {
+        setMesulMudurOptions(
+          (data?.companyUsers ?? [])
+            .filter((u) => u.isActive && u.roleName.trim().toLocaleLowerCase("tr") === "mesul müdür")
+            .map((u) => u.name),
+        );
+      })
+      .catch(() => setMesulMudurOptions([]));
   }, [open]);
 
   useEffect(() => {
@@ -265,7 +276,30 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
                       <SelectValue placeholder="Seçiniz…">{() => form.mesulMudur || "Seçiniz…"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {technicianOptions.map((name) => (
+                      {mesulMudurOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {mesulMudurOptions.length === 0 && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Kullanıcılar&apos;da rolü &quot;Mesul Müdür&quot; olan aktif bir kullanıcı bulunamadı.
+                    </p>
+                  )}
+                </div>
+                <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={form.uygulayicilar} onChange={(v) => update({ uygulayicilar: v })} options={technicianOptions} />
+                <Field label="Telefon" value={form.telefon} onChange={(v) => update({ telefon: v })} />
+                <Field label="Müdürlük İzin Tarih ve Sayısı" value={form.izinTarihSayisi} onChange={(v) => update({ izinTarihSayisi: v })} />
+                <div>
+                  <Label className="mb-1.5">Ekip Sorumlusu</Label>
+                  <Select value={form.ekipSorumlusu || undefined} onValueChange={(v) => update({ ekipSorumlusu: String(v) })}>
+                    <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                      <SelectValue placeholder="Seçiniz…">{() => form.ekipSorumlusu || "Seçiniz…"}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mesulMudurOptions.map((name) => (
                         <SelectItem key={name} value={name}>
                           {name}
                         </SelectItem>
@@ -273,10 +307,6 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
                     </SelectContent>
                   </Select>
                 </div>
-                <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={form.uygulayicilar} onChange={(v) => update({ uygulayicilar: v })} options={technicianOptions} />
-                <Field label="Telefon" value={form.telefon} onChange={(v) => update({ telefon: v })} />
-                <Field label="Müdürlük İzin Tarih ve Sayısı" value={form.izinTarihSayisi} onChange={(v) => update({ izinTarihSayisi: v })} />
-                <Field label="Ekip Sorumlusu" value={form.ekipSorumlusu} onChange={(v) => update({ ekipSorumlusu: v })} />
               </Section>
 
               <Section title="Kullanılan Biyosidal Ürüne Ait Bilgiler">

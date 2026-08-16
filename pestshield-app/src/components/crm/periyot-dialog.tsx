@@ -180,6 +180,7 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
 
   const [technicianOptions, setTechnicianOptions] = useState<string[]>([]);
   const [biocidalProductOptions, setBiocidalProductOptions] = useState<Product[]>([]);
+  const [mesulMudurOptions, setMesulMudurOptions] = useState<string[]>([]);
 
   async function refreshBatchesAsync(selectId?: string) {
     if (!serviceOrderId) return;
@@ -217,6 +218,16 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
     fetch("/api/inventory/products")
       .then((r) => r.json())
       .then((data) => setBiocidalProductOptions((data.products ?? []).filter((p: Product) => p.type === "biosidal")));
+    fetch("/api/system/company-users")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { companyUsers?: { name: string; roleName: string; isActive: boolean }[] } | null) => {
+        setMesulMudurOptions(
+          (data?.companyUsers ?? [])
+            .filter((u) => u.isActive && u.roleName.trim().toLocaleLowerCase("tr") === "mesul müdür")
+            .map((u) => u.name),
+        );
+      })
+      .catch(() => setMesulMudurOptions([]));
   }, [open]);
 
   useEffect(() => {
@@ -1217,7 +1228,29 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                     className="h-11 rounded-xl px-3.5"
                   />
                 </div>
-                <Field label="Uygulama Ekip Sorumlusu" value={editingEk1.ekipSorumlusu} onChange={(v) => setEditingEk1({ ...editingEk1, ekipSorumlusu: v })} />
+                <div>
+                  <Label className="mb-1.5">Uygulama Ekip Sorumlusu</Label>
+                  <Select
+                    value={editingEk1.ekipSorumlusu || undefined}
+                    onValueChange={(v) => setEditingEk1({ ...editingEk1, ekipSorumlusu: String(v) })}
+                  >
+                    <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                      <SelectValue placeholder="Seçiniz…">{() => editingEk1.ekipSorumlusu || "Seçiniz…"}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mesulMudurOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {mesulMudurOptions.length === 0 && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Kullanıcılar&apos;da rolü &quot;Mesul Müdür&quot; olan aktif bir kullanıcı bulunamadı.
+                    </p>
+                  )}
+                </div>
                 <Field label="Uygulama Yapılan Yerin Sorumlusu" value={editingEk1.yeriSorumlusuImza} onChange={(v) => setEditingEk1({ ...editingEk1, yeriSorumlusuImza: v })} />
                 <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={editingEk1.uygulayicilar} onChange={(v) => setEditingEk1({ ...editingEk1, uygulayicilar: v })} options={technicianOptions} />
                 <Field label="Ürünün Uygulama Şekli" value={editingEk1.urunUygulamaSekli} onChange={(v) => setEditingEk1({ ...editingEk1, urunUygulamaSekli: v })} />
