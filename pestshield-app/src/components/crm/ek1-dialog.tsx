@@ -299,7 +299,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
                       <SelectValue placeholder="Seçiniz…">{() => form.ekipSorumlusu || "Seçiniz…"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {mesulMudurOptions.map((name) => (
+                      {technicianOptions.map((name) => (
                         <SelectItem key={name} value={name}>
                           {name}
                         </SelectItem>

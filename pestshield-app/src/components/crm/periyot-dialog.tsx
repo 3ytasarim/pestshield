@@ -1229,13 +1229,13 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                   />
                 </div>
                 <div>
-                  <Label className="mb-1.5">Uygulama Ekip Sorumlusu</Label>
+                  <Label className="mb-1.5">Mesul Müdür</Label>
                   <Select
-                    value={editingEk1.ekipSorumlusu || undefined}
-                    onValueChange={(v) => setEditingEk1({ ...editingEk1, ekipSorumlusu: String(v) })}
+                    value={editingEk1.mesulMudur || undefined}
+                    onValueChange={(v) => setEditingEk1({ ...editingEk1, mesulMudur: String(v) })}
                   >
                     <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                      <SelectValue placeholder="Seçiniz…">{() => editingEk1.ekipSorumlusu || "Seçiniz…"}</SelectValue>
+                      <SelectValue placeholder="Seçiniz…">{() => editingEk1.mesulMudur || "Seçiniz…"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {mesulMudurOptions.map((name) => (
@@ -1250,6 +1250,24 @@ export function PeriyotDialog({ open, onOpenChange, serviceOrderId, namePrefix, 
                       Kullanıcılar&apos;da rolü &quot;Mesul Müdür&quot; olan aktif bir kullanıcı bulunamadı.
                     </p>
                   )}
+                </div>
+                <div>
+                  <Label className="mb-1.5">Uygulama Ekip Sorumlusu</Label>
+                  <Select
+                    value={editingEk1.ekipSorumlusu || undefined}
+                    onValueChange={(v) => setEditingEk1({ ...editingEk1, ekipSorumlusu: String(v) })}
+                  >
+                    <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                      <SelectValue placeholder="Seçiniz…">{() => editingEk1.ekipSorumlusu || "Seçiniz…"}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {technicianOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Field label="Uygulama Yapılan Yerin Sorumlusu" value={editingEk1.yeriSorumlusuImza} onChange={(v) => setEditingEk1({ ...editingEk1, yeriSorumlusuImza: v })} />
                 <TechnicianMultiSelect label="Uygulayıcı(lar) Adı, Soyadı" value={editingEk1.uygulayicilar} onChange={(v) => setEditingEk1({ ...editingEk1, uygulayicilar: v })} options={technicianOptions} />
