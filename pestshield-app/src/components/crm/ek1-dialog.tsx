@@ -146,7 +146,7 @@ export function Ek1Dialog({ open, onOpenChange, occurrence, customerId, batchNam
       .then((data: { companyUsers?: { name: string; roleName: string; isActive: boolean }[] } | null) => {
         setMesulMudurOptions(
           (data?.companyUsers ?? [])
-            .filter((u) => u.isActive && u.roleName.trim().toLocaleLowerCase("tr") === "mesul müdür")
+            .filter((u) => u.isActive && u.roleName.trim().toLocaleLowerCase("tr").startsWith("mesul müdür"))
             .map((u) => u.name),
         );
       })
