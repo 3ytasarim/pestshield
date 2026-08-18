@@ -31,11 +31,16 @@ interface RiskReportPageProps {
 
 export function RiskReportPage({ initialRisks, customers }: RiskReportPageProps) {
   const [status, setStatus] = useState<RiskStatus | "all">("all");
+  const [customerId, setCustomerId] = useState<string>("all");
   const [printing, setPrinting] = useState(false);
 
   const rows = useMemo(
-    () => getRiskRows(initialRisks, customers, { status: status !== "all" ? status : undefined }),
-    [initialRisks, customers, status],
+    () =>
+      getRiskRows(initialRisks, customers, {
+        status: status !== "all" ? status : undefined,
+        customerId: customerId !== "all" ? customerId : undefined,
+      }),
+    [initialRisks, customers, status, customerId],
   );
   const activeCount = rows.filter((r) => r.status !== "closed").length;
   const highCount = rows.filter((r) => r.status !== "closed" && r.score >= 9).length;
@@ -70,20 +75,38 @@ export function RiskReportPage({ initialRisks, customers }: RiskReportPageProps)
         <CardHeader className="border-b border-border/60 bg-muted/30 px-4 py-3.5">
           <span className="text-sm font-semibold text-foreground">Filtreler</span>
         </CardHeader>
-        <CardContent className="pt-4 sm:max-w-xs">
-          <Label className="mb-1.5">Durum</Label>
-          <Select value={status} onValueChange={(v) => setStatus((v as RiskStatus | "all") ?? "all")}>
-            <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardContent className="grid grid-cols-1 gap-3.5 pt-4 sm:grid-cols-2">
+          <div>
+            <Label className="mb-1.5">Durum</Label>
+            <Select value={status} onValueChange={(v) => setStatus((v as RiskStatus | "all") ?? "all")}>
+              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1.5">Müşteri</Label>
+            <Select value={customerId} onValueChange={(v) => setCustomerId(v ?? "all")}>
+              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Müşteriler</SelectItem>
+                {customers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.companyName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 

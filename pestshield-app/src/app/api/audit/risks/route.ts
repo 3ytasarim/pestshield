@@ -5,11 +5,15 @@ import { riskFormSchema } from "@/lib/validations/audit";
 import { serializeRisk } from "@/lib/audit/serialize";
 import { todayStr } from "@/lib/date-utils";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { ownerId, error } = await requireClientOwner();
   if (error) return error;
 
-  const risks = await prisma.risk.findMany({ where: { ownerId }, orderBy: { reviewDate: "desc" } });
+  const customerId = new URL(request.url).searchParams.get("customerId");
+  const risks = await prisma.risk.findMany({
+    where: { ownerId, ...(customerId ? { customerId } : {}) },
+    orderBy: { reviewDate: "desc" },
+  });
   return NextResponse.json({ risks: risks.map(serializeRisk) });
 }
 

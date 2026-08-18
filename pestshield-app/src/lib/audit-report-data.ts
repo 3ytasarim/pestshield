@@ -42,11 +42,12 @@ export interface CapaRow extends CorrectiveAction {
 export function getCapaRows(
   capas: CorrectiveAction[],
   customers: { id: string; companyName: string }[],
-  options: { status?: CapaStatus; severity?: CapaSeverity } = {},
+  options: { status?: CapaStatus; severity?: CapaSeverity; customerId?: string } = {},
 ): CapaRow[] {
   return capas
     .filter((c) => !options.status || c.status === options.status)
     .filter((c) => !options.severity || c.severity === options.severity)
+    .filter((c) => !options.customerId || c.customerId === options.customerId)
     .map((c) => ({
       ...c,
       customerName: c.customerId ? (customers.find((cu) => cu.id === c.customerId)?.companyName ?? "—") : "Genel",
@@ -63,10 +64,11 @@ export interface RiskRow extends Risk {
 export function getRiskRows(
   risks: Risk[],
   customers: { id: string; companyName: string }[],
-  options: { status?: RiskStatus } = {},
+  options: { status?: RiskStatus; customerId?: string } = {},
 ): RiskRow[] {
   return risks
     .filter((r) => !options.status || r.status === options.status)
+    .filter((r) => !options.customerId || r.customerId === options.customerId)
     .map((r) => ({
       ...r,
       customerName: r.customerId ? (customers.find((cu) => cu.id === r.customerId)?.companyName ?? "—") : "Genel",

@@ -32,11 +32,16 @@ interface CapaReportPageProps {
 
 export function CapaReportPage({ initialCapas, customers }: CapaReportPageProps) {
   const [status, setStatus] = useState<CapaStatus | "all">("all");
+  const [customerId, setCustomerId] = useState<string>("all");
   const [printing, setPrinting] = useState(false);
 
   const rows = useMemo(
-    () => getCapaRows(initialCapas, customers, { status: status !== "all" ? status : undefined }),
-    [initialCapas, customers, status],
+    () =>
+      getCapaRows(initialCapas, customers, {
+        status: status !== "all" ? status : undefined,
+        customerId: customerId !== "all" ? customerId : undefined,
+      }),
+    [initialCapas, customers, status, customerId],
   );
   const overdueCount = rows.filter((r) => r.overdue).length;
   const criticalCount = rows.filter((r) => r.severity === "critical").length;
@@ -72,20 +77,38 @@ export function CapaReportPage({ initialCapas, customers }: CapaReportPageProps)
         <CardHeader className="border-b border-border/60 bg-muted/30 px-4 py-3.5">
           <span className="text-sm font-semibold text-foreground">Filtreler</span>
         </CardHeader>
-        <CardContent className="pt-4 sm:max-w-xs">
-          <Label className="mb-1.5">Durum</Label>
-          <Select value={status} onValueChange={(v) => setStatus((v as CapaStatus | "all") ?? "all")}>
-            <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardContent className="grid grid-cols-1 gap-3.5 pt-4 sm:grid-cols-2">
+          <div>
+            <Label className="mb-1.5">Durum</Label>
+            <Select value={status} onValueChange={(v) => setStatus((v as CapaStatus | "all") ?? "all")}>
+              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1.5">Müşteri</Label>
+            <Select value={customerId} onValueChange={(v) => setCustomerId(v ?? "all")}>
+              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Müşteriler</SelectItem>
+                {customers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.companyName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
