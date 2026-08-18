@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
-import { AlertTriangle, Pencil, Plus, ShieldAlert, Trash2, TrendingUp } from "lucide-react";
+import { AlertTriangle, FileText, Mail, Pencil, Plus, ShieldAlert, Trash2, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,8 @@ import { RiskLevelBadge } from "@/components/audit/audit-badges";
 import { RISK_CATEGORY_LABELS, RISK_STATUS_LABELS } from "@/components/audit/audit-labels";
 import { RiskForm } from "@/components/audit/risk-form";
 import { riskLevel, riskScore, type Risk, type RiskStatus } from "@/lib/mock/audit";
+import { getRiskRows } from "@/lib/audit-report-data";
+import { printRiskRaporu } from "@/lib/pdf/risk-report";
 import type { RiskPatchValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +51,26 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
   const [formOpen, setFormOpen] = useState(false);
   const [editingRisk, setEditingRisk] = useState<Risk | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Risk | null>(null);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+
+  function viewReport(risk: Risk) {
+    void printRiskRaporu(getRiskRows([risk], customers));
+  }
+
+  async function sendEmail(risk: Risk) {
+    setSendingEmailId(risk.id);
+    try {
+      const res = await fetch(`/api/audit/risks/${risk.id}/send-email`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.message ?? "Mail gönderilemedi");
+        return;
+      }
+      toast.success("Mail gönderildi");
+    } finally {
+      setSendingEmailId(null);
+    }
+  }
 
   const activeRisks = useMemo(() => risks.filter((r) => r.status !== "closed"), [risks]);
   const highRisks = useMemo(() => activeRisks.filter((r) => riskScore(r) >= 9), [activeRisks]);
@@ -266,6 +288,19 @@ export function RiskManagementPage({ initialRisks, customers }: RiskManagementPa
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
                         <RiskLevelBadge score={riskScore(risk)} />
+                        <Button variant="ghost" size="icon-sm" onClick={() => viewReport(risk)} title="Raporu Görüntüle">
+                          <FileText className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          loading={sendingEmailId === risk.id}
+                          disabled={!risk.customerId}
+                          title={!risk.customerId ? "Bu kayıt bir müşteriye bağlı değil" : "Mail Gönder"}
+                          onClick={() => sendEmail(risk)}
+                        >
+                          <Mail className="size-3.5" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon-sm"

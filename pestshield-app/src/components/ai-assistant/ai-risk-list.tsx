@@ -24,7 +24,9 @@ export function AiRiskList({ risks }: { risks: AiRiskRow[] }) {
                 {r.level} · {r.score}
               </span>
             </div>
-            <p className="mt-0.5 text-muted-foreground">{r.customerName ?? "Genel"} · Sorumlu: {r.owner}</p>
+            <p className="mt-0.5 text-muted-foreground">
+              {r.customerName ?? "Genel (müşteriye bağlı değil)"} · Sorumlu: {r.owner}
+            </p>
           </li>
         ))}
       </ul>

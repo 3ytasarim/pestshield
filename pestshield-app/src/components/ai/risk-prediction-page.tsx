@@ -56,7 +56,8 @@ export function RiskPredictionPage() {
           </h1>
           <p className="max-w-xl text-sm text-muted-foreground">
             Açık kritik/yüksek risk kayıtlarınız, kategoriye göre dağılım ve son 60 günlük risk kaydı eğilimi — gerçek Risk
-            Yönetimi verilerinizden hesaplanır.
+            Yönetimi verilerinizden hesaplanır. Bölge bazlı bir tahmin modeli değildir: her risk kaydı ya belirli bir
+            müşteriye bağlıdır ya da &ldquo;Genel&rdquo; (müşteriye bağlı olmayan, şirket geneli) olarak işaretlenir.
           </p>
         </div>
         <Button variant="outline" onClick={() => void load()} loading={loading}>
