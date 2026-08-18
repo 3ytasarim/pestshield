@@ -393,6 +393,8 @@ model User {
   smtpIntegration       SmtpIntegration?
   whatsAppIntegration   WhatsAppIntegration?
 
+  generatedReports      GeneratedReport[]
+
   @@map("users")
 }
 
@@ -556,6 +558,7 @@ model Customer {
   risks              Risk[]
   periyotOccurrences PeriyotOccurrence[]
   supportTickets     SupportTicket[]
+  generatedReports   GeneratedReport[]
 
   @@index([ownerId])
   @@map("customers")
@@ -1811,6 +1814,30 @@ model MessageSendLog {
 
   @@index([ownerId])
   @@map("message_send_logs")
+}
+
+/// "Otomatik Rapor" (AI Command Center) sayfasında oluşturulan raporların kalıcı kaydı.
+/// `data` alanı AiReportResultData'nın (src/lib/ai/types.ts) tam JSON serileştirmesidir —
+/// yeniden görüntülemek/indirmek için ikinci bir hesaplamaya gerek kalmaz.
+model GeneratedReport {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  title      String
+  reportType String
+  periodFrom String
+  periodTo   String
+  data       Json
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@map("generated_reports")
 }
 
 /// Firma (CLIENT) tarafından yönetilen zararlı türü kataloğu. İlk çağrıda

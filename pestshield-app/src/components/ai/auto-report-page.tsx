@@ -5,19 +5,32 @@
 // sonuç bileşenini (AiReportResult, PDF/Excel indirmeyi kendi içinde çözer)
 // kullanır. İkinci bir rapor motoru icat edilmez.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FileBarChart, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { FileBarChart, Save, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { EmptyState } from "@/components/crm/detail/empty-state";
+import { formatDate } from "@/components/crm/crm-format";
 import { cn } from "@/lib/utils";
 import { getAiDataProvider } from "@/lib/ai/providers/get-data-provider";
 import { todayInTimeZone } from "@/lib/ai/date-parser";
 import { buildOperationalReportData } from "@/lib/ai/reports/operational-report-builder";
 import { AiReportResult } from "@/components/ai-assistant/ai-report-result";
 import type { AiReportResultData } from "@/lib/ai/types";
+
+interface SavedReportSummary {
+  id: string;
+  title: string;
+  periodFrom: string;
+  periodTo: string;
+  customerId: string | null;
+  customerName: string | null;
+  createdAt: string;
+}
 
 function todayIsoIstanbul(): string {
   const d = todayInTimeZone(new Date(), "Europe/Istanbul");
@@ -28,6 +41,46 @@ export function AutoReportPage() {
   const [report, setReport] = useState<AiReportResultData | null>(null);
   const [loading, setLoading] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<{ id: string; companyName: string }[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("company");
+  const [saving, setSaving] = useState(false);
+  const [savedReports, setSavedReports] = useState<SavedReportSummary[]>([]);
+
+  function loadSavedReports() {
+    fetch("/api/ai/reports")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { reports: SavedReportSummary[] } | null) => setSavedReports(data?.reports ?? []))
+      .catch(() => setSavedReports([]));
+  }
+
+  useEffect(() => {
+    fetch("/api/crm/customers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customers: { id: string; companyName: string }[] } | null) => setCustomers(data?.customers ?? []))
+      .catch(() => setCustomers([]));
+    loadSavedReports();
+  }, []);
+
+  async function handleSave() {
+    if (!report) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/ai/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ report, customerId: selectedCustomerId === "company" ? null : selectedCustomerId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Rapor kaydedilemedi");
+        return;
+      }
+      toast.success("Rapor kaydedildi");
+      loadSavedReports();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleGenerate() {
     setLoading(true);
@@ -35,7 +88,14 @@ export function AutoReportPage() {
     try {
       const provider = getAiDataProvider();
       const todayIso = todayIsoIstanbul();
-      const reportData = await buildOperationalReportData({ provider, todayIso, scope: "company", months: 6 });
+      const scope = selectedCustomerId === "company" ? "company" : "customer";
+      const reportData = await buildOperationalReportData({
+        provider,
+        todayIso,
+        scope,
+        customerId: scope === "customer" ? selectedCustomerId : undefined,
+        months: 6,
+      });
 
       if (reportData.dataQuality.status === "insufficient") {
         setReport(null);
@@ -43,7 +103,7 @@ export function AutoReportPage() {
         return;
       }
 
-      const title = "Operasyon Özet Raporu";
+      const title = reportData.entityName ? `Operasyon Özet Raporu — ${reportData.entityName}` : "Operasyon Özet Raporu";
       setReport({
         reportId: `rpt-${Date.now()}`,
         title,
@@ -96,14 +156,37 @@ export function AutoReportPage() {
             indirin, isterseniz AI yönetici özeti ekleyin.
           </p>
         </div>
-        <Button onClick={() => void handleGenerate()} loading={loading} size="lg">
-          <Sparkles className="size-4" />
-          Rapor Oluştur
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Select value={selectedCustomerId} onValueChange={(v) => setSelectedCustomerId(v ?? "company")}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="Kapsam seçiniz" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="company">Tüm Şirket (Genel)</SelectItem>
+              {customers.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.companyName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => void handleGenerate()} loading={loading} size="lg">
+            <Sparkles className="size-4" />
+            Rapor Oluştur
+          </Button>
+        </div>
       </motion.div>
 
       {report ? (
-        <AiReportResult report={report} />
+        <>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => void handleSave()} loading={saving}>
+              <Save className="size-4" />
+              Kaydet
+            </Button>
+          </div>
+          <AiReportResult report={report} />
+        </>
       ) : (
         <Card className={cn(GLASS_CARD, "rounded-2xl")}>
           <CardContent>
@@ -112,6 +195,27 @@ export function AutoReportPage() {
               title={loading ? "Rapor hazırlanıyor…" : (emptyMessage ?? "Henüz bir rapor oluşturulmadı")}
               description={loading ? "" : (emptyMessage ? "" : "Başlamak için sağ üstteki \"Rapor Oluştur\" butonuna tıklayın.")}
             />
+          </CardContent>
+        </Card>
+      )}
+
+      {savedReports.length > 0 && (
+        <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm font-semibold text-foreground">Kaydedilen Raporlar</p>
+            <div className="flex flex-col gap-1.5">
+              {savedReports.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{r.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.customerName ?? "Tüm Şirket"} · {formatDate(r.periodFrom)} – {formatDate(r.periodTo)} ·{" "}
+                      {formatDate(r.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
