@@ -45,9 +45,12 @@ interface CapaFormProps {
   onSubmit: (values: CapaFormValues) => void;
   customers: { id: string; companyName: string }[];
   editing?: CorrectiveAction | null;
+  /** Düzenleme değilken (yeni kayıt) formu bu değerlerle önceden doldurur — ör. bir denetim
+   * kontrol maddesinden "Düzeltici Faaliyet Oluştur" ile açıldığında. */
+  prefill?: Partial<CapaFormValues>;
 }
 
-export function CapaForm({ open, onOpenChange, onSubmit, customers, editing }: CapaFormProps) {
+export function CapaForm({ open, onOpenChange, onSubmit, customers, editing, prefill }: CapaFormProps) {
   const CUSTOMER_OPTIONS = [
     { value: "none", label: "Genel (müşteriye bağlı değil)" },
     ...customers.map((c) => ({ value: c.id, label: c.companyName })),
@@ -76,10 +79,10 @@ export function CapaForm({ open, onOpenChange, onSubmit, customers, editing }: C
               responsible: editing.responsible,
               dueDate: editing.dueDate,
             }
-          : EMPTY,
+          : { ...EMPTY, ...prefill },
       );
     }
-  }, [open, editing, reset]);
+  }, [open, editing, prefill, reset]);
 
   function submit(values: CapaFormValues) {
     onSubmit(values);

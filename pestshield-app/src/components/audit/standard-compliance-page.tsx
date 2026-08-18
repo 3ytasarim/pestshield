@@ -8,17 +8,20 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  ClipboardCheck,
   ClipboardList,
   ShieldAlert,
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { ChecklistStatusBadge } from "@/components/audit/audit-badges";
 import { CHECKLIST_STATUS_LABELS } from "@/components/audit/audit-labels";
+import { CapaForm } from "@/components/audit/capa-form";
 import {
   STANDARD_DESCRIPTIONS,
   STANDARD_LABELS,
@@ -28,6 +31,7 @@ import {
   type ChecklistStatus,
   type ComplianceStandard,
 } from "@/lib/mock/audit";
+import type { CapaFormValues } from "@/lib/validations/audit";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | ChecklistStatus;
@@ -56,6 +60,39 @@ export function StandardCompliancePage({ standard, initialItems }: StandardCompl
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(getSectionsForStandard(standard).map((s) => [s.code, true])),
   );
+  const [capaFormOpen, setCapaFormOpen] = useState(false);
+  const [capaPrefill, setCapaPrefill] = useState<Partial<CapaFormValues> | undefined>(undefined);
+
+  function openCapaFor(item: ChecklistItem) {
+    setCapaPrefill({
+      title: `${item.itemCode} — ${item.title}`,
+      standard,
+      customerId: "none",
+      source: "internal_audit",
+      severity: "medium",
+      rootCause: item.evidenceNote || item.description,
+      actionPlan: "",
+      responsible: item.reviewedBy || "",
+      dueDate: new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10),
+    });
+    setCapaFormOpen(true);
+  }
+
+  async function handleCapaSubmit(values: CapaFormValues) {
+    const res = await fetch("/api/audit/corrective-actions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(data.message ?? "Düzeltici faaliyet oluşturulamadı");
+      return;
+    }
+    toast.success("Düzeltici faaliyet oluşturuldu", {
+      action: { label: "Görüntüle", onClick: () => window.open("/dashboard/client/corrective-actions", "_blank") },
+    });
+  }
 
   const sections = useMemo(() => getSectionsForStandard(standard), [standard]);
 
@@ -222,7 +259,7 @@ export function StandardCompliancePage({ standard, initialItems }: StandardCompl
                             <p className="text-[11px] text-muted-foreground">
                               {item.reviewedBy} · {formatDate(item.reviewDate)}
                             </p>
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap items-center gap-1">
                               {STATUS_OPTIONS.map((option) => (
                                 <button
                                   key={option.value}
@@ -240,6 +277,12 @@ export function StandardCompliancePage({ standard, initialItems }: StandardCompl
                               ))}
                             </div>
                           </div>
+                          {item.status === "non_compliant" && (
+                            <Button size="sm" variant="outline" className="w-fit" onClick={() => openCapaFor(item)}>
+                              <ClipboardCheck className="size-3.5" />
+                              Düzeltici Faaliyet Oluştur
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -250,6 +293,14 @@ export function StandardCompliancePage({ standard, initialItems }: StandardCompl
           );
         })}
       </div>
+
+      <CapaForm
+        open={capaFormOpen}
+        onOpenChange={setCapaFormOpen}
+        onSubmit={handleCapaSubmit}
+        customers={[]}
+        prefill={capaPrefill}
+      />
     </div>
   );
 }
