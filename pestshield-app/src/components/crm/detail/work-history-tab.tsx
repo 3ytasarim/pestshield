@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Trash2,
   User,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
@@ -31,6 +32,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +64,8 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
   const [detailOrder, setDetailOrder] = useState<WorkOrder | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<WorkOrder | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WorkOrder | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/crm/work-orders?customerId=${customerId}`)
@@ -131,6 +144,24 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
     setWorkOrders((prev) => prev.map((o) => (o.id === editingOrder.id ? data.workOrder : o)));
     toast.success("İş emri güncellendi");
     setEditingOrder(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/work-orders/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "İş emri silinemedi");
+        return;
+      }
+      setWorkOrders((prev) => prev.filter((o) => o.id !== deleteTarget.id));
+      toast.success("İş emri silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -212,6 +243,13 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
                           <WhatsAppIcon className="size-3.5" />
                           WhatsApp ile Gönder
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteTarget(order)}
+                        >
+                          <Trash2 className="size-3.5" />
+                          Sil
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -283,6 +321,28 @@ export function WorkHistoryTab({ customerId, customer }: { customerId: string; c
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>İş emrini sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.orderNo} numaralı iş emrini silmek istediğinize emin misiniz? Takvime senkronize edilmişse ilgili
+              etkinlik de kaldırılır. Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <WorkOrderForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} technicians={technicians} />
       <WorkOrderForm

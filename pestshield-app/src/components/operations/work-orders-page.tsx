@@ -1,19 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { AlertTriangle, Calendar, ClipboardList, FileCheck, Search } from "lucide-react";
+import { toast } from "sonner";
+import { AlertTriangle, Calendar, ClipboardList, FileCheck, Pencil, Search, Trash2 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
+import { WorkOrderForm } from "@/components/crm/detail/work-order-form";
 import type { WorkOrder, WorkOrderStatus } from "@/lib/mock/crm";
+import type { Technician } from "@/lib/mock/operations";
+import type { WorkOrderFormValues } from "@/lib/validations/crm";
 import { buildWorkOrderMessage, getWhatsAppLink } from "@/lib/integrations/whatsapp";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +45,53 @@ interface WorkOrderWithCustomer extends WorkOrder {
 
 export function WorkOrdersPage({ initialOrders }: { initialOrders: WorkOrderWithCustomer[] }) {
   const [search, setSearch] = useState("");
+  const [orders, setOrders] = useState(initialOrders);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [editingOrder, setEditingOrder] = useState<WorkOrderWithCustomer | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WorkOrderWithCustomer | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const orders = initialOrders;
+  useEffect(() => {
+    fetch("/api/operations/technicians")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { technicians: Technician[] } | null) => setTechnicians(data?.technicians ?? []))
+      .catch(() => setTechnicians([]));
+  }, []);
+
+  async function handleUpdate(values: WorkOrderFormValues) {
+    if (!editingOrder) return;
+    const res = await fetch(`/api/crm/work-orders/${editingOrder.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "İş emri güncellenemedi");
+      return;
+    }
+    setOrders((prev) => prev.map((o) => (o.id === editingOrder.id ? { ...data.workOrder, customer: o.customer } : o)));
+    toast.success("İş emri güncellendi");
+    setEditingOrder(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/work-orders/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "İş emri silinemedi");
+        return;
+      }
+      setOrders((prev) => prev.filter((o) => o.id !== deleteTarget.id));
+      toast.success("İş emri silindi");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -115,32 +174,51 @@ export function WorkOrdersPage({ initialOrders }: { initialOrders: WorkOrderWith
                           ) : (
                             <span />
                           )}
-                          {order.customer && (
+                          <div className="flex items-center gap-1.5">
                             <Button
                               size="icon-xs"
                               variant="outline"
-                              className="border-success/30 text-success hover:bg-success/10"
-                              aria-label="WhatsApp ile gönder"
-                              onClick={() =>
-                                window.open(
-                                  getWhatsAppLink(
-                                    order.customer!.contactPhone,
-                                    buildWorkOrderMessage({
-                                      contactName: order.customer!.contactName,
-                                      companyName: order.customer!.companyName,
-                                      serviceType: order.serviceType,
-                                      plannedDate: formatDate(order.plannedDate),
-                                      technician: order.technician,
-                                      orderNo: order.orderNo,
-                                    }),
-                                  ),
-                                  "_blank",
-                                )
-                              }
+                              aria-label="Düzenle"
+                              onClick={() => setEditingOrder(order)}
                             >
-                              <WhatsAppIcon className="size-3" />
+                              <Pencil className="size-3" />
                             </Button>
-                          )}
+                            <Button
+                              size="icon-xs"
+                              variant="outline"
+                              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                              aria-label="Sil"
+                              onClick={() => setDeleteTarget(order)}
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
+                            {order.customer && (
+                              <Button
+                                size="icon-xs"
+                                variant="outline"
+                                className="border-success/30 text-success hover:bg-success/10"
+                                aria-label="WhatsApp ile gönder"
+                                onClick={() =>
+                                  window.open(
+                                    getWhatsAppLink(
+                                      order.customer!.contactPhone,
+                                      buildWorkOrderMessage({
+                                        contactName: order.customer!.contactName,
+                                        companyName: order.customer!.companyName,
+                                        serviceType: order.serviceType,
+                                        plannedDate: formatDate(order.plannedDate),
+                                        technician: order.technician,
+                                        orderNo: order.orderNo,
+                                      }),
+                                    ),
+                                    "_blank",
+                                  )
+                                }
+                              >
+                                <WhatsAppIcon className="size-3" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -152,6 +230,45 @@ export function WorkOrdersPage({ initialOrders }: { initialOrders: WorkOrderWith
           })}
         </div>
       )}
+
+      <WorkOrderForm
+        open={!!editingOrder}
+        onOpenChange={(open) => !open && setEditingOrder(null)}
+        onSubmit={handleUpdate}
+        technicians={technicians}
+        editing={
+          editingOrder
+            ? {
+                serviceType: editingOrder.serviceType,
+                technicianId: technicians.find((t) => t.name === editingOrder.technician)?.id ?? "",
+                plannedDate: editingOrder.plannedDate,
+                plannedStartTime: editingOrder.plannedStartTime ?? "",
+                plannedEndTime: editingOrder.plannedEndTime ?? "",
+                dispatchNote: editingOrder.dispatchNote,
+                syncToCalendar: editingOrder.syncToCalendar,
+                followUpDate: editingOrder.followUpDate ?? "",
+              }
+            : null
+        }
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>İş emrini sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.orderNo} numaralı iş emrini silmek istediğinize emin misiniz? Takvime senkronize
+              edilmişse ilgili etkinlik de kaldırılır. Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" disabled={deleting} onClick={handleDelete}>
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireClientOwner } from "@/lib/api-auth";
 import { workOrderPatchSchema } from "@/lib/validations/crm";
 import { serializeWorkOrder } from "@/lib/crm/serialize";
-import { syncWorkOrderToCalendar } from "@/lib/integrations/google-calendar/sync";
+import { syncWorkOrderToCalendar, ensureFreshAccessToken } from "@/lib/integrations/google-calendar/sync";
+import { googleCalendarClient } from "@/lib/integrations/google-calendar/client";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { ownerId, error } = await requireClientOwner();
@@ -36,4 +37,34 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json({ workOrder: serializeWorkOrder(order) });
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { ownerId, error } = await requireClientOwner();
+  if (error) return error;
+  const { id } = await params;
+
+  const existing = await prisma.workOrder.findFirst({ where: { id, ownerId } });
+  if (!existing) {
+    return NextResponse.json({ message: "İş emri bulunamadı." }, { status: 404 });
+  }
+
+  if (existing.googleEventId) {
+    try {
+      const integration = await prisma.googleCalendarIntegration.findUnique({ where: { ownerId } });
+      if (integration?.accessTokenEnc) {
+        const accessToken = await ensureFreshAccessToken(integration);
+        const technician = existing.technicianId
+          ? await prisma.technician.findUnique({ where: { id: existing.technicianId }, select: { googleCalendarId: true } })
+          : null;
+        const calendarId = technician?.googleCalendarId || integration.calendarId || "primary";
+        await googleCalendarClient.deleteEvent(accessToken, calendarId, existing.googleEventId);
+      }
+    } catch {
+      // Takvimden silme başarısız olsa bile iş emrini silmeye devam ederiz — kullanıcı asıl kaydı silmek istiyor.
+    }
+  }
+
+  await prisma.workOrder.delete({ where: { id } });
+  return NextResponse.json({ success: true });
 }
