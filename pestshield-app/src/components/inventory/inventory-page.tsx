@@ -421,6 +421,7 @@ export function InventoryPage({
                 targetOrganisms: editingProduct.targetOrganisms ?? "",
                 packageAmount: editingProduct.packageAmount ?? "",
                 antidote: editingProduct.antidote ?? "",
+                applicationMethod: editingProduct.applicationMethod ?? "",
                 usageAreas: editingProduct.usageAreas ?? [],
                 licenseFileDataUrl: editingProduct.licenseFileDataUrl ?? null,
                 licenseFileName: editingProduct.licenseFileName ?? null,

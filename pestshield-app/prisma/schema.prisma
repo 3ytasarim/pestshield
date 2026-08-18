@@ -1112,10 +1112,11 @@ model Product {
   createdAt     String
 
   /// "Ruhsat Tarihi ve Sayısı" (örn. 2024/123) olarak gösterilir.
-  licenseNumber    String?
-  activeIngredient String?
-  defaultDose      String?
-  targetOrganisms  String?
+  licenseNumber     String?
+  activeIngredient  String?
+  defaultDose       String?
+  targetOrganisms   String?
+  applicationMethod String? // EK-1 "Ürünün Uygulama Şekli" alanına otomatik aktarılır (örn. "Sprey", "Jel", "Granül")
 
   packageAmount String? // Ürün Ambalaj Miktarı (örn. "5 LT")
   antidote      String? // Ürün Antidotu

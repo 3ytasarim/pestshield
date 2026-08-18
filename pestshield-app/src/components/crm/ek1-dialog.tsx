@@ -64,7 +64,7 @@ export function summarizeBiocidalUsages(occurrence: PeriyotOccurrence): string {
 export function productDetailsForUsages(
   usages: PeriyotOccurrence["biocidalProductUsages"],
   products: Product[],
-): { aktifMadde: string; antidot: string; ambalaj: string } {
+): { aktifMadde: string; antidot: string; ambalaj: string; uygulamaSekli: string } {
   const matched = (usages ?? [])
     .map((u) => products.find((p) => p.id === u.productId))
     .filter((p): p is Product => !!p);
@@ -73,6 +73,7 @@ export function productDetailsForUsages(
     aktifMadde: unique(matched.map((p) => p.activeIngredient)),
     antidot: unique(matched.map((p) => p.antidote)),
     ambalaj: unique(matched.map((p) => p.packageAmount)),
+    uygulamaSekli: unique(matched.map((p) => p.applicationMethod)),
   };
 }
 
@@ -93,7 +94,7 @@ export function buildDefaultEk1Form(occurrence: PeriyotOccurrence, customer: Ek1
     izinTarihSayisi: [company.permitDate, company.permitNumber].filter(Boolean).join(" / "),
     ekipSorumlusu: occurrence.personnelName || "",
     urunTicariAdi: summarizeBiocidalUsages(occurrence),
-    urunUygulamaSekli: "",
+    urunUygulamaSekli: details.uygulamaSekli,
     urunAktifMaddesi: details.aktifMadde,
     urunAntidotu: details.antidot,
     urunAmbalajMiktari: details.ambalaj,

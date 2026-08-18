@@ -36,6 +36,7 @@ export interface Product {
   targetOrganisms?: string;
   packageAmount?: string;
   antidote?: string;
+  applicationMethod?: string;
   usageAreas?: string[];
   licenseFileDataUrl?: string;
   licenseFileName?: string;

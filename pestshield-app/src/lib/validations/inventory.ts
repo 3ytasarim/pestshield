@@ -32,6 +32,7 @@ export const newProductFormSchema = z.object({
   targetOrganisms: z.string(),
   packageAmount: z.string(),
   antidote: z.string(),
+  applicationMethod: z.string(),
   usageAreas: z.array(z.string()),
   licenseFileDataUrl: z.string().nullable(),
   licenseFileName: z.string().nullable(),

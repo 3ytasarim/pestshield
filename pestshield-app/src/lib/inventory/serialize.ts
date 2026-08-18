@@ -24,6 +24,7 @@ export function serializeProduct(product: PrismaProduct): Product {
     targetOrganisms: product.targetOrganisms ?? undefined,
     packageAmount: product.packageAmount ?? undefined,
     antidote: product.antidote ?? undefined,
+    applicationMethod: product.applicationMethod ?? undefined,
     usageAreas: product.usageAreas,
     licenseFileDataUrl: product.licenseFileDataUrl ?? undefined,
     licenseFileName: product.licenseFileName ?? undefined,

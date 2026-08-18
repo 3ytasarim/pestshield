@@ -147,6 +147,7 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
       targetOrganisms: "",
       packageAmount: "",
       antidote: "",
+      applicationMethod: "",
       usageAreas: [],
       licenseFileDataUrl: null,
       licenseFileName: null,
@@ -441,6 +442,15 @@ export function NewProductForm({ open, onOpenChange, onSubmit, defaultValues, wa
                   <div>
                     <Label className="mb-1.5">Ürün Antidotu</Label>
                     <Input placeholder="Örn: Yok" className="h-11 rounded-xl px-3.5" {...register("antidote")} />
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Uygulama Şekli</Label>
+                    <Input
+                      placeholder="Örn: Sprey, Jel, Granül, Toz"
+                      className="h-11 rounded-xl px-3.5"
+                      {...register("applicationMethod")}
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">EK-1 formundaki &quot;Uygulama Şekli&quot; alanına otomatik aktarılır.</p>
                   </div>
                   <div>
                     <Label className="mb-1.5">Hedef Organizmalar</Label>
