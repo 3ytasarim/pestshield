@@ -64,6 +64,12 @@ export function KrokiStationIdDialog({ open, onOpenChange, sketch, startOffset =
           <DialogTitle>İstasyonlar</DialogTitle>
         </DialogHeader>
 
+        <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          Buradaki numaralar ve ID&apos;ler yalnızca bu kroki üzerindeki pin etiketleridir. Operasyon &gt; İstasyonlar,
+          QR Kontrol ve Personel ekranlarında görünmesi için istasyonun ayrıca <strong>İstasyon Ekle</strong> formuyla
+          gerçek istasyon kaydı olarak oluşturulması gerekir.
+        </p>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {KROKI_STATION_TYPES.map((t) => {
             const typeStations = stations.filter((s) => s.type === t.value);
