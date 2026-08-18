@@ -15,9 +15,10 @@ import OpenAI from "openai";
 import type { AiModelProvider, AiModelRequest, AiModelResponse, AiModelToolCall } from "@/lib/ai/providers/model-provider";
 
 type CanonicalTextBlock = { type: "text"; text: string };
+type CanonicalImageBlock = { type: "image"; source: { type: "base64"; media_type: string; data: string } };
 type CanonicalToolUseBlock = { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
 type CanonicalToolResultBlock = { type: "tool_result"; tool_use_id: string; content: string };
-type CanonicalBlock = CanonicalTextBlock | CanonicalToolUseBlock | CanonicalToolResultBlock;
+type CanonicalBlock = CanonicalTextBlock | CanonicalImageBlock | CanonicalToolUseBlock | CanonicalToolResultBlock;
 type CanonicalMessage = { role: "user" | "assistant"; content: string | CanonicalBlock[] };
 
 function isCanonicalMessage(value: unknown): value is CanonicalMessage {
@@ -47,10 +48,22 @@ function toOpenAiMessages(system: string, messages: unknown[]): OpenAI.Chat.Chat
         }
         continue;
       }
+      const imageBlocks = raw.content.filter((b): b is CanonicalImageBlock => b.type === "image");
       const text = raw.content
         .filter((b): b is CanonicalTextBlock => b.type === "text")
         .map((b) => b.text)
         .join("\n");
+
+      if (imageBlocks.length > 0) {
+        const parts: OpenAI.Chat.ChatCompletionContentPart[] = [];
+        if (text) parts.push({ type: "text", text });
+        for (const img of imageBlocks) {
+          parts.push({ type: "image_url", image_url: { url: `data:${img.source.media_type};base64,${img.source.data}` } });
+        }
+        result.push({ role: "user", content: parts });
+        continue;
+      }
+
       result.push({ role: "user", content: text });
       continue;
     }
