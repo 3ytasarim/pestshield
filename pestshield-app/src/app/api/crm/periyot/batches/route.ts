@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOrTechOwner } from "@/lib/api-auth";
 import { serializePeriyotBatch } from "@/lib/periyot/serialize";
 
 export async function GET(request: Request) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const serviceOrderId = new URL(request.url).searchParams.get("serviceOrderId");

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner, getSessionPermissions } from "@/lib/api-auth";
+import { requireClientOwner, requireClientOrTechOwner, getSessionPermissions } from "@/lib/api-auth";
 import { customerFormSchema } from "@/lib/validations/crm";
 import { serializeCustomer } from "@/lib/crm/serialize";
 import { checkCountLimit } from "@/lib/plan-limits";
 
 export async function GET() {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const customers = await prisma.customer.findMany({

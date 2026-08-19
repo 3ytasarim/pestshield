@@ -1,51 +1,106 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import jsQR from "jsqr";
 import { toast } from "sonner";
-import { AlertTriangle, Camera, CameraOff, CheckCircle2, QrCode, Search } from "lucide-react";
+import { AlertTriangle, Camera, CameraOff, CheckCircle2, MapPin, QrCode, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GLASS_CARD } from "@/components/dashboard/shared";
-import { formatDate } from "@/components/crm/crm-format";
-import { StationStatusBadge, ActivityLevelBadge } from "@/components/operations/operations-badges";
-import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
-import type { Station, ActivityLevel, StationCheck } from "@/lib/mock/operations";
-import { cn } from "@/lib/utils";
-
-interface StationWithCustomer extends Station {
-  customer: { id: string; companyName: string } | null;
-}
+import { stationColor, stationLabel } from "@/components/crm/kroki-constants";
+import {
+  TUKETIM_OPTIONS,
+  HAREKET_OPTIONS,
+  RODENT_TUR_OPTIONS,
+  OTHER_PEST_TUR_OPTIONS,
+  DEGISIM_OPTIONS,
+  UCKUN_TUR_OPTIONS,
+  FLORASAN_OPTIONS,
+} from "@/components/crm/istasyon-inspection-constants";
+import type { KrokiStationType, StationInspection } from "@/lib/mock/crm";
 
 type CameraState = "idle" | "starting" | "running" | "denied" | "unsupported";
 
-function extractCode(raw: string): string | null {
-  try {
-    const url = new URL(raw);
-    const code = url.searchParams.get("code");
-    if (code) return code;
-  } catch {
-    // raw değer bir URL değil, doğrudan kod olarak dene
-  }
-  const match = raw.match(/PS-STN-\d+/);
-  return match ? match[0] : raw.trim() || null;
+interface ResolvedStation {
+  id: string;
+  type: KrokiStationType;
+  number: number | null;
+  stationId: string;
+  krokiSketchId: string;
+  sketchName: string;
+  serviceOrderId: string;
+  serviceName: string;
+  customer: { id: string; companyName: string } | null;
 }
 
-export function StationScanPage() {
+function extractStationId(raw: string): string | null {
+  try {
+    const url = new URL(raw);
+    const id = url.searchParams.get("stationId");
+    if (id) return id;
+  } catch {
+    // raw değer bir URL değil, doğrudan id olarak dene
+  }
+  return raw.trim() || null;
+}
+
+function emptyInspection(station: ResolvedStation, occurrenceId: string): StationInspection {
+  return {
+    id: `insp-${occurrenceId}-${station.id}`,
+    periyotOccurrenceId: occurrenceId,
+    krokiSketchId: station.krokiSketchId,
+    krokiStationId: station.id,
+    stationType: station.type,
+    tuketim: "",
+    hareket: "",
+    tur1: "",
+    tur2: "",
+    degisim: "",
+    tur: "",
+    sayim: "",
+    olcum: "",
+    florasanDurumu: "",
+  };
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function FieldSelect({ label, value, onChange, options }: { label: string; value: string | undefined; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div>
+      <Label className="mb-1.5">{label}</Label>
+      <Select value={value || "-"} onValueChange={(v) => onChange(v === "-" ? "" : String(v))}>
+        <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+          <SelectValue>{() => value || "Seçiniz…"}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="-">-</SelectItem>
+          {options.map((o) => (
+            <SelectItem key={o} value={o}>
+              {o}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+export function StationScanPage({ technicianName }: { technicianName: string }) {
   const searchParams = useSearchParams();
   const [cameraState, setCameraState] = useState<CameraState>("idle");
   const [manualCode, setManualCode] = useState("");
-  const [activeStation, setActiveStation] = useState<StationWithCustomer | null>(null);
-  const [localChecks, setLocalChecks] = useState<StationCheck[]>([]);
-  const [activityFound, setActivityFound] = useState(false);
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>("none");
-  const [actionTaken, setActionTaken] = useState("");
-  const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [station, setStation] = useState<ResolvedStation | null>(null);
+  const [occurrenceId, setOccurrenceId] = useState<string | null>(null);
+  const [inspection, setInspection] = useState<StationInspection | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -58,30 +113,81 @@ export function StationScanPage() {
     streamRef.current = null;
   }, []);
 
-  const selectStation = useCallback(async (code: string) => {
-    const res = await fetch(`/api/crm/stations?qrCode=${encodeURIComponent(code)}`);
-    const data = await res.json();
-    const station = data.stations?.[0] as StationWithCustomer | undefined;
-    if (!station) {
-      toast.error(`"${code}" için istasyon bulunamadı`);
-      return;
-    }
-    setActiveStation(station);
-    const checksRes = await fetch(`/api/crm/stations/${station.id}/checks`);
-    const checksData = await checksRes.json();
-    setLocalChecks(checksData.checks ?? []);
-    setActivityFound(false);
-    setActivityLevel("none");
-    setActionTaken("");
-    setNote("");
-    stopCamera();
-    setCameraState("idle");
-    toast.success(`${station.label} bulundu`);
-  }, [stopCamera]);
+  const resolveStation = useCallback(
+    async (stationId: string) => {
+      setResolving(true);
+      try {
+        const stationRes = await fetch(`/api/crm/kroki-stations/${stationId}`);
+        const stationData = await stationRes.json().catch(() => ({}));
+        if (!stationRes.ok || !stationData.station) {
+          toast.error(stationData.message ?? "İstasyon bulunamadı");
+          return;
+        }
+        const resolved: ResolvedStation = stationData.station;
+        if (!resolved.customer) {
+          toast.error("Bu istasyonun müşteri bilgisi bulunamadı");
+          return;
+        }
+
+        const today = todayIso();
+        let occId: string | null = null;
+        const occRes = await fetch(
+          `/api/crm/periyot/occurrences?serviceOrderId=${resolved.serviceOrderId}&periodDate=${today}`,
+        );
+        const occData = await occRes.json().catch(() => ({}));
+        const existingOcc = occData.occurrences?.[0];
+        if (existingOcc) {
+          occId = existingOcc.id;
+        } else {
+          const batchRes = await fetch(`/api/crm/periyot/batches?serviceOrderId=${resolved.serviceOrderId}`);
+          const batchData = await batchRes.json().catch(() => ({}));
+          const batch = batchData.batches?.[0];
+          if (!batch) {
+            toast.error("Bu hizmete ait bir periyot planı bulunamadı — önce ofisten periyot tanımlanmalı");
+            return;
+          }
+          const createRes = await fetch("/api/crm/periyot/occurrences", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              batchId: batch.id,
+              serviceOrderId: resolved.serviceOrderId,
+              customerId: resolved.customer.id,
+              personnelName: technicianName,
+              periodDate: today,
+              startTime: "",
+              endTime: "",
+            }),
+          });
+          const createData = await createRes.json().catch(() => ({}));
+          if (!createRes.ok || !createData.occurrence) {
+            toast.error(createData.message ?? "Bugünün ziyareti oluşturulamadı");
+            return;
+          }
+          occId = createData.occurrence.id;
+        }
+
+        const inspRes = await fetch(`/api/crm/periyot/occurrences/${occId}/station-inspections`);
+        const inspData = await inspRes.json().catch(() => ({}));
+        const existing: StationInspection[] = inspData.inspections ?? [];
+        const found = existing.find((i) => i.krokiStationId === resolved.id);
+
+        setStation(resolved);
+        setOccurrenceId(occId);
+        setInspection(found ?? emptyInspection(resolved, occId!));
+        stopCamera();
+        setCameraState("idle");
+        toast.success(`${resolved.stationId || `İstasyon ${resolved.number ?? ""}`} bulundu`);
+      } finally {
+        setResolving(false);
+      }
+    },
+    [technicianName, stopCamera],
+  );
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (code) selectStation(code);
+    const stationId = searchParams.get("stationId");
+    if (stationId) resolveStation(stationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -105,9 +211,9 @@ export function StationScanPage() {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const result = jsQR(imageData.data, imageData.width, imageData.height);
     if (result?.data) {
-      const code = extractCode(result.data);
-      if (code) {
-        selectStation(code);
+      const stationId = extractStationId(result.data);
+      if (stationId) {
+        resolveStation(stationId);
         return;
       }
     }
@@ -134,154 +240,141 @@ export function StationScanPage() {
     }
   }
 
-  const stationChecksList = useMemo(() => localChecks, [localChecks]);
-  const customer = activeStation?.customer ?? null;
-
-  async function submitCheck() {
-    if (!activeStation) return;
-    if (!actionTaken.trim()) {
-      toast.error("Yapılan işlemi girin");
-      return;
-    }
-    setSubmitting(true);
-    const res = await fetch(`/api/crm/stations/${activeStation.id}/checks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activityFound, activityLevel, actionTaken, note }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      toast.error(data.message ?? "Kontrol kaydedilemedi");
-      setSubmitting(false);
-      return;
-    }
-    const data = await res.json();
-    setLocalChecks((prev) => [data.check, ...prev]);
-    setActiveStation((prev) =>
-      prev ? { ...prev, lastCheckDate: data.check.checkedAt.slice(0, 10), status: activityFound ? "needs_attention" : "active" } : prev,
-    );
-    toast.success("Kontrol kaydedildi");
-    setActivityFound(false);
-    setActivityLevel("none");
-    setActionTaken("");
-    setNote("");
-    setSubmitting(false);
+  function updateField(patch: Partial<StationInspection>) {
+    setInspection((prev) => (prev ? { ...prev, ...patch } : prev));
   }
 
-  if (activeStation) {
+  async function handleSave() {
+    if (!station || !occurrenceId || !inspection) return;
+    setSaving(true);
+    try {
+      const inspRes = await fetch(`/api/crm/periyot/occurrences/${occurrenceId}/station-inspections`);
+      const inspData = await inspRes.json().catch(() => ({}));
+      const existing: StationInspection[] = inspData.inspections ?? [];
+      const merged = [...existing.filter((i) => i.krokiStationId !== station.id), inspection];
+
+      const res = await fetch(`/api/crm/periyot/occurrences/${occurrenceId}/station-inspections`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inspections: merged.map((i) => ({
+            krokiSketchId: i.krokiSketchId,
+            krokiStationId: i.krokiStationId,
+            stationType: i.stationType,
+            tuketim: i.tuketim,
+            hareket: i.hareket,
+            tur1: i.tur1,
+            tur2: i.tur2,
+            degisim: i.degisim,
+            tur: i.tur,
+            sayim: i.sayim,
+            olcum: i.olcum,
+            florasanDurumu: i.florasanDurumu,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message ?? "Kayıt kaydedilemedi");
+        return;
+      }
+      toast.success("İstasyon denetimi kaydedildi");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function reset() {
+    setStation(null);
+    setOccurrenceId(null);
+    setInspection(null);
+  }
+
+  if (resolving) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-sm text-muted-foreground">
+        <QrCode className="size-8 animate-pulse text-primary" />
+        İstasyon bulunuyor…
+      </div>
+    );
+  }
+
+  if (station && inspection) {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">İstasyon Kontrolü</h1>
-          <Button variant="outline" size="sm" onClick={() => setActiveStation(null)}>
+          <h1 className="text-xl font-semibold">İstasyon Denetimi</h1>
+          <Button variant="outline" size="sm" onClick={reset}>
             Başka İstasyon Tara
           </Button>
         </div>
 
         <Card className={GLASS_CARD}>
-          <CardContent className="flex flex-col gap-2.5">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold text-foreground">{activeStation.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  {customer?.companyName} · {STATION_TYPE_LABELS[activeStation.type]}
-                </p>
-              </div>
-              <StationStatusBadge status={activeStation.status} />
+          <CardContent className="flex items-center gap-3 py-3">
+            <div
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg"
+              style={{ background: `${stationColor(station.type)}1a`, color: stationColor(station.type) }}
+            >
+              <MapPin className="size-4" />
             </div>
-            <p className="font-mono text-xs text-muted-foreground">{activeStation.qrCode}</p>
-            <p className="text-xs text-muted-foreground">Son kontrol: {formatDate(activeStation.lastCheckDate)}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-foreground">
+                {station.stationId || (station.number != null ? `İstasyon ${station.number}` : "İstasyon")}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {station.customer?.companyName} · {stationLabel(station.type)}
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         <Card className={GLASS_CARD}>
           <CardContent className="flex flex-col gap-3.5">
-            <p className="text-sm font-semibold text-foreground">Yeni Kontrol Kaydı</p>
+            <p className="text-sm font-semibold text-foreground">Denetim Kaydı</p>
 
-            <div>
-              <Label className="mb-1.5">Aktivite Tespit Edildi mi?</Label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setActivityFound(false)}
-                  className={cn(
-                    "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
-                    !activityFound ? "border-success/30 bg-success/10 text-success" : "border-border bg-background text-muted-foreground hover:bg-muted",
-                  )}
-                >
-                  Hayır
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivityFound(true)}
-                  className={cn(
-                    "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
-                    activityFound ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border bg-background text-muted-foreground hover:bg-muted",
-                  )}
-                >
-                  Evet
-                </button>
-              </div>
-            </div>
-
-            {activityFound && (
-              <div>
-                <Label className="mb-1.5">Aktivite Seviyesi</Label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(["low", "medium", "high"] as ActivityLevel[]).map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => setActivityLevel(level)}
-                      className={cn(
-                        "rounded-xl border px-2 py-2 text-xs font-medium transition-colors",
-                        activityLevel === level ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted",
-                      )}
-                    >
-                      <ActivityLevelBadge level={level} className="pointer-events-none" />
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {station.type === "zehirli" && (
+              <FieldSelect label="Tüketim" value={inspection.tuketim} onChange={(v) => updateField({ tuketim: v })} options={TUKETIM_OPTIONS} />
             )}
 
-            <div>
-              <Label className="mb-1.5">Yapılan İşlem</Label>
-              <Input value={actionTaken} onChange={(e) => setActionTaken(e.target.value)} placeholder="Yem yenilendi, tuzak değiştirildi…" className="h-11 rounded-xl px-3.5" />
-            </div>
+            {station.type === "zehirsiz" && (
+              <>
+                <FieldSelect label="Hareket" value={inspection.hareket} onChange={(v) => updateField({ hareket: v })} options={HAREKET_OPTIONS} />
+                <FieldSelect label="Tür" value={inspection.tur1} onChange={(v) => updateField({ tur1: v })} options={RODENT_TUR_OPTIONS} />
+                <FieldSelect label="Tür (Diğer)" value={inspection.tur2} onChange={(v) => updateField({ tur2: v })} options={OTHER_PEST_TUR_OPTIONS} />
+              </>
+            )}
 
-            <div>
-              <Label className="mb-1.5">Not (opsiyonel)</Label>
-              <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="rounded-xl px-3.5 py-2.5" />
-            </div>
+            {(station.type === "ic_uckun" || station.type === "dis_uckun") && (
+              <>
+                <FieldSelect label="Değişim" value={inspection.degisim} onChange={(v) => updateField({ degisim: v })} options={DEGISIM_OPTIONS} />
+                <FieldSelect label="Tür" value={inspection.tur} onChange={(v) => updateField({ tur: v })} options={UCKUN_TUR_OPTIONS} />
+                <div>
+                  <Label className="mb-1.5">Sayım</Label>
+                  <Input type="number" value={inspection.sayim} onChange={(e) => updateField({ sayim: e.target.value })} className="h-11 rounded-xl px-3.5" />
+                </div>
+                {station.type === "ic_uckun" && (
+                  <>
+                    <div>
+                      <Label className="mb-1.5">Ölçüm</Label>
+                      <Input type="number" value={inspection.olcum} onChange={(e) => updateField({ olcum: e.target.value })} className="h-11 rounded-xl px-3.5" />
+                    </div>
+                    <FieldSelect
+                      label="Floresan Durumu"
+                      value={inspection.florasanDurumu}
+                      onChange={(v) => updateField({ florasanDurumu: v })}
+                      options={FLORASAN_OPTIONS}
+                    />
+                  </>
+                )}
+              </>
+            )}
 
-            <Button onClick={submitCheck} loading={submitting}>
+            <Button onClick={handleSave} loading={saving}>
               <CheckCircle2 className="size-4" />
-              Kontrolü Kaydet
+              Kaydet
             </Button>
           </CardContent>
         </Card>
-
-        {stationChecksList.length > 0 && (
-          <Card className={GLASS_CARD}>
-            <CardContent className="flex flex-col gap-3">
-              <p className="text-sm font-semibold text-foreground">Geçmiş Kontroller</p>
-              <div className="flex flex-col divide-y divide-border/60">
-                {stationChecksList.slice(0, 5).map((check) => (
-                  <div key={check.id} className="flex items-start justify-between gap-2 py-2.5 text-xs">
-                    <div>
-                      <p className="font-medium text-foreground">{check.actionTaken}</p>
-                      <p className="text-muted-foreground">
-                        {check.technicianName} · {formatDate(check.checkedAt)}
-                      </p>
-                    </div>
-                    <ActivityLevelBadge level={check.activityLevel} />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     );
   }
@@ -351,18 +444,17 @@ export function StationScanPage() {
               <Input
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
-                placeholder="PS-STN-000123"
+                placeholder="İstasyon kodu"
                 className="h-11 rounded-xl pl-9 font-mono"
-                onKeyDown={(e) => e.key === "Enter" && manualCode && selectStation(manualCode)}
+                onKeyDown={(e) => e.key === "Enter" && manualCode && resolveStation(manualCode)}
               />
             </div>
-            <Button variant="outline" onClick={() => manualCode && selectStation(manualCode)}>
+            <Button variant="outline" onClick={() => manualCode && resolveStation(manualCode)}>
               <Search className="size-4" />
             </Button>
           </div>
         </CardContent>
       </Card>
-
     </div>
   );
 }

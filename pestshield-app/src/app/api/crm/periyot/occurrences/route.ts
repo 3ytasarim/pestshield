@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOrTechOwner } from "@/lib/api-auth";
 import { addOccurrenceSchema } from "@/lib/validations/periyot";
 import { serializePeriyotOccurrence } from "@/lib/periyot/serialize";
 import { todayStr } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const params = new URL(request.url).searchParams;
   const batchId = params.get("batchId");
   const customerId = params.get("customerId");
   const periodDate = params.get("periodDate");
+  const serviceOrderId = params.get("serviceOrderId");
 
   const occurrences = await prisma.periyotOccurrence.findMany({
     where: {
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
       ...(batchId ? { batchId } : {}),
       ...(customerId ? { customerId } : {}),
       ...(periodDate ? { periodDate } : {}),
+      ...(serviceOrderId ? { serviceOrderId } : {}),
     },
     include: { biocidalProductUsages: true, ek1Form: { select: { id: true } } },
     orderBy: { periodDate: "asc" },
@@ -30,7 +32,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const parsed = addOccurrenceSchema.safeParse(await request.json());

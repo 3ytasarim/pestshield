@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOwner, requireClientOrTechOwner } from "@/lib/api-auth";
 import { saveStationInspectionsSchema } from "@/lib/validations/kroki";
 import { serializeStationInspection } from "@/lib/kroki/serialize";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const { id } = await params;
@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 /** Verilen periyot ziyareti için tüm kayıtları tek seferde kaydeder (var olanların yerine geçer). */
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const { id } = await params;

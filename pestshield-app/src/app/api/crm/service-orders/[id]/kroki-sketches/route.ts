@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOwner, requireClientOrTechOwner } from "@/lib/api-auth";
 import { createKrokiSketchSchema } from "@/lib/validations/kroki";
 import { serializeKrokiSketch } from "@/lib/kroki/serialize";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const { id: serviceOrderId } = await params;

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOwner, requireClientOrTechOwner } from "@/lib/api-auth";
 import { serviceOrderCreateSchema } from "@/lib/validations/crm";
 import { serializeServiceOrder } from "@/lib/crm/serialize";
 import { withholdingFraction } from "@/components/crm/crm-labels";
 
 export async function GET(request: Request) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const customerId = new URL(request.url).searchParams.get("customerId");
