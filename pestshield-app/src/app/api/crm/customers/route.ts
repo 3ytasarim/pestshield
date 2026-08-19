@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireClientOwner, getSessionPermissions } from "@/lib/api-auth";
 import { customerFormSchema } from "@/lib/validations/crm";
 import { serializeCustomer } from "@/lib/crm/serialize";
+import { checkCountLimit } from "@/lib/plan-limits";
 
 export async function GET() {
   const { ownerId, error } = await requireClientOwner();
@@ -23,6 +24,9 @@ export async function POST(request: Request) {
   if (!permissions?.can("/dashboard/client/customers", "create")) {
     return NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 });
   }
+
+  const limitError = await checkCountLimit(ownerId, "customers");
+  if (limitError) return limitError;
 
   const body = await request.json();
   const parsed = customerFormSchema.safeParse(body);

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireClientOwner } from "@/lib/api-auth";
 import { technicianFormSchema } from "@/lib/validations/operations";
 import { serializeTechnician } from "@/lib/operations/serialize";
+import { checkCountLimit } from "@/lib/plan-limits";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -23,6 +24,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const { ownerId, error } = await requireClientOwner();
   if (error) return error;
+
+  const limitError = await checkCountLimit(ownerId, "users");
+  if (limitError) return limitError;
 
   const parsed = technicianFormSchema.safeParse(await request.json());
   if (!parsed.success) {

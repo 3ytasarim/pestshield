@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireClientOwner, getSessionPermissions } from "@/lib/api-auth";
 import { companyUserFormSchema } from "@/lib/validations/system";
 import { serializeCompanyUser } from "@/lib/system/serialize";
+import { checkCountLimit } from "@/lib/plan-limits";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
   if (!sessionPermissions?.can("/dashboard/client/users", "create")) {
     return NextResponse.json({ message: "Yetkiniz yok." }, { status: 403 });
   }
+
+  const limitError = await checkCountLimit(ownerId, "users");
+  if (limitError) return limitError;
 
   const parsed = companyUserFormSchema.safeParse(await request.json());
   if (!parsed.success) {

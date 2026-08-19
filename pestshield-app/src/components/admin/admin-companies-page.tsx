@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Building2, Check, CircleCheck, Copy, KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, Check, CircleCheck, Copy, KeyRound, Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,17 @@ interface CompanyRow {
   licenseExpiresAt: string | null;
   createdAt: string;
   isActive: boolean;
+  planId: string | null;
+  planName: string | null;
+  extraModules: string[];
+  userCount: number;
+  customerCount: number;
+}
+
+interface PlanOption {
+  id: string;
+  key: "starter" | "pro" | "enterprise";
+  name: string;
 }
 
 interface CodeRow {
@@ -86,9 +97,11 @@ const TYPE_LABEL: Record<LicenseType, string> = {
 export function AdminCompaniesPage({
   companies: initialCompanies,
   codes: initialCodes,
+  plans,
 }: {
   companies: CompanyRow[];
   codes: CodeRow[];
+  plans: PlanOption[];
 }) {
   const [companies, setCompanies] = useState(initialCompanies);
   const [codes, setCodes] = useState(initialCodes);
@@ -125,6 +138,39 @@ export function AdminCompaniesPage({
 
   const [deleteCodeTarget, setDeleteCodeTarget] = useState<CodeRow | null>(null);
   const [deletingCode, setDeletingCode] = useState(false);
+
+  const [planTarget, setPlanTarget] = useState<CompanyRow | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("none");
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  function openPlanDialog(company: CompanyRow) {
+    setPlanTarget(company);
+    setSelectedPlanId(company.planId ?? "none");
+  }
+
+  async function handleSavePlan() {
+    if (!planTarget) return;
+    setSavingPlan(true);
+    try {
+      const res = await fetch(`/api/admin/companies/${planTarget.id}/plan`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: selectedPlanId === "none" ? null : selectedPlanId, extraModules: planTarget.extraModules }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.message ?? "Paket atanamadı");
+        return;
+      }
+      setCompanies((prev) =>
+        prev.map((c) => (c.id === planTarget.id ? { ...c, planId: data.company.planId, planName: data.company.planName } : c)),
+      );
+      toast.success("Paket güncellendi");
+      setPlanTarget(null);
+    } finally {
+      setSavingPlan(false);
+    }
+  }
 
   const rows = useMemo(
     () =>
@@ -283,6 +329,11 @@ export function AdminCompaniesPage({
         licenseExpiresAt: data.company.licenseExpiresAt,
         createdAt: data.company.createdAt,
         isActive: data.company.isActive,
+        planId: null,
+        planName: null,
+        extraModules: [],
+        userCount: 1,
+        customerCount: 0,
       };
       setCompanies((prev) => [newRow, ...prev]);
       toast.success("Firma oluşturuldu");
@@ -452,6 +503,7 @@ export function AdminCompaniesPage({
                 <TableHead>Firma</TableHead>
                 <TableHead>Yetkili</TableHead>
                 <TableHead>E-posta</TableHead>
+                <TableHead>Paket</TableHead>
                 <TableHead>Lisans</TableHead>
                 <TableHead>Kalan Gün</TableHead>
                 <TableHead>Durum</TableHead>
@@ -470,6 +522,18 @@ export function AdminCompaniesPage({
                     </TableCell>
                     <TableCell className="text-muted-foreground">{row.name || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{row.email || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {row.planName ? (
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="secondary">{row.planName}</Badge>
+                          <span className="text-[11px]">
+                            {row.userCount} kullanıcı · {row.customerCount} müşteri
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs">Sınırsız (paket atanmadı)</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {row.licenseType ? TYPE_LABEL[row.licenseType] : "—"}
                     </TableCell>
@@ -497,6 +561,10 @@ export function AdminCompaniesPage({
                             Aktif Et
                           </Button>
                         )}
+                        <Button size="sm" variant="outline" onClick={() => openPlanDialog(row)}>
+                          <Package className="size-3.5" />
+                          Paket Ata
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => openDialog(row)}>
                           <KeyRound className="size-3.5" />
                           Lisans Oluştur
@@ -520,7 +588,7 @@ export function AdminCompaniesPage({
               })}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                     Henüz kayıtlı firma yok.
                   </TableCell>
                 </TableRow>
@@ -879,6 +947,44 @@ export function AdminCompaniesPage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!planTarget} onOpenChange={(open) => !open && setPlanTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Paket Ata</DialogTitle>
+            <DialogDescription>
+              &quot;{planTarget?.companyName}&quot; firmasına bir paket atayın. Paket atanmazsa (Yok) firma sınırsız
+              davranmaya devam eder.
+            </DialogDescription>
+          </DialogHeader>
+          {planTarget && (
+            <p className="text-xs text-muted-foreground">
+              Mevcut kullanım: {planTarget.userCount} kullanıcı · {planTarget.customerCount} müşteri
+            </p>
+          )}
+          <Select value={selectedPlanId} onValueChange={(v) => setSelectedPlanId(v ?? "none")}>
+            <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Yok (Sınırsız)</SelectItem>
+              {plans.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanTarget(null)}>
+              Vazgeç
+            </Button>
+            <Button onClick={() => void handleSavePlan()} loading={savingPlan}>
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

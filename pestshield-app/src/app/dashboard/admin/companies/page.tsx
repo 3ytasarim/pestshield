@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { AdminCompaniesPage } from "@/components/admin/admin-companies-page";
 
 export default async function CompaniesPage() {
-  const [companies, codes] = await Promise.all([
+  const [companies, codes, plans] = await Promise.all([
     prisma.user.findMany({
       where: { role: "CLIENT" },
       orderBy: { createdAt: "desc" },
@@ -18,6 +18,10 @@ export default async function CompaniesPage() {
         licenseExpiresAt: true,
         createdAt: true,
         isActive: true,
+        planId: true,
+        extraModules: true,
+        plan: { select: { name: true } },
+        _count: { select: { customers: true, companyUsersOwned: true, techniciansOwned: true } },
       },
     }),
     prisma.licenseCode.findMany({
@@ -27,6 +31,7 @@ export default async function CompaniesPage() {
         targetUser: { select: { companyName: true, name: true, email: true } },
       },
     }),
+    prisma.plan.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
 
   return (
@@ -35,12 +40,16 @@ export default async function CompaniesPage() {
         ...c,
         licenseExpiresAt: c.licenseExpiresAt?.toISOString() ?? null,
         createdAt: c.createdAt.toISOString(),
+        planName: c.plan?.name ?? null,
+        userCount: 1 + c._count.companyUsersOwned + c._count.techniciansOwned,
+        customerCount: c._count.customers,
       }))}
       codes={codes.map((c) => ({
         ...c,
         createdAt: c.createdAt.toISOString(),
         redeemedAt: c.redeemedAt?.toISOString() ?? null,
       }))}
+      plans={plans.map((p) => ({ id: p.id, key: p.key, name: p.name }))}
     />
   );
 }

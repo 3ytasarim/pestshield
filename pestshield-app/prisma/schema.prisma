@@ -21,6 +21,15 @@ enum LicenseType {
   YEARLY
 }
 
+/// Paket bazlı lisanslama — SADECE multi-tenant dağıtımda (bkz. src/lib/tenant.ts)
+/// kullanıcı/müşteri sayısı ve modül görünürlüğünü kısıtlar. LicenseType'tan
+/// (süre takibi) tamamen bağımsız bir kavramdır.
+enum PlanKey {
+  starter
+  pro
+  enterprise
+}
+
 enum CustomerStatus {
   active
   passive
@@ -318,6 +327,12 @@ model User {
   /// Ödeme/yükseltme akışı henüz bağlanmadı - sadece kayıt anındaki durumu tutar.
   licenseType      LicenseType?
   licenseExpiresAt DateTime?
+
+  /// Paket bazlı lisanslama (SADECE multi-tenant'ta anlamlı, bkz. Plan modeli).
+  /// planId null = kısıtlama yok (sınırsız) — superadmin atayana kadar varsayılan budur.
+  planId       String?
+  plan         Plan?    @relation(fields: [planId], references: [id], onDelete: SetNull)
+  extraModules String[] @default([]) // superadmin'in firmaya özel elle açtığı ek modüller (eklenti override)
 
   /// 2FA (TOTP)
   twoFactorEnabled Boolean @default(false)
@@ -1839,6 +1854,27 @@ model GeneratedReport {
   @@index([ownerId])
   @@index([customerId])
   @@map("generated_reports")
+}
+
+/// Paket tanımı (Başlangıç/Pro/Kurumsal) — SADECE multi-tenant dağıtımda anlamlıdır
+/// (bkz. src/lib/tenant.ts isMultiTenant()). Superadmin panelinden ("Paket Modülleri")
+/// düzenlenebilir; ilk erişimde 3 satır idempotent olarak seed edilir.
+model Plan {
+  id      String  @id @default(uuid())
+  key     PlanKey @unique
+  name    String
+
+  maxUsers     Int? // null = sınırsız
+  maxCustomers Int? // null = sınırsız
+
+  allowedModules String[] // nav href'leri (ör. "/dashboard/client/vehicles") + "feature:kroki" gibi granüler anahtarlar
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("plans")
 }
 
 /// Firma (CLIENT) tarafından yönetilen zararlı türü kataloğu. İlk çağrıda

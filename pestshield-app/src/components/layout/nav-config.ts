@@ -96,6 +96,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { label: "Firmalar", href: "/dashboard/admin/companies", icon: Building2 },
+        { label: "Paket Modülleri", href: "/dashboard/admin/plans", icon: Package },
         { label: "Kullanıcılar", href: "/dashboard/admin/users", icon: Users },
         { label: "Destek Talepleri", href: "/dashboard/admin/support", icon: LifeBuoy },
       ],
