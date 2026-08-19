@@ -8,7 +8,10 @@ export default async function Page() {
   const ownerId = session!.user.id;
 
   await ensureChecklistSeeded(prisma, ownerId);
-  const items = await prisma.complianceChecklistItem.findMany({ where: { ownerId }, orderBy: { id: "asc" } });
+  const [items, customers] = await Promise.all([
+    prisma.complianceChecklistItem.findMany({ where: { ownerId, customerId: null }, orderBy: { id: "asc" } }),
+    prisma.customer.findMany({ where: { ownerId }, select: { id: true, companyName: true }, orderBy: { companyName: "asc" } }),
+  ]);
 
-  return <UygunlukReportPage initialItems={items.map(serializeChecklistItem)} />;
+  return <UygunlukReportPage initialItems={items.map(serializeChecklistItem)} customers={customers} />;
 }

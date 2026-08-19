@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOrTechOwner } from "@/lib/api-auth";
 import { serializeChecklistItem } from "@/lib/audit/serialize";
 
 const patchSchema = z.object({
-  status: z.enum(["compliant", "non_compliant", "pending", "not_applicable"]),
+  status: z.enum(["compliant", "non_compliant", "pending", "not_applicable"]).optional(),
+  evidenceNote: z.string().optional(),
+  reviewedBy: z.string().optional(),
+  reviewDate: z.string().optional(),
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { ownerId, error } = await requireClientOwner();
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
   const { id } = await params;
@@ -23,6 +26,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ message: "Madde bulunamadı." }, { status: 404 });
   }
 
-  const item = await prisma.complianceChecklistItem.update({ where: { id }, data: { status: parsed.data.status } });
+  const item = await prisma.complianceChecklistItem.update({ where: { id }, data: parsed.data });
   return NextResponse.json({ item: serializeChecklistItem(item) });
 }

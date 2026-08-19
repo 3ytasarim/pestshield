@@ -8,7 +8,7 @@ export default async function Page() {
   const ownerId = session!.user.id;
 
   await ensureChecklistSeeded(prisma, ownerId);
-  const items = await prisma.complianceChecklistItem.findMany({ where: { ownerId, standard: "haccp" }, orderBy: { id: "asc" } });
+  const items = await prisma.complianceChecklistItem.findMany({ where: { ownerId, customerId: null, standard: "haccp" }, orderBy: { id: "asc" } });
 
   return <StandardCompliancePage standard="haccp" initialItems={items.map(serializeChecklistItem)} />;
 }

@@ -571,6 +571,7 @@ model Customer {
   auditRecords       AuditRecord[]
   correctiveActions  CorrectiveAction[]
   risks              Risk[]
+  complianceChecklistItems ComplianceChecklistItem[]
   periyotOccurrences PeriyotOccurrence[]
   supportTickets     SupportTicket[]
   generatedReports   GeneratedReport[]
@@ -1183,6 +1184,10 @@ model ComplianceChecklistItem {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  /// null = şirket geneli ("Genel") checklist; dolu = o müşteriye özel checklist (bkz. Uygunluk Durum Raporu müşteri filtresi + teknisyen mobil Uygunluk sekmesi).
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
   standard     ComplianceStandard
   sectionCode  String
   sectionTitle String
@@ -1195,6 +1200,7 @@ model ComplianceChecklistItem {
   reviewDate   String
 
   @@index([ownerId])
+  @@index([customerId])
   @@map("compliance_checklist_items")
 }
 

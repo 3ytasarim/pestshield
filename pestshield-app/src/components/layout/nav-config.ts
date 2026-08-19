@@ -116,6 +116,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { label: "QR Kontrol", href: "/dashboard/tech/scan", icon: QrCode },
         { label: "İstasyonlar", href: "/dashboard/tech/stations", icon: MapPin },
+        { label: "Uygunluk", href: "/dashboard/tech/compliance", icon: ShieldCheck },
         { label: "Profil", href: "/dashboard/tech/profile", icon: Users },
       ],
     },

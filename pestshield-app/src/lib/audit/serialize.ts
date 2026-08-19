@@ -55,14 +55,18 @@ export function serializeRisk(row: PrismaRisk): Risk {
 
 const STANDARDS: ComplianceStandard[] = ["haccp", "brcgs", "iso22000", "fssc"];
 
-/** Yeni bir kiracı için uyumluluk checklist'i henüz oluşturulmadıysa, standart bölüm/madde kataloğundan nötr (status: pending) satırlar üretir. */
-export async function ensureChecklistSeeded(prisma: PrismaClient, ownerId: string): Promise<void> {
-  const count = await prisma.complianceChecklistItem.count({ where: { ownerId } });
+/** Bir kiracı (ve opsiyonel olarak bir müşteri) için uyumluluk checklist'i henüz
+ * oluşturulmadıysa, standart bölüm/madde kataloğundan nötr (status: pending) satırlar
+ * üretir. `customerId` verilmezse şirket geneli ("Genel") checklist seed edilir/okunur;
+ * verilirse o müşteriye özel, bağımsız bir set seed edilir/okunur. */
+export async function ensureChecklistSeeded(prisma: PrismaClient, ownerId: string, customerId: string | null = null): Promise<void> {
+  const count = await prisma.complianceChecklistItem.count({ where: { ownerId, customerId } });
   if (count > 0) return;
 
   const today = todayStr();
   const rows: {
     ownerId: string;
+    customerId: string | null;
     standard: ComplianceStandard;
     sectionCode: string;
     sectionTitle: string;
@@ -77,6 +81,7 @@ export async function ensureChecklistSeeded(prisma: PrismaClient, ownerId: strin
       section.items.forEach((item) => {
         rows.push({
           ownerId,
+          customerId,
           standard,
           sectionCode: section.code,
           sectionTitle: section.title,

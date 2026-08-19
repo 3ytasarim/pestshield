@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { Printer, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
@@ -18,15 +20,51 @@ import type { ChecklistItem, ComplianceStandard } from "@/lib/mock/audit";
 
 interface UygunlukReportPageProps {
   initialItems: ChecklistItem[];
+  customers: { id: string; companyName: string }[];
 }
 
-export function UygunlukReportPage({ initialItems }: UygunlukReportPageProps) {
+export function UygunlukReportPage({ initialItems, customers }: UygunlukReportPageProps) {
   const [standard, setStandard] = useState<ComplianceStandard | "all">("all");
   const [printing, setPrinting] = useState(false);
+  const [customerId, setCustomerId] = useState<string>("genel");
+  const [items, setItems] = useState<ChecklistItem[]>(initialItems);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  const customerItems = useMemo(
+    () => [{ value: "genel", label: "Tüm Müşteriler (Genel)" }, ...customers.map((c) => ({ value: c.id, label: c.companyName }))],
+    [customers],
+  );
+
+  useEffect(() => {
+    if (customerId === "genel") {
+      setItems(initialItems);
+      return;
+    }
+    let cancelled = false;
+    setLoadingItems(true);
+    fetch(`/api/audit/checklist?customerId=${customerId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { items?: ChecklistItem[] } | null) => {
+        if (!cancelled) setItems(data?.items ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error("Müşterinin checklist'i yüklenemedi");
+          setItems([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingItems(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId]);
 
   const rows = useMemo(
-    () => getUygunlukRows(initialItems, { standard: standard !== "all" ? standard : undefined }),
-    [initialItems, standard],
+    () => getUygunlukRows(items, { standard: standard !== "all" ? standard : undefined }),
+    [items, standard],
   );
   const ratio = uygunlukOrani(rows);
   const nonCompliant = countByStatus(rows, "non_compliant");
@@ -63,25 +101,46 @@ export function UygunlukReportPage({ initialItems }: UygunlukReportPageProps) {
         <CardHeader className="border-b border-border/60 bg-muted/30 px-4 py-3.5">
           <span className="text-sm font-semibold text-foreground">Filtreler</span>
         </CardHeader>
-        <CardContent className="pt-4 sm:max-w-xs">
-          <Label className="mb-1.5">Standart</Label>
-          <Select value={standard} onValueChange={(v) => setStandard((v as ComplianceStandard | "all") ?? "all")}>
-            <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-              <SelectValue>{() => standardLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Standartlar</SelectItem>
-              {(Object.keys(STANDARD_LABELS) as ComplianceStandard[]).map((s) => (
-                <SelectItem key={s} value={s}>
-                  {STANDARD_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardContent className="grid grid-cols-1 gap-3.5 pt-4 sm:grid-cols-2">
+          <div>
+            <Label className="mb-1.5">Standart</Label>
+            <Select value={standard} onValueChange={(v) => setStandard((v as ComplianceStandard | "all") ?? "all")}>
+              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
+                <SelectValue>{() => standardLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Standartlar</SelectItem>
+                {(Object.keys(STANDARD_LABELS) as ComplianceStandard[]).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {STANDARD_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1.5">Müşteri</Label>
+            <Combobox
+              items={customerItems}
+              value={customerItems.find((c) => c.value === customerId) ?? null}
+              onValueChange={(selected) => setCustomerId(selected?.value ?? "genel")}
+            >
+              <ComboboxInput placeholder="Müşteri ara…" className="h-11 rounded-xl px-3.5 pl-8" />
+              <ComboboxContent>
+                {(option: { value: string; label: string }) => (
+                  <ComboboxItem key={option.value} value={option}>
+                    {option.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxContent>
+            </Combobox>
+          </div>
         </CardContent>
       </Card>
 
-      {rows.length === 0 ? (
+      {loadingItems ? (
+        <EmptyState icon={ShieldCheck} title="Yükleniyor…" description="" />
+      ) : rows.length === 0 ? (
         <EmptyState icon={ShieldCheck} title="Kayıt bulunamadı" description="Seçilen standarda ait checklist maddesi yok." />
       ) : (
         <>

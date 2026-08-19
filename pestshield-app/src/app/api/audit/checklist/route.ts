@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireClientOwner } from "@/lib/api-auth";
+import { requireClientOrTechOwner } from "@/lib/api-auth";
 import { ensureChecklistSeeded, serializeChecklistItem } from "@/lib/audit/serialize";
 
-export async function GET() {
-  const { ownerId, error } = await requireClientOwner();
+export async function GET(request: Request) {
+  const { ownerId, error } = await requireClientOrTechOwner();
   if (error) return error;
 
-  await ensureChecklistSeeded(prisma, ownerId);
+  const customerId = new URL(request.url).searchParams.get("customerId");
 
-  const items = await prisma.complianceChecklistItem.findMany({ where: { ownerId }, orderBy: { id: "asc" } });
+  await ensureChecklistSeeded(prisma, ownerId, customerId);
+
+  const items = await prisma.complianceChecklistItem.findMany({ where: { ownerId, customerId }, orderBy: { id: "asc" } });
   return NextResponse.json({ items: items.map(serializeChecklistItem) });
 }

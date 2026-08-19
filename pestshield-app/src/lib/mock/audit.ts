@@ -16,6 +16,7 @@ export type AuditResult = "passed" | "passed_with_findings" | "failed" | "schedu
 
 export interface ChecklistItem {
   id: string;
+  customerId: string | null;
   standard: ComplianceStandard;
   sectionCode: string;
   sectionTitle: string;
@@ -260,6 +261,7 @@ function buildChecklist(): ChecklistItem[] {
         const status = statusFor(sIndex, flatIndex);
         items.push({
           id: `${standard}-${section.code}-${item.code}`,
+          customerId: null,
           standard,
           sectionCode: section.code,
           sectionTitle: section.title,
