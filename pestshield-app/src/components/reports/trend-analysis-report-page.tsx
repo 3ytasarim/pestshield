@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { TrendAnalysisContent } from "@/components/crm/trend-analiz-dialog";
 import type { TrendAnalysis } from "@/lib/trend-analysis";
@@ -61,6 +62,7 @@ export function TrendAnalysisReportPage() {
   }, [customerId]);
 
   const customer = customers.find((c) => c.id === customerId) ?? null;
+  const customerItems = useMemo(() => customers.map((c) => ({ value: c.id, label: c.companyName })), [customers]);
   const serviceOrder = serviceOrders.find((o) => o.id === serviceOrderId) ?? null;
 
   const [fullAnalysis, setFullAnalysis] = useState<TrendAnalysis | null>(null);
@@ -156,18 +158,20 @@ export function TrendAnalysisReportPage() {
         <CardContent className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-2 xl:grid-cols-4">
           <div>
             <Label className="mb-1.5">Müşteri</Label>
-            <Select value={customerId ?? undefined} onValueChange={(v) => setCustomerId(String(v))}>
-              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                <SelectValue placeholder="Müşteri seçiniz…" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.companyName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              items={customerItems}
+              value={customerItems.find((c) => c.value === customerId) ?? null}
+              onValueChange={(selected) => setCustomerId(selected?.value ?? null)}
+            >
+              <ComboboxInput placeholder="Müşteri ara…" className="h-11 rounded-xl px-3.5 pl-8" />
+              <ComboboxContent>
+                {(option: { value: string; label: string }) => (
+                  <ComboboxItem key={option.value} value={option}>
+                    {option.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxContent>
+            </Combobox>
           </div>
 
           <div>

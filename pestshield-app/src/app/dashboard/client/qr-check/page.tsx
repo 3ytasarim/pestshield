@@ -2,26 +2,34 @@ import { Suspense } from "react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { QrCheckPage } from "@/components/operations/qr-check-page";
-import { serializeStation } from "@/lib/operations/serialize";
 
 async function QrCheckPageData() {
   const session = await auth();
   const ownerId = session!.user.id;
-  const [stations, customers] = await Promise.all([
-    prisma.station.findMany({
-      where: { ownerId },
-      include: { customer: { select: { id: true, companyName: true } } },
-      orderBy: { label: "asc" },
-    }),
-    prisma.customer.findMany({ where: { ownerId }, select: { id: true, companyName: true }, orderBy: { companyName: "asc" } }),
-  ]);
+  const krokiStations = await prisma.krokiStation.findMany({
+    where: { ownerId },
+    include: {
+      krokiSketch: {
+        select: {
+          name: true,
+          serviceOrder: { select: { description: true, customer: { select: { id: true, companyName: true } } } },
+        },
+      },
+    },
+    orderBy: { number: "asc" },
+  });
 
-  return (
-    <QrCheckPage
-      initialStations={stations.map((s) => ({ ...serializeStation(s), customer: s.customer }))}
-      customers={customers}
-    />
-  );
+  const stations = krokiStations.map((s) => ({
+    id: s.id,
+    type: s.type,
+    number: s.number,
+    stationId: s.stationId,
+    sketchName: s.krokiSketch.name,
+    serviceName: s.krokiSketch.serviceOrder.description,
+    customer: s.krokiSketch.serviceOrder.customer,
+  }));
+
+  return <QrCheckPage initialStations={stations} />;
 }
 
 export default function Page() {

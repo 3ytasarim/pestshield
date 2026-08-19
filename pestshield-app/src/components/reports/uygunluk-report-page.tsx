@@ -67,7 +67,7 @@ export function UygunlukReportPage({ initialItems }: UygunlukReportPageProps) {
           <Label className="mb-1.5">Standart</Label>
           <Select value={standard} onValueChange={(v) => setStandard((v as ComplianceStandard | "all") ?? "all")}>
             <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-              <SelectValue />
+              <SelectValue>{() => standardLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tüm Standartlar</SelectItem>

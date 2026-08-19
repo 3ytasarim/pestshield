@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 import Link from "next/link";
-import { AlertTriangle, MapPinned, Pencil, Plus, QrCode, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { MapPinned, Search } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,30 +14,20 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import { formatDate } from "@/components/crm/crm-format";
-import { StationStatusBadge } from "@/components/operations/operations-badges";
-import { STATION_TYPE_LABELS } from "@/components/operations/operations-labels";
-import { StationForm } from "@/components/operations/station-form";
-import { isStationOverdue, type Station, type StationStatus } from "@/lib/mock/operations";
-import type { StationFormValues } from "@/lib/validations/operations";
+import { KROKI_STATION_TYPES, stationColor, stationLabel } from "@/components/crm/kroki-constants";
+import type { KrokiStationType } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
-type StatusFilter = "all" | StationStatus | "overdue";
-
-interface StationWithCustomer extends Station {
+interface StationRow {
+  id: string;
+  type: KrokiStationType;
+  number: number | null;
+  stationId: string;
+  sketchName: string;
+  serviceName: string;
   customer: { id: string; companyName: string } | null;
 }
 
@@ -46,81 +35,39 @@ export function StationsPage({
   initialStations,
   customers,
 }: {
-  initialStations: StationWithCustomer[];
+  initialStations: StationRow[];
   customers: { id: string; companyName: string }[];
 }) {
-  const [stations, setStations] = useState<StationWithCustomer[]>(initialStations);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingStation, setEditingStation] = useState<StationWithCustomer | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<StationWithCustomer | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [customerId, setCustomerId] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<KrokiStationType | "all">("all");
+
+  const customerItems = useMemo(
+    () => [{ value: "all", label: "Tüm Müşteriler" }, ...customers.map((c) => ({ value: c.id, label: c.companyName }))],
+    [customers],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return stations.filter((s) => {
-      if (statusFilter === "overdue" && !isStationOverdue(s)) return false;
-      if (statusFilter !== "all" && statusFilter !== "overdue" && s.status !== statusFilter) return false;
-      if (q && !s.label.toLowerCase().includes(q) && !s.customer?.companyName.toLowerCase().includes(q) && !s.qrCode.toLowerCase().includes(q)) return false;
+    return initialStations.filter((s) => {
+      if (customerId !== "all" && s.customer?.id !== customerId) return false;
+      if (typeFilter !== "all" && s.type !== typeFilter) return false;
+      if (
+        q &&
+        !s.stationId.toLowerCase().includes(q) &&
+        !s.customer?.companyName.toLowerCase().includes(q) &&
+        !s.sketchName.toLowerCase().includes(q)
+      )
+        return false;
       return true;
     });
-  }, [stations, search, statusFilter]);
+  }, [initialStations, search, customerId, typeFilter]);
 
-  const needsAttentionCount = useMemo(() => stations.filter((s) => s.status === "needs_attention").length, [stations]);
-  const overdueCount = useMemo(() => stations.filter(isStationOverdue).length, [stations]);
-
-  async function handleCreate(values: StationFormValues) {
-    const res = await fetch("/api/crm/stations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.message ?? "İstasyon eklenemedi");
-      return;
-    }
-    const customer = customers.find((c) => c.id === values.customerId) ?? null;
-    setStations((prev) => [{ ...data.station, customer }, ...prev]);
-    toast.success("İstasyon eklendi");
-  }
-
-  async function handleUpdate(values: StationFormValues) {
-    if (!editingStation) return;
-    const res = await fetch(`/api/crm/stations/${editingStation.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.message ?? "İstasyon güncellenemedi");
-      return;
-    }
-    const customer = customers.find((c) => c.id === values.customerId) ?? null;
-    setStations((prev) => prev.map((s) => (s.id === editingStation.id ? { ...data.station, customer } : s)));
-    toast.success("İstasyon güncellendi");
-    setEditingStation(null);
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/crm/stations/${deleteTarget.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.message ?? "İstasyon silinemedi");
-        return;
-      }
-      setStations((prev) => prev.filter((s) => s.id !== deleteTarget.id));
-      toast.success("İstasyon silindi");
-      setDeleteTarget(null);
-    } finally {
-      setDeleting(false);
-    }
-  }
+  const countByType = useMemo(() => {
+    const map = new Map<KrokiStationType, number>();
+    for (const s of initialStations) map.set(s.type, (map.get(s.type) ?? 0) + 1);
+    return map;
+  }, [initialStations]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,53 +75,75 @@ export function StationsPage({
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-1.5"
       >
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">İstasyonlar</h1>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            Müşteri lokasyonlarına yerleştirilen tuzak, yem istasyonu ve UV sistemlerinin tam envanteri.
-          </p>
-        </div>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="size-4" />
-          Yeni İstasyon Ekle
-        </Button>
+        <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">İstasyonlar</h1>
+        <p className="max-w-xl text-sm text-muted-foreground">
+          Müşteri hizmetlerindeki krokilere yerleştirilen tüm istasyonların tam envanteri. Yeni istasyon eklemek için ilgili
+          müşterinin Hizmetler &gt; Kroki ekranını kullanın.
+        </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <CrmKpiCard label="Toplam İstasyon" value={stations.length} description="Tüm müşteriler genelinde" changePercent={5} icon={MapPinned} accent="blue" delay={0.05} />
-        <CrmKpiCard label="İlgi Gerekiyor" value={needsAttentionCount} description="Aktivite tespit edilen istasyonlar" changePercent={needsAttentionCount > 0 ? 14 : -14} icon={AlertTriangle} accent="amber" delay={0.1} />
-        <CrmKpiCard label="Vadesi Geçen Kontrol" value={overdueCount} description="Periyodik kontrol tarihi geçmiş" changePercent={overdueCount > 0 ? 12 : -12} icon={ShieldCheck} accent="emerald" delay={0.15} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <CrmKpiCard label="Toplam İstasyon" value={initialStations.length} description="Tüm müşteriler genelinde" changePercent={5} icon={MapPinned} accent="blue" delay={0.05} />
+        {KROKI_STATION_TYPES.map((t, i) => (
+          <CrmKpiCard
+            key={t.value}
+            label={t.label}
+            value={countByType.get(t.value) ?? 0}
+            description="Kategoriye göre"
+            changePercent={2}
+            icon={MapPinned}
+            accent="emerald"
+            delay={0.1 + i * 0.05}
+          />
+        ))}
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="İstasyon, müşteri veya QR kod ara…" className="h-11 rounded-xl pl-10" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="İstasyon, müşteri veya kroki ara…" className="h-11 rounded-xl pl-10" />
+        </div>
+        <div className="w-full sm:w-56">
+          <Combobox
+            items={customerItems}
+            value={customerItems.find((c) => c.value === customerId) ?? null}
+            onValueChange={(selected) => setCustomerId(selected?.value ?? "all")}
+          >
+            <ComboboxInput placeholder="Müşteri ara…" className="h-11 rounded-xl px-3.5 pl-8" />
+            <ComboboxContent>
+              {(option: { value: string; label: string }) => (
+                <ComboboxItem key={option.value} value={option}>
+                  {option.label}
+                </ComboboxItem>
+              )}
+            </ComboboxContent>
+          </Combobox>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {(
-            [
-              { value: "all", label: "Tümü" },
-              { value: "active", label: "Aktif" },
-              { value: "needs_attention", label: "İlgi Gerekiyor" },
-              { value: "overdue", label: "Vadesi Geçen" },
-              { value: "inactive", label: "Pasif" },
-            ] as const
-          ).map((option) => (
+          <button
+            type="button"
+            onClick={() => setTypeFilter("all")}
+            className={cn(
+              "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+              typeFilter === "all" ? "border-primary/20 bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted",
+            )}
+          >
+            Tümü
+          </button>
+          {KROKI_STATION_TYPES.map((t) => (
             <button
-              key={option.value}
+              key={t.value}
               type="button"
-              onClick={() => setStatusFilter(option.value)}
+              onClick={() => setTypeFilter(t.value)}
               className={cn(
-                "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                statusFilter === option.value
-                  ? "border-primary/20 bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:bg-muted",
+                "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                typeFilter === t.value ? "border-primary/20 bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted",
               )}
             >
-              {option.label}
+              <span className="size-2.5 rounded-full" style={{ background: t.color }} />
+              {t.label}
             </button>
           ))}
         </div>
@@ -193,102 +162,43 @@ export function StationsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>İstasyon</TableHead>
+                  <TableHead>Kategori</TableHead>
                   <TableHead>Müşteri</TableHead>
-                  <TableHead className="hidden sm:table-cell">Tip</TableHead>
-                  <TableHead>Durum</TableHead>
-                  <TableHead className="hidden md:table-cell">Son Kontrol</TableHead>
-                  <TableHead className="hidden md:table-cell">Sıradaki Kontrol</TableHead>
-                  <TableHead className="hidden lg:table-cell">QR Kod</TableHead>
-                  <TableHead className="text-right">İşlem</TableHead>
+                  <TableHead className="hidden md:table-cell">Hizmet</TableHead>
+                  <TableHead className="hidden lg:table-cell">Kroki</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((station) => {
-                  const overdue = isStationOverdue(station);
-                  return (
-                    <TableRow key={station.id}>
-                      <TableCell className="font-medium">{station.label}</TableCell>
-                      <TableCell>
-                        {station.customer ? (
-                          <Link href={`/dashboard/client/customers/${station.customer.id}`} className="hover:text-primary hover:underline">
-                            {station.customer.companyName}
-                          </Link>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">{STATION_TYPE_LABELS[station.type]}</TableCell>
-                      <TableCell>
-                        <StationStatusBadge status={station.status} />
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{formatDate(station.lastCheckDate)}</TableCell>
-                      <TableCell className={cn("hidden md:table-cell", overdue && "font-medium text-destructive")}>
-                        {formatDate(station.nextCheckDue)}
-                        {overdue && " (geçti)"}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <Link
-                          href={`/dashboard/client/qr-check?station=${station.id}`}
-                          className="flex items-center gap-1.5 font-mono text-xs text-primary hover:underline"
-                        >
-                          <QrCode className="size-3.5" />
-                          {station.qrCode}
+                {filtered.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">{s.stationId || (s.number != null ? `İstasyon ${s.number}` : "—")}</TableCell>
+                    <TableCell>
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                        style={{ background: `${stationColor(s.type)}1a`, color: stationColor(s.type) }}
+                      >
+                        <span className="size-2 rounded-full" style={{ background: stationColor(s.type) }} />
+                        {stationLabel(s.type)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {s.customer ? (
+                        <Link href={`/dashboard/client/customers/${s.customer.id}`} className="hover:text-primary hover:underline">
+                          {s.customer.companyName}
                         </Link>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="icon" variant="ghost" className="size-8" title="Düzenle" onClick={() => setEditingStation(station)}>
-                            <Pencil className="size-3.5" aria-hidden="true" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            title="Sil"
-                            onClick={() => setDeleteTarget(station)}
-                          >
-                            <Trash2 className="size-3.5" aria-hidden="true" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground">{s.serviceName || "—"}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">{s.sketchName}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
       )}
-
-      <StationForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} customers={customers} />
-      <StationForm
-        open={!!editingStation}
-        onOpenChange={(open) => !open && setEditingStation(null)}
-        onSubmit={handleUpdate}
-        customers={customers}
-        editing={editingStation}
-      />
-
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>İstasyonu sil</AlertDialogTitle>
-            <AlertDialogDescription>
-              &quot;{deleteTarget?.label}&quot; istasyonunu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={deleting}
-              onClick={handleDelete}
-            >
-              Sil
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

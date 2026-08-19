@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { TechnicianMultiSelect } from "@/components/crm/technician-multiselect";
 import { getCompanySettings } from "@/lib/company-settings";
 import type { Customer } from "@/lib/mock/crm";
@@ -96,6 +97,7 @@ export function ChemicalUsageReportPage() {
     () => (customer ? [customer.addressLine, customer.district, customer.city].filter(Boolean).join(", ") : ""),
     [customer],
   );
+  const customerItems = useMemo(() => customers.map((c) => ({ value: c.id, label: c.companyName })), [customers]);
 
   function update(patch: Partial<BiyosidalRaporFormValues>) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -189,19 +191,22 @@ export function ChemicalUsageReportPage() {
 
           <Box title="Uygulama Yapılan Yer Hakkında Bilgiler">
             <div>
-              <Label className="mb-1.5">Uygulama Yapılan Yerin Açık Adresi</Label>
-              <Select value={customerId ?? undefined} onValueChange={(v) => setCustomerId(String(v))}>
-                <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                  <SelectValue placeholder="Müşteri seçiniz…">{() => uygulamaYeriAdresi || "Müşteri seçiniz…"}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.companyName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="mb-1.5">Uygulama Yapılan Yerin Açık Adresi (Müşteri seçin)</Label>
+              <Combobox
+                items={customerItems}
+                value={customerItems.find((c) => c.value === customerId) ?? null}
+                onValueChange={(selected) => setCustomerId(selected?.value ?? null)}
+              >
+                <ComboboxInput placeholder="Müşteri ara…" className="h-11 rounded-xl px-3.5 pl-8" />
+                <ComboboxContent>
+                  {(option: { value: string; label: string }) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      {option.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxContent>
+              </Combobox>
+              {uygulamaYeriAdresi && <p className="mt-1 text-xs text-muted-foreground">{uygulamaYeriAdresi}</p>}
             </div>
             <BoxField label="Uygulama Yapılan Hedef Zararlı Türü/Adı" value={form.hedefZararliTuru} onChange={(v) => update({ hedefZararliTuru: v })} />
             <div>

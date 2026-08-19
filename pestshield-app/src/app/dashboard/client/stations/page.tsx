@@ -1,23 +1,37 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { StationsPage } from "@/components/operations/stations-page";
-import { serializeStation } from "@/lib/operations/serialize";
 
 export default async function Page() {
   const session = await auth();
   const ownerId = session!.user.id;
-  const [stations, customers] = await Promise.all([
-    prisma.station.findMany({
+  const [krokiStations, customers] = await Promise.all([
+    prisma.krokiStation.findMany({
       where: { ownerId },
-      include: { customer: { select: { id: true, companyName: true } } },
-      orderBy: { label: "asc" },
+      include: {
+        krokiSketch: {
+          select: {
+            name: true,
+            serviceOrder: { select: { description: true, customer: { select: { id: true, companyName: true } } } },
+          },
+        },
+      },
+      orderBy: { number: "asc" },
     }),
     prisma.customer.findMany({ where: { ownerId }, select: { id: true, companyName: true }, orderBy: { companyName: "asc" } }),
   ]);
 
   return (
     <StationsPage
-      initialStations={stations.map((s) => ({ ...serializeStation(s), customer: s.customer }))}
+      initialStations={krokiStations.map((s) => ({
+        id: s.id,
+        type: s.type,
+        number: s.number,
+        stationId: s.stationId,
+        sketchName: s.krokiSketch.name,
+        serviceName: s.krokiSketch.serviceOrder.description,
+        customer: s.krokiSketch.serviceOrder.customer,
+      }))}
       customers={customers}
     />
   );

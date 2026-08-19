@@ -5,34 +5,37 @@ import { motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { toast } from "sonner";
-import { Printer, QrCode as QrCodeIcon, Search, ShieldAlert } from "lucide-react";
+import { Printer, QrCode as QrCodeIcon, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
 import { GLASS_CARD } from "@/components/dashboard/shared";
-import { StationStatusBadge } from "@/components/operations/operations-badges";
 import { QrCodeImage } from "@/components/operations/qr-code-image";
-import { StationQrModal, stationQrValue } from "@/components/operations/station-qr-modal";
-import { isStationOverdue, type Station } from "@/lib/mock/operations";
+import { KrokiStationQrModal, krokiStationQrValue } from "@/components/operations/kroki-station-qr-modal";
+import { stationColor, stationLabel } from "@/components/crm/kroki-constants";
+import type { KrokiStationType } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
-interface StationWithCustomer extends Station {
+export interface KrokiStationRow {
+  id: string;
+  type: KrokiStationType;
+  number: number | null;
+  stationId: string;
+  sketchName: string;
+  serviceName: string;
   customer: { id: string; companyName: string } | null;
 }
 
-export function QrCheckPage({
-  initialStations,
-  customers,
-}: {
-  initialStations: StationWithCustomer[];
-  customers: { id: string; companyName: string }[];
-}) {
+function displayLabel(station: KrokiStationRow): string {
+  return station.stationId || (station.number != null ? `İstasyon ${station.number}` : "İstasyon");
+}
+
+export function QrCheckPage({ initialStations }: { initialStations: KrokiStationRow[] }) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [customerFilter, setCustomerFilter] = useState("all");
-  const [selectedStation, setSelectedStation] = useState<StationWithCustomer | null>(null);
+  const [selectedStation, setSelectedStation] = useState<KrokiStationRow | null>(null);
   const [printing, setPrinting] = useState(false);
 
   const stations = initialStations;
@@ -48,14 +51,19 @@ export function QrCheckPage({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return stations.filter((s) => {
-      if (customerFilter !== "all" && s.customerId !== customerFilter) return false;
-      if (q && !s.label.toLowerCase().includes(q) && !s.qrCode.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [stations, search, customerFilter]);
+    if (!q) return stations;
+    return stations.filter(
+      (s) =>
+        displayLabel(s).toLowerCase().includes(q) ||
+        s.customer?.companyName.toLowerCase().includes(q) ||
+        s.sketchName.toLowerCase().includes(q),
+    );
+  }, [stations, search]);
 
-  const overdueCount = useMemo(() => stations.filter(isStationOverdue).length, [stations]);
+  const coveredCustomerCount = useMemo(
+    () => new Set(stations.map((s) => s.customer?.id).filter(Boolean)).size,
+    [stations],
+  );
 
   async function printAll() {
     if (filtered.length === 0) return;
@@ -63,10 +71,9 @@ export function QrCheckPage({
     try {
       const labels = await Promise.all(
         filtered.map(async (s) => ({
-          label: s.label,
-          code: s.qrCode,
+          label: displayLabel(s),
           customer: s.customer?.companyName ?? "",
-          dataUrl: await QRCode.toDataURL(stationQrValue(s), { width: 220, margin: 1, color: { dark: "#0f2942", light: "#ffffff" } }),
+          dataUrl: await QRCode.toDataURL(krokiStationQrValue(s), { width: 220, margin: 1, color: { dark: "#0f2942", light: "#ffffff" } }),
         })),
       );
       const win = window.open("", "_blank");
@@ -78,7 +85,6 @@ export function QrCheckPage({
           <img src="${l.dataUrl}" alt="QR" />
           <p class="title">${l.label}</p>
           <p class="customer">${l.customer}</p>
-          <p class="code">${l.code}</p>
         </div>`,
         )
         .join("");
@@ -90,7 +96,6 @@ export function QrCheckPage({
           .label img{width:120px;height:120px;}
           .label p.title{font-weight:700;font-size:12px;margin:6px 0 1px;}
           .label p.customer{font-size:10px;color:#475569;margin:0;}
-          .label p.code{font-family:monospace;font-size:10px;color:#64748b;margin:2px 0 0;}
         </style></head>
         <body><div class="grid">${cards}</div><script>window.print();</script></body></html>`);
       win.document.close();
@@ -120,44 +125,14 @@ export function QrCheckPage({
         </Button>
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <CrmKpiCard label="Toplam Etiket" value={stations.length} description="QR kodu tanımlı istasyon" changePercent={5} icon={QrCodeIcon} accent="blue" delay={0.05} />
-        <CrmKpiCard label="Vadesi Geçen Kontrol" value={overdueCount} description="Okutulması gereken istasyon" changePercent={overdueCount > 0 ? 12 : -12} icon={ShieldAlert} accent="amber" delay={0.1} />
-        <CrmKpiCard label="Kapsanan Müşteri" value={customers.length} description="Etiketli istasyona sahip müşteri" changePercent={4} icon={QrCodeIcon} accent="emerald" delay={0.15} />
+        <CrmKpiCard label="Kapsanan Müşteri" value={coveredCustomerCount} description="Etiketli istasyona sahip müşteri" changePercent={4} icon={QrCodeIcon} accent="emerald" delay={0.1} />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="İstasyon veya QR koda göre ara…" className="h-11 rounded-xl pl-10" />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => setCustomerFilter("all")}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              customerFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70",
-            )}
-          >
-            Tüm Müşteriler
-          </button>
-          {customers.slice(0, 5).map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCustomerFilter(c.id)}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                customerFilter === c.id
-                  ? "border-primary/20 bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:bg-muted",
-              )}
-            >
-              {c.companyName}
-            </button>
-          ))}
-        </div>
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="İstasyon veya müşteriye göre ara…" className="h-11 rounded-xl pl-10" />
       </div>
 
       {filtered.length === 0 ? (
@@ -173,13 +148,18 @@ export function QrCheckPage({
             >
               <Card className={cn(GLASS_CARD, "h-full cursor-pointer rounded-2xl")} onClick={() => setSelectedStation(station)}>
                 <CardContent className="flex flex-col items-center gap-2.5 text-center">
-                  <QrCodeImage value={stationQrValue(station)} size={96} />
+                  <QrCodeImage value={krokiStationQrValue(station)} size={96} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{station.label}</p>
+                    <p className="truncate text-sm font-semibold text-foreground">{displayLabel(station)}</p>
                     <p className="truncate text-xs text-muted-foreground">{station.customer?.companyName}</p>
                   </div>
-                  <StationStatusBadge status={station.status} className="text-[10px]" />
-                  {isStationOverdue(station) && <p className="text-[10px] font-medium text-destructive">Kontrol vadesi geçti</p>}
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                    style={{ background: `${stationColor(station.type)}1a`, color: stationColor(station.type) }}
+                  >
+                    <span className="size-2 rounded-full" style={{ background: stationColor(station.type) }} />
+                    {stationLabel(station.type)}
+                  </span>
                 </CardContent>
               </Card>
             </motion.div>
@@ -187,10 +167,10 @@ export function QrCheckPage({
         </div>
       )}
       {filtered.length > 60 && (
-        <p className="text-center text-xs text-muted-foreground">İlk 60 istasyon gösteriliyor — daraltmak için arama/filtre kullanın.</p>
+        <p className="text-center text-xs text-muted-foreground">İlk 60 istasyon gösteriliyor — daraltmak için arama kullanın.</p>
       )}
 
-      <StationQrModal station={selectedStation} open={!!selectedStation} onOpenChange={(open) => !open && setSelectedStation(null)} />
+      <KrokiStationQrModal station={selectedStation} open={!!selectedStation} onOpenChange={(open) => !open && setSelectedStation(null)} />
     </div>
   );
 }

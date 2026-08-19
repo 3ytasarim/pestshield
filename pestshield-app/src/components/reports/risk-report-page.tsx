@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
@@ -41,6 +42,11 @@ export function RiskReportPage({ initialRisks, customers }: RiskReportPageProps)
         customerId: customerId !== "all" ? customerId : undefined,
       }),
     [initialRisks, customers, status, customerId],
+  );
+
+  const customerItems = useMemo(
+    () => [{ value: "all", label: "Tüm Müşteriler" }, ...customers.map((c) => ({ value: c.id, label: c.companyName }))],
+    [customers],
   );
   const activeCount = rows.filter((r) => r.status !== "closed").length;
   const highCount = rows.filter((r) => r.status !== "closed" && r.score >= 9).length;
@@ -80,7 +86,7 @@ export function RiskReportPage({ initialRisks, customers }: RiskReportPageProps)
             <Label className="mb-1.5">Durum</Label>
             <Select value={status} onValueChange={(v) => setStatus((v as RiskStatus | "all") ?? "all")}>
               <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                <SelectValue />
+                <SelectValue>{() => STATUS_OPTIONS.find((o) => o.value === status)?.label ?? "Tüm Durumlar"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((o) => (
@@ -93,19 +99,20 @@ export function RiskReportPage({ initialRisks, customers }: RiskReportPageProps)
           </div>
           <div>
             <Label className="mb-1.5">Müşteri</Label>
-            <Select value={customerId} onValueChange={(v) => setCustomerId(v ?? "all")}>
-              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Müşteriler</SelectItem>
-                {customers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.companyName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              items={customerItems}
+              value={customerItems.find((c) => c.value === customerId) ?? null}
+              onValueChange={(selected) => setCustomerId(selected?.value ?? "all")}
+            >
+              <ComboboxInput placeholder="Müşteri ara…" className="h-11 rounded-xl px-3.5 pl-8" />
+              <ComboboxContent>
+                {(option: { value: string; label: string }) => (
+                  <ComboboxItem key={option.value} value={option}>
+                    {option.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxContent>
+            </Combobox>
           </div>
         </CardContent>
       </Card>

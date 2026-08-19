@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CrmKpiCard } from "@/components/crm/crm-kpi-card";
 import { EmptyState } from "@/components/crm/detail/empty-state";
@@ -72,6 +73,16 @@ export function TahakkukReportPage() {
     return rows.filter((r) => r.customerName.toLowerCase().includes(q) || r.serviceName.toLowerCase().includes(q));
   }, [rows, search]);
 
+  const customerItems = useMemo(
+    () => [{ value: "all", label: "Tüm Müşteriler" }, ...customers.map((c) => ({ value: c.id, label: c.companyName }))],
+    [customers],
+  );
+  const durumItems = [
+    { value: "all", label: "Tümü" },
+    { value: "tamamlandi", label: "Tamamlandı" },
+    { value: "bekliyor", label: "Bekliyor" },
+  ];
+
   const tamamlananCount = rows.filter((r) => r.durum === "tamamlandi").length;
   const bekleyenCount = rows.filter((r) => r.durum === "bekliyor").length;
 
@@ -126,25 +137,26 @@ export function TahakkukReportPage() {
           </div>
           <div>
             <Label className="mb-1.5">Müşteri</Label>
-            <Select value={customerId} onValueChange={(v) => setCustomerId(v ?? "all")}>
-              <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Müşteriler</SelectItem>
-                {customers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.companyName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              items={customerItems}
+              value={customerItems.find((c) => c.value === customerId) ?? null}
+              onValueChange={(selected) => setCustomerId(selected?.value ?? "all")}
+            >
+              <ComboboxInput placeholder="Müşteri ara…" className="h-11 rounded-xl px-3.5 pl-8" />
+              <ComboboxContent>
+                {(option: { value: string; label: string }) => (
+                  <ComboboxItem key={option.value} value={option}>
+                    {option.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxContent>
+            </Combobox>
           </div>
           <div>
             <Label className="mb-1.5">Periyot Durumu</Label>
             <Select value={durum} onValueChange={(v) => setDurum(v ?? "all")}>
               <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                <SelectValue />
+                <SelectValue>{() => durumItems.find((d) => d.value === durum)?.label ?? "Tümü"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tümü</SelectItem>

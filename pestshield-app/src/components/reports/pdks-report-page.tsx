@@ -113,7 +113,7 @@ export function PdksReportPage() {
             <Label className="mb-1.5">Personel</Label>
             <Select value={technicianId} onValueChange={(v) => setTechnicianId(v ?? "all")}>
               <SelectTrigger className="h-11 w-full rounded-xl px-3.5">
-                <SelectValue />
+                <SelectValue>{() => (technicianId === "all" ? "Tüm Personel" : (technician?.name ?? "Tüm Personel"))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tüm Personel</SelectItem>
