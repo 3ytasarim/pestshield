@@ -6,6 +6,7 @@ import { LICENSE_PRESETS } from "@/lib/license";
 import { generateLicenseCode } from "@/lib/license-codegen";
 import { getPlatformSmtpTransport } from "@/lib/mail/get-platform-smtp-transport";
 import { buildEmailSignatureHtml } from "@/lib/mail/build-signature";
+import { isMultiTenant } from "@/lib/tenant";
 
 const TYPE_LABEL: Record<"DEMO" | "MONTHLY" | "YEARLY", string> = {
   DEMO: "5 Günlük Demo",
@@ -28,6 +29,8 @@ async function sendLicenseCreatedEmail(params: {
   type: "DEMO" | "MONTHLY" | "YEARLY";
   durationDays: number;
 }) {
+  if (!isMultiTenant()) return;
+
   const resolved = getPlatformSmtpTransport();
   if (!resolved) return;
 
