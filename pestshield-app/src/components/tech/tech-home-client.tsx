@@ -8,12 +8,12 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { WorkdayTracker } from "@/components/tech/workday-tracker";
 import { NotificationPermissionSheet } from "@/components/tech/notification-permission-sheet";
-import type { Customer, WorkOrder } from "@/lib/mock/crm";
+import type { WorkOrder } from "@/lib/mock/crm";
 import { cn } from "@/lib/utils";
 
 interface TechHomeClientProps {
   userName: string;
-  orders: (WorkOrder & { customer: Customer | undefined })[];
+  orders: (WorkOrder & { customer: { id: string; companyName: string } | null })[];
 }
 
 export function TechHomeClient({ userName, orders }: TechHomeClientProps) {
