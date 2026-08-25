@@ -368,6 +368,7 @@ model User {
   workOrders         WorkOrder[]
   technicianWorkdays TechnicianWorkday[]
   locationPings      TechnicianLocationPing[]
+  workdayEvents      WorkdayEvent[]
   invoices           Invoice[]
   collections        Collection[]
   bankAccounts       BankAccount[]
@@ -572,6 +573,7 @@ model Customer {
   correctiveActions  CorrectiveAction[]
   risks              Risk[]
   complianceChecklistItems ComplianceChecklistItem[]
+  workdayEvents            WorkdayEvent[]
   periyotOccurrences PeriyotOccurrence[]
   supportTickets     SupportTicket[]
   generatedReports   GeneratedReport[]
@@ -849,7 +851,8 @@ model TechnicianWorkday {
   startedAt DateTime
   endedAt   DateTime?
 
-  pings TechnicianLocationPing[]
+  pings  TechnicianLocationPing[]
+  events WorkdayEvent[]
 
   @@unique([technicianId, date])
   @@index([ownerId])
@@ -870,6 +873,35 @@ model TechnicianLocationPing {
 
   @@index([workdayId])
   @@map("technician_location_pings")
+}
+
+enum WorkdayEventType {
+  break_start
+  break_end
+  customer_arrival
+  customer_departure
+}
+
+/// Teknisyenin mesai gün içindeki ara durumları (Mola, Müşteride) — append-only event log,
+/// TechnicianLocationPing ile ayni desende. PDKS raporunda "Mola Süresi" ve gerçek müşteri
+/// ziyaret sayısı bu tablodan hesaplanır (bkz. src/app/api/reports/pdks/route.ts).
+model WorkdayEvent {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  workdayId String
+  workday   TechnicianWorkday @relation(fields: [workdayId], references: [id], onDelete: Cascade)
+
+  type       WorkdayEventType
+  occurredAt DateTime @default(now())
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+  @@index([workdayId])
+  @@map("workday_events")
 }
 
 model Vehicle {

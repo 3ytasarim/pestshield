@@ -12,8 +12,10 @@ export interface PdksRow {
   startTime: string | null;
   endTime: string | null;
   durationMinutes: number | null;
+  breakMinutes: number;
   stopCount: number;
   distanceKm: number;
+  timeline: { type: string; time: string | null; customerName: string | null }[];
 }
 
 const STATUS_LABELS: Record<PdksRow["status"], string> = {
@@ -31,6 +33,7 @@ export async function printPdksReport(
   const totalMinutes = rows.reduce((sum, r) => sum + (r.durationMinutes ?? 0), 0);
   const totalDistance = rows.reduce((sum, r) => sum + r.distanceKm, 0);
   const totalStops = rows.reduce((sum, r) => sum + r.stopCount, 0);
+  const totalBreakMinutes = rows.reduce((sum, r) => sum + r.breakMinutes, 0);
 
   function fmtDuration(min: number | null): string {
     if (min === null) return "Devam ediyor";
@@ -89,6 +92,7 @@ export async function printPdksReport(
     <div class="kpi-box"><p class="kpi-label">Toplam Çalışma Süresi</p><p class="kpi-value">${fmtDuration(totalMinutes)}</p></div>
     <div class="kpi-box"><p class="kpi-label">Toplam Mesafe</p><p class="kpi-value">${totalDistance.toFixed(1)} km</p></div>
     <div class="kpi-box"><p class="kpi-label">Toplam Ziyaret</p><p class="kpi-value">${totalStops}</p></div>
+    <div class="kpi-box"><p class="kpi-label">Toplam Mola Süresi</p><p class="kpi-value">${fmtDuration(totalBreakMinutes)}</p></div>
   </div>
 
   <div class="section-block" style="margin-top: 20px;">
@@ -100,6 +104,7 @@ export async function printPdksReport(
           <th>Giriş Saati</th>
           <th>Çıkış Saati</th>
           <th>Çalışma Süresi</th>
+          <th>Mola Süresi</th>
           <th>Ziyaret</th>
           <th class="num">Mesafe (km)</th>
           <th>Durum</th>
@@ -116,13 +121,14 @@ export async function printPdksReport(
           <td>${r.startTime ?? "—"}</td>
           <td>${r.endTime ?? "—"}</td>
           <td>${fmtDuration(r.durationMinutes)}</td>
+          <td>${fmtDuration(r.breakMinutes)}</td>
           <td>${r.stopCount}</td>
           <td class="num">${r.distanceKm.toFixed(1)}</td>
           <td>${escapeHtml(STATUS_LABELS[r.status])}</td>
         </tr>`,
                 )
                 .join("")
-            : `<tr><td colspan="8" style="text-align:center; color:#94a3b8;">Kayıt bulunamadı.</td></tr>`
+            : `<tr><td colspan="9" style="text-align:center; color:#94a3b8;">Kayıt bulunamadı.</td></tr>`
         }
       </tbody>
     </table>

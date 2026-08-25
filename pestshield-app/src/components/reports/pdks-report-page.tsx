@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, Printer, Route as RouteIcon, Timer, Users } from "lucide-react";
+import { ChevronDown, Clock, Coffee, Printer, Route as RouteIcon, Timer, Users } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,13 @@ const STATUS_BADGE: Record<string, string> = {
   Başlamadı: "bg-muted text-muted-foreground",
 };
 
+const TIMELINE_LABELS: Record<string, string> = {
+  break_start: "Molaya başladı",
+  break_end: "Moladan döndü",
+  customer_arrival: "Müşteriye vardı",
+  customer_departure: "Müşteriden ayrıldı",
+};
+
 export function PdksReportPage() {
   const [technicianId, setTechnicianId] = useState<string>("all");
   const [startDate, setStartDate] = useState("");
@@ -45,6 +52,7 @@ export function PdksReportPage() {
   const [printing, setPrinting] = useState(false);
   const [technicianOptions, setTechnicianOptions] = useState<TechnicianOption[]>([]);
   const [rows, setRows] = useState<PdksRow[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const technician = technicianId === "all" ? null : (technicianOptions.find((t) => t.id === technicianId) ?? null);
 
@@ -69,6 +77,7 @@ export function PdksReportPage() {
   const totalMinutes = rows.reduce((sum, r) => sum + (r.durationMinutes ?? 0), 0);
   const totalDistance = rows.reduce((sum, r) => sum + r.distanceKm, 0);
   const totalStops = rows.reduce((sum, r) => sum + r.stopCount, 0);
+  const totalBreakMinutes = rows.reduce((sum, r) => sum + r.breakMinutes, 0);
 
   function fmtDuration(min: number): string {
     const h = Math.floor(min / 60);
@@ -140,11 +149,12 @@ export function PdksReportPage() {
         <EmptyState icon={Clock} title="Kayıt bulunamadı" description="Seçilen filtrelere uygun mesai kaydı yok." />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <CrmKpiCard label="Toplam Gün" value={rows.length} description="Kayıtlı mesai günü" changePercent={4} icon={Users} accent="blue" delay={0.05} />
             <CrmKpiCard label="Toplam Çalışma Süresi" value={totalMinutes} format={(v) => fmtDuration(v)} description="Tüm kayıtların toplamı" changePercent={6} icon={Timer} accent="emerald" delay={0.1} />
             <CrmKpiCard label="Toplam Mesafe" value={totalDistance} format={(v) => `${v.toFixed(1)} km`} description="Saha rotası" changePercent={3} icon={RouteIcon} accent="amber" delay={0.15} />
             <CrmKpiCard label="Toplam Ziyaret" value={totalStops} description="Müşteri durakları" changePercent={5} icon={Clock} accent="blue" delay={0.2} />
+            <CrmKpiCard label="Toplam Mola Süresi" value={totalBreakMinutes} format={(v) => fmtDuration(v)} description="Tüm kayıtların toplamı" changePercent={-2} icon={Coffee} accent="amber" delay={0.25} />
           </div>
 
           <Card className="min-w-0 gap-0 overflow-hidden rounded-2xl border-border/60 py-0 shadow-sm">
@@ -165,26 +175,59 @@ export function PdksReportPage() {
                       <TableHead>Giriş Saati</TableHead>
                       <TableHead>Çıkış Saati</TableHead>
                       <TableHead>Çalışma Süresi</TableHead>
+                      <TableHead className="hidden sm:table-cell">Mola</TableHead>
                       <TableHead className="hidden sm:table-cell">Ziyaret</TableHead>
                       <TableHead className="hidden sm:table-cell">Mesafe</TableHead>
                       <TableHead>Durum</TableHead>
+                      <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r) => (
-                      <TableRow key={r.workdayId}>
-                        <TableCell className="font-medium whitespace-nowrap">{formatDate(r.date)}</TableCell>
-                        <TableCell>{r.technicianName}</TableCell>
-                        <TableCell>{r.startTime ?? "—"}</TableCell>
-                        <TableCell>{r.endTime ?? "—"}</TableCell>
-                        <TableCell>{r.durationMinutes !== null ? fmtDuration(r.durationMinutes) : "Devam ediyor"}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{r.stopCount}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{r.distanceKm.toFixed(1)} km</TableCell>
-                        <TableCell>
-                          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_BADGE[STATUS_LABELS[r.status]])}>{STATUS_LABELS[r.status]}</span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {rows.map((r) => {
+                      const isExpanded = expandedId === r.workdayId;
+                      return (
+                        <Fragment key={r.workdayId}>
+                          <TableRow
+                            className={cn(r.timeline.length > 0 && "cursor-pointer")}
+                            onClick={() => r.timeline.length > 0 && setExpandedId(isExpanded ? null : r.workdayId)}
+                          >
+                            <TableCell className="font-medium whitespace-nowrap">{formatDate(r.date)}</TableCell>
+                            <TableCell>{r.technicianName}</TableCell>
+                            <TableCell>{r.startTime ?? "—"}</TableCell>
+                            <TableCell>{r.endTime ?? "—"}</TableCell>
+                            <TableCell>{r.durationMinutes !== null ? fmtDuration(r.durationMinutes) : "Devam ediyor"}</TableCell>
+                            <TableCell className="hidden sm:table-cell">{r.breakMinutes > 0 ? fmtDuration(r.breakMinutes) : "—"}</TableCell>
+                            <TableCell className="hidden sm:table-cell">{r.stopCount}</TableCell>
+                            <TableCell className="hidden sm:table-cell">{r.distanceKm.toFixed(1)} km</TableCell>
+                            <TableCell>
+                              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_BADGE[STATUS_LABELS[r.status]])}>{STATUS_LABELS[r.status]}</span>
+                            </TableCell>
+                            <TableCell>
+                              {r.timeline.length > 0 && (
+                                <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={10} className="bg-muted/30 py-3">
+                                <div className="flex flex-col gap-1.5 text-xs">
+                                  {r.timeline.map((e, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                      <span className="w-14 shrink-0 font-mono text-muted-foreground">{e.time ?? "—"}</span>
+                                      <span className="text-foreground">
+                                        {TIMELINE_LABELS[e.type] ?? e.type}
+                                        {e.customerName && ` — ${e.customerName}`}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

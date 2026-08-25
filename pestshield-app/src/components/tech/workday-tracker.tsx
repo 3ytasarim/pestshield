@@ -1,14 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { AlertTriangle, MapPin, Play, RotateCw, Square } from "lucide-react";
+import { AlertTriangle, Coffee, LogIn, LogOut, MapPin, Play, RotateCw, Square } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import { GLASS_CARD } from "@/components/dashboard/shared";
 import { haversineKm, routeDistanceKm, type GeoPoint, type RouteStop } from "@/lib/mock/tracking";
 import { cn } from "@/lib/utils";
+
+type WorkdayEventType = "break_start" | "break_end" | "customer_arrival" | "customer_departure";
+
+interface WorkdayEventRow {
+  id: string;
+  type: WorkdayEventType;
+  occurredAt: string;
+  customer: { id: string; companyName: string } | null;
+}
+
+const EVENT_LABELS: Record<WorkdayEventType, string> = {
+  break_start: "Molaya başladı",
+  break_end: "Moladan döndü",
+  customer_arrival: "Müşteriye vardı",
+  customer_departure: "Müşteriden ayrıldı",
+};
 
 const RouteMap = dynamic(() => import("@/components/tracking/route-map").then((m) => m.RouteMap), {
   ssr: false,
@@ -67,12 +84,22 @@ interface ServerWorkday {
   startedAt: string;
   endedAt: string | null;
   pings: { lat: number; lng: number; recordedAt: string }[];
+  events: WorkdayEventRow[];
+}
+
+interface CustomerOption {
+  id: string;
+  companyName: string;
 }
 
 export function WorkdayTracker() {
   const [state, setState] = useState<StoredWorkday>(() => loadStored());
   const [geoError, setGeoError] = useState<string | null>(null);
   const [, forceTick] = useState(0);
+  const [events, setEvents] = useState<WorkdayEventRow[]>([]);
+  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
+  const [pickingCustomer, setPickingCustomer] = useState(false);
+  const [eventBusy, setEventBusy] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // recordPoint() setInterval kapanışında state'i taze tutmak için — GPS
@@ -136,6 +163,7 @@ export function WorkdayTracker() {
           endedAt: w.endedAt,
           points: w.pings.map((p) => ({ lat: p.lat, lng: p.lng, timestamp: p.recordedAt })),
         });
+        setEvents(w.events ?? []);
         if (w.status === "in_progress" && intervalRef.current === null) {
           intervalRef.current = setInterval(recordPoint, PING_INTERVAL_MS);
           requestWakeLock();
@@ -147,6 +175,13 @@ export function WorkdayTracker() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/crm/customers/assigned")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customers?: CustomerOption[] } | null) => setCustomerOptions(data?.customers ?? []))
+      .catch(() => setCustomerOptions([]));
   }, []);
 
   useEffect(() => {
@@ -291,7 +326,35 @@ export function WorkdayTracker() {
     pointsRef.current = [];
     pendingPointRef.current = null;
     setState({ status: "not_started", startedAt: null, endedAt: null, points: [] });
+    setEvents([]);
     setGeoError(null);
+  }
+
+  const lastEvent = events[events.length - 1] ?? null;
+  const onBreak = lastEvent?.type === "break_start";
+  const atCustomer = lastEvent?.type === "customer_arrival";
+
+  const customerItems = useMemo(() => customerOptions.map((c) => ({ value: c.id, label: c.companyName })), [customerOptions]);
+
+  async function sendEvent(type: WorkdayEventType, customerId?: string) {
+    setEventBusy(true);
+    try {
+      const res = await fetch("/api/tech/workday/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, customerId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.message ?? "İşlem kaydedilemedi");
+        return;
+      }
+      setEvents((prev) => [...prev, data.event]);
+      setPickingCustomer(false);
+      toast.success(EVENT_LABELS[type]);
+    } finally {
+      setEventBusy(false);
+    }
   }
 
   const distance = routeDistanceKm(state.points);
@@ -344,7 +407,15 @@ export function WorkdayTracker() {
                   <span className="relative inline-flex size-2 rounded-full bg-success" />
                 </span>
               )}
-              {state.status === "not_started" ? "Mesai Dışı" : state.status === "in_progress" ? "Sahadasınız" : "Mesai Tamamlandı"}
+              {state.status === "not_started"
+                ? "Mesai Dışı"
+                : state.status === "completed"
+                  ? "Mesai Tamamlandı"
+                  : onBreak
+                    ? "Molada"
+                    : atCustomer
+                      ? `Müşteride${lastEvent?.customer ? ` — ${lastEvent.customer.companyName}` : ""}`
+                      : "Sahadasınız"}
             </span>
             {state.status !== "not_started" && (
               <button
@@ -369,14 +440,79 @@ export function WorkdayTracker() {
             </Button>
           )}
           {state.status === "in_progress" && (
-            <Button
-              size="lg"
-              onClick={endWork}
-              className="h-14 w-full rounded-xl bg-destructive text-base text-white hover:bg-destructive/90"
-            >
-              <Square className="size-4.5 fill-current" />
-              Mesaiyi Sonlandır
-            </Button>
+            <>
+              <div className="grid grid-cols-2 gap-2.5">
+                {onBreak ? (
+                  <Button
+                    variant="outline"
+                    loading={eventBusy}
+                    onClick={() => sendEvent("break_end")}
+                    className="h-11 rounded-xl border-amber-500/30 text-amber-600 dark:text-amber-400"
+                  >
+                    <Coffee className="size-4" />
+                    Moladan Dön
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    loading={eventBusy}
+                    disabled={atCustomer}
+                    onClick={() => sendEvent("break_start")}
+                    className="h-11 rounded-xl"
+                  >
+                    <Coffee className="size-4" />
+                    Molaya Başla
+                  </Button>
+                )}
+                {atCustomer ? (
+                  <Button
+                    variant="outline"
+                    loading={eventBusy}
+                    onClick={() => sendEvent("customer_departure")}
+                    className="h-11 rounded-xl border-primary/30 text-primary"
+                  >
+                    <LogOut className="size-4" />
+                    Müşteriden Ayrıl
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    disabled={onBreak}
+                    onClick={() => setPickingCustomer((v) => !v)}
+                    className="h-11 rounded-xl"
+                  >
+                    <LogIn className="size-4" />
+                    Müşteriye Vardım
+                  </Button>
+                )}
+              </div>
+
+              {pickingCustomer && (
+                <Combobox
+                  items={customerItems}
+                  value={null as { value: string; label: string } | null}
+                  onValueChange={(selected) => selected && void sendEvent("customer_arrival", selected.value)}
+                >
+                  <ComboboxInput placeholder="Müşteri ara…" className="h-11 rounded-xl px-3.5 pl-8" />
+                  <ComboboxContent>
+                    {(option: { value: string; label: string }) => (
+                      <ComboboxItem key={option.value} value={option}>
+                        {option.label}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxContent>
+                </Combobox>
+              )}
+
+              <Button
+                size="lg"
+                onClick={endWork}
+                className="h-14 w-full rounded-xl bg-destructive text-base text-white hover:bg-destructive/90"
+              >
+                <Square className="size-4.5 fill-current" />
+                Mesaiyi Sonlandır
+              </Button>
+            </>
           )}
           {state.status === "completed" && (
             <div className="rounded-xl bg-muted/40 px-3.5 py-3 text-center text-sm text-muted-foreground">
@@ -413,6 +549,26 @@ export function WorkdayTracker() {
               <MapPin className="size-3.5" />
               Son konum: {lastPoint.lat.toFixed(5)}, {lastPoint.lng.toFixed(5)} · {new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(lastPoint.timestamp))}
             </p>
+          )}
+
+          {events.length > 0 && (
+            <div className="flex flex-col gap-1.5 border-t border-border/60 pt-3.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Bugünkü Hareketler</p>
+              {events
+                .slice()
+                .reverse()
+                .map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-foreground">
+                      {EVENT_LABELS[e.type]}
+                      {e.customer && ` — ${e.customer.companyName}`}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">
+                      {new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" }).format(new Date(e.occurredAt))}
+                    </span>
+                  </div>
+                ))}
+            </div>
           )}
         </CardContent>
       </Card>

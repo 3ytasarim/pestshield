@@ -12,7 +12,10 @@ export async function GET() {
 
   const workday = await prisma.technicianWorkday.findUnique({
     where: { technicianId_date: { technicianId, date: todayKey() } },
-    include: { pings: { orderBy: { recordedAt: "asc" } } },
+    include: {
+      pings: { orderBy: { recordedAt: "asc" } },
+      events: { orderBy: { occurredAt: "asc" }, include: { customer: { select: { id: true, companyName: true } } } },
+    },
   });
 
   return NextResponse.json({ workday });

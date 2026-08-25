@@ -31,41 +31,43 @@ export async function GET(request: Request) {
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
 
-  const [workdays, stationChecks] = await Promise.all([
-    prisma.technicianWorkday.findMany({
-      where: {
-        ownerId,
-        ...(technicianId ? { technicianId } : {}),
-        ...(startDate ? { date: { gte: startDate } } : {}),
-        ...(endDate ? { date: { lte: endDate } } : {}),
-      },
-      include: {
-        technician: { select: { id: true, name: true } },
-        pings: { orderBy: { recordedAt: "asc" } },
-      },
-      orderBy: { date: "desc" },
-    }),
-    prisma.stationCheck.findMany({
-      where: {
-        ownerId,
-        ...(technicianId ? { technicianId } : {}),
-        ...(startDate ? { checkedAt: { gte: startDate } } : {}),
-        ...(endDate ? { checkedAt: { lte: `${endDate}T23:59:59.999Z` } } : {}),
-      },
-      select: { technicianId: true, checkedAt: true },
-    }),
-  ]);
-
-  const checkCountByTechnicianDate = new Map<string, number>();
-  for (const check of stationChecks) {
-    if (!check.technicianId) continue;
-    const key = `${check.technicianId}-${check.checkedAt.slice(0, 10)}`;
-    checkCountByTechnicianDate.set(key, (checkCountByTechnicianDate.get(key) ?? 0) + 1);
-  }
+  const workdays = await prisma.technicianWorkday.findMany({
+    where: {
+      ownerId,
+      ...(technicianId ? { technicianId } : {}),
+      ...(startDate ? { date: { gte: startDate } } : {}),
+      ...(endDate ? { date: { lte: endDate } } : {}),
+    },
+    include: {
+      technician: { select: { id: true, name: true } },
+      pings: { orderBy: { recordedAt: "asc" } },
+      events: { orderBy: { occurredAt: "asc" }, include: { customer: { select: { companyName: true } } } },
+    },
+    orderBy: { date: "desc" },
+  });
 
   const rows = workdays.map((w) => {
     const durationMinutes =
       w.startedAt && w.endedAt ? Math.round((w.endedAt.getTime() - w.startedAt.getTime()) / 60_000) : null;
+
+    let breakMinutes = 0;
+    let openBreakStart: Date | null = null;
+    let customerVisitCount = 0;
+    for (const e of w.events) {
+      if (e.type === "break_start") openBreakStart = e.occurredAt;
+      if (e.type === "break_end" && openBreakStart) {
+        breakMinutes += Math.round((e.occurredAt.getTime() - openBreakStart.getTime()) / 60_000);
+        openBreakStart = null;
+      }
+      if (e.type === "customer_arrival") customerVisitCount += 1;
+    }
+
+    const timeline = w.events.map((e) => ({
+      type: e.type,
+      time: formatTime(e.occurredAt),
+      customerName: e.customer?.companyName ?? null,
+    }));
+
     return {
       workdayId: w.id,
       technicianName: w.technician?.name ?? "—",
@@ -74,8 +76,10 @@ export async function GET(request: Request) {
       startTime: formatTime(w.startedAt),
       endTime: formatTime(w.endedAt),
       durationMinutes,
-      stopCount: checkCountByTechnicianDate.get(`${w.technicianId}-${w.date}`) ?? 0,
+      breakMinutes,
+      stopCount: customerVisitCount,
       distanceKm: distanceKm(w.pings.map((p) => ({ lat: p.lat, lng: p.lng }))),
+      timeline,
     };
   });
 
