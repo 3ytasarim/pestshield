@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, MapPin, QrCode, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +39,8 @@ interface KrokiSketchRow {
 type Step = "customer" | "sketch" | "stations";
 
 export function TechStationsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [step, setStep] = useState<Step>("customer");
   const [search, setSearch] = useState("");
 
@@ -61,7 +64,7 @@ export function TechStationsPage() {
     return customers.filter((c) => c.companyName.toLowerCase().includes(q));
   }, [customers, search]);
 
-  function selectCustomer(customer: CustomerRow) {
+  const loadSketches = useCallback((customer: CustomerRow, restoreSketchId?: string | null) => {
     setSelectedCustomer(customer);
     setSearch("");
     setStep("sketch");
@@ -80,16 +83,42 @@ export function TechStationsPage() {
               .catch(() => []),
           ),
         );
-        setSketches(lists.flat());
+        const flat = lists.flat();
+        setSketches(flat);
+        // Iş emrinden ("QR ile Okut" sonrası "İstasyon Listesine Dön") gelindiyse,
+        // Müşteri/Kroki seçimini baştan yaptırmadan doğrudan istasyon listesine dön.
+        if (restoreSketchId) {
+          const match = flat.find((s) => s.id === restoreSketchId);
+          if (match) {
+            setSelectedSketch(match);
+            setStep("stations");
+          }
+        }
       })
       .catch(() => setSketches([]))
       .finally(() => setLoadingSketches(false));
+  }, []);
+
+  function selectCustomer(customer: CustomerRow) {
+    loadSketches(customer);
   }
 
   function selectSketch(sketch: KrokiSketchRow) {
     setSelectedSketch(sketch);
     setStep("stations");
   }
+
+  // URL'de ?customerId=&sketchId= varsa (bir istasyondan "İstasyon Listesine Dön" ile
+  // geldiysek) Müşteri/Kroki adımlarını atlayıp doğrudan istasyon listesine dön.
+  useEffect(() => {
+    const customerId = searchParams.get("customerId");
+    const sketchId = searchParams.get("sketchId");
+    if (!customerId || customers.length === 0) return;
+    const customer = customers.find((c) => c.id === customerId);
+    if (customer) loadSketches(customer, sketchId);
+    router.replace("/dashboard/tech/stations");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers]);
 
   function goBack() {
     if (step === "stations") {
@@ -195,7 +224,10 @@ export function TechStationsPage() {
                     <span className="text-xs font-semibold text-muted-foreground uppercase">{t.label}</span>
                   </div>
                   {stationsOfType.map((s) => (
-                    <Link key={s.id} href={`/dashboard/tech/scan?stationId=${s.id}`}>
+                    <Link
+                      key={s.id}
+                      href={`/dashboard/tech/scan?stationId=${s.id}&customerId=${selectedCustomer?.id ?? ""}&sketchId=${selectedSketch.id}`}
+                    >
                       <Card className={cn(GLASS_CARD, "rounded-xl transition-colors active:bg-muted/40")}>
                         <CardContent className="flex items-center gap-3 py-3">
                           <div

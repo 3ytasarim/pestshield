@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import jsQR from "jsqr";
 import { toast } from "sonner";
@@ -94,6 +95,15 @@ function FieldSelect({ label, value, onChange, options }: { label: string; value
 
 export function StationScanPage({ technicianName }: { technicianName: string }) {
   const searchParams = useSearchParams();
+  // "İstasyon Listesine Dön" — tech-stations-page.tsx buradan geldiğimizde
+  // customerId/sketchId'yi de query'e ekliyor, oraya donunce Musteri/Kroki
+  // secimini baştan yaptırmadan doğrudan istasyon listesine dönebilelim.
+  const backCustomerId = searchParams.get("customerId");
+  const backSketchId = searchParams.get("sketchId");
+  const backToListHref =
+    backCustomerId && backSketchId
+      ? `/dashboard/tech/stations?customerId=${backCustomerId}&sketchId=${backSketchId}`
+      : null;
   const [cameraState, setCameraState] = useState<CameraState>("idle");
   const [manualCode, setManualCode] = useState("");
   const [resolving, setResolving] = useState(false);
@@ -302,11 +312,20 @@ export function StationScanPage({ technicianName }: { technicianName: string }) 
   if (station && inspection) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold">İstasyon Denetimi</h1>
-          <Button variant="outline" size="sm" onClick={reset}>
-            Başka İstasyon Tara
-          </Button>
+          <div className="flex shrink-0 gap-1.5">
+            {backToListHref && (
+              <Link href={backToListHref}>
+                <Button variant="outline" size="sm">
+                  İstasyon Listesine Dön
+                </Button>
+              </Link>
+            )}
+            <Button variant="outline" size="sm" onClick={reset}>
+              Başka İstasyon Tara
+            </Button>
+          </div>
         </div>
 
         <Card className={GLASS_CARD}>
