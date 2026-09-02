@@ -393,6 +393,8 @@ model User {
   documents          Document[]
   technicianDocuments TechnicianDocument[]
   vehicleDocuments    VehicleDocument[]
+  dailyReports        DailyReport[]
+  technicalReports    TechnicalReport[]
   companyRolesOwned  CompanyRole[] @relation("CompanyRoleOwner")
   companyUsersOwned  CompanyUser[] @relation("CompanyUserOwner")
   pestSpeciesEntries    PestSpeciesEntry[]
@@ -577,6 +579,7 @@ model Customer {
   periyotOccurrences PeriyotOccurrence[]
   supportTickets     SupportTicket[]
   generatedReports   GeneratedReport[]
+  technicalReports   TechnicalReport[]
 
   @@index([ownerId])
   @@map("customers")
@@ -825,14 +828,67 @@ model Technician {
   /// önerilen İş Emri olarak listelenir (bkz. /api/integrations/google-calendar/pending-imports).
   googleCalendarId String? @unique
 
-  vehicles      Vehicle[]
-  stationChecks StationCheck[]
-  workOrders    WorkOrder[]
-  workdays      TechnicianWorkday[]
-  documents     TechnicianDocument[]
+  vehicles         Vehicle[]
+  stationChecks    StationCheck[]
+  workOrders       WorkOrder[]
+  workdays         TechnicianWorkday[]
+  documents        TechnicianDocument[]
+  dailyReports     DailyReport[]
+  technicalReports TechnicalReport[]
 
   @@index([ownerId])
   @@map("technicians")
+}
+
+/// Teknisyenin müşteri bağlantısı olmayan genel günlük notu — teknisyen mobilinde
+/// "Günlük Rapor" ekranından girilir (bkz. src/components/tech/tech-daily-reports-page.tsx).
+model DailyReport {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  reportDate  String // YYYY-MM-DD
+  description String @db.Text // RichTextEditor HTML çıktısı
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([technicianId])
+  @@map("daily_reports")
+}
+
+/// Teknisyenin belirli bir müşteri için hazırladığı, belge ekli teknik rapor —
+/// teknisyen mobilinde "Teknik Rapor" ekranından girilir, isteğe bağlı olarak
+/// müşteriye e-posta ile gönderilebilir (bkz. tech-technical-reports-page.tsx).
+model TechnicalReport {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  reportDate   String
+  description  String @db.Text
+  documentName String
+  fileDataUrl  String @db.Text
+  fileName     String
+  fileType     String @default("")
+
+  emailSentAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([technicianId])
+  @@index([customerId])
+  @@map("technical_reports")
 }
 
 /// Bir teknisyenin bir gunluk mesai oturumu - "Mesaiye Basla"/"Mesaiyi
