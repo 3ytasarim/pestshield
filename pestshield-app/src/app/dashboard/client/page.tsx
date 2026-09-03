@@ -38,7 +38,7 @@ export default async function ClientDashboardPage() {
   const session = await auth();
   const ownerId = session!.user.id;
 
-  const [owner, customers, offers, serviceOrders, stations, stationChecks, workOrders, openCorrectiveActionCount] = await Promise.all([
+  const [owner, customers, offers, serviceOrders, stations, stationChecks, stationInspections, workOrders, openCorrectiveActionCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: ownerId }, select: { companyName: true, logoUrl: true } }),
     prisma.customer.findMany({ where: { ownerId }, select: { id: true, companyName: true, createdAt: true } }),
     prisma.offer.findMany({
@@ -52,6 +52,22 @@ export default async function ClientDashboardPage() {
       include: {
         technician: { select: { name: true } },
         station: { select: { type: true, customerId: true, customer: { select: { companyName: true } } } },
+      },
+    }),
+    // Haşere Aktivite Trendi grafiği için — gerçek/güncel veri kaynağı. Yukarıdaki
+    // stationCheck artık teknisyenlerin kullanmadığı eski bir akıştan kalma (bkz.
+    // computePestActivityTrend'in yorumu), diğer hesaplamalar (criticalRisks vb.) bu
+    // değişikliğin kapsamı dışında olduğu için ona hâlâ dokunulmuyor.
+    prisma.stationInspection.findMany({
+      where: { ownerId },
+      select: {
+        stationType: true,
+        tuketim: true,
+        hareket: true,
+        tur1: true,
+        tur2: true,
+        sayim: true,
+        periyotOccurrence: { select: { periodDate: true } },
       },
     }),
     prisma.workOrder.findMany({
@@ -79,7 +95,7 @@ export default async function ClientDashboardPage() {
       recentActivity={computeRecentActivity(customers, offers, workOrders, stationChecks)}
       todayAppointments={todayAppointments}
       upcomingAppointments={upcomingAppointments}
-      pestActivityTrend={computePestActivityTrend(stationChecks)}
+      pestActivityTrend={computePestActivityTrend(stationInspections)}
       auditReadiness={computeAuditReadiness(stations, workOrders, openCorrectiveActionCount)}
     />
   );

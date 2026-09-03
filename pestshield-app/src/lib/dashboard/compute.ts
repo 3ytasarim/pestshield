@@ -4,6 +4,7 @@ import type {
   ServiceOrder as PrismaServiceOrder,
   Station as PrismaStation,
   StationCheck as PrismaStationCheck,
+  StationInspection as PrismaStationInspection,
   WorkOrder as PrismaWorkOrder,
   Technician as PrismaTechnician,
 } from "@/generated/prisma";
@@ -39,13 +40,42 @@ const WORK_ORDER_STATUS_LABEL: Record<string, string> = {
   cancelled: "İptal",
 };
 
-const STATION_TYPE_TO_PEST: Record<string, keyof Omit<PestActivityPoint, "week">> = {
-  rodent_bait: "kemirgen",
-  glue_trap: "hamamboceği",
-  insect_trap: "karinca",
-  uv_trap: "ucanHasere",
-  pheromone_trap: "ucanHasere",
+type StationInspectionWithOccurrence = Pick<
+  PrismaStationInspection,
+  "stationType" | "tuketim" | "hareket" | "tur1" | "tur2" | "sayim"
+> & {
+  periyotOccurrence: { periodDate: string };
 };
+
+/** Bir istasyon denetimi kaydından, "Haşere Aktivite Trendi" grafiğinin dört kategorisinden
+ * hangisine (varsa) sayılacağını çıkarır — sabit seçim listeli alanlara (bkz.
+ * istasyon-inspection-constants.ts) dayanır, serbest metin yorumlamaya gerek yoktur:
+ *  - zehirli (yemli kemirgen istasyonu): "Yem Tüketimi Var" → kemirgen
+ *  - zehirsiz (kemirgen/diğer haşere izleme): "Hareket Var" + tür alanına göre kemirgen/hamamböceği/karınca
+ *  - ic_uckun/dis_uckun (uçkun tuzağı): sayım > 0 → uçan haşere
+ * "İstasyon Kırık / Kayıp" gibi arıza durumları veya bakım işlemleri (bant/floresan değişimi)
+ * aktivite olarak sayılmaz. */
+function classifyStationInspectionActivity(
+  insp: Pick<PrismaStationInspection, "stationType" | "tuketim" | "hareket" | "tur1" | "tur2" | "sayim">,
+): keyof Omit<PestActivityPoint, "week"> | null {
+  switch (insp.stationType) {
+    case "zehirli":
+      return insp.tuketim === "Yem Tüketimi Var" ? "kemirgen" : null;
+    case "zehirsiz": {
+      if (insp.hareket !== "Hareket Var") return null;
+      if (insp.tur2 === "Hamam Böceği Türleri") return "hamamboceği";
+      if (insp.tur2 === "Karınca") return "karinca";
+      return "kemirgen";
+    }
+    case "ic_uckun":
+    case "dis_uckun": {
+      const count = Number(insp.sayim);
+      return Number.isFinite(count) && count > 0 ? "ucanHasere" : null;
+    }
+    default:
+      return null;
+  }
+}
 
 /** Yerel (sunucu saat dilimi) tarihi döner — toISOString() UTC kullandığından gece yarısına yakın saatlerde bir gün geriye kayabilir. */
 function toLocalDateStr(date: Date): string {
@@ -265,7 +295,12 @@ export function computeAppointments(workOrders: WorkOrderWithRelations[]): {
   return { today: todayList, upcoming: upcomingList };
 }
 
-export function computePestActivityTrend(stationChecks: StationCheckWithRelations[]): PestActivityPoint[] {
+/** Kroki tabanlı İstasyonlar/QR Kontrol akışının gerçek verisi (StationInspection) üzerinden
+ * haftalık haşere aktivite trendini hesaplar. Eskiden bu grafik artık teknisyenlerin
+ * kullanmadığı, terk edilmiş `StationCheck` tablosundan besleniyordu — bu yüzden hep boştu
+ * (bkz. computeCriticalRisks/computeRecentActivity'nin hâlâ kullandığı legacy `StationCheck`,
+ * bunlar bu değişikliğin kapsamı dışında). */
+export function computePestActivityTrend(inspections: StationInspectionWithOccurrence[]): PestActivityPoint[] {
   const weeks: PestActivityPoint[] = [];
   const now = new Date();
   for (let i = 7; i >= 0; i--) {
@@ -282,9 +317,10 @@ export function computePestActivityTrend(stationChecks: StationCheckWithRelation
     };
     const startStr = weekStart.toISOString().slice(0, 10);
     const endStr = weekEnd.toISOString().slice(0, 10);
-    for (const c of stationChecks) {
-      if (!c.activityFound || c.checkedAt < startStr || c.checkedAt > endStr) continue;
-      const category = STATION_TYPE_TO_PEST[c.station.type];
+    for (const insp of inspections) {
+      const date = insp.periyotOccurrence.periodDate;
+      if (date < startStr || date > endStr) continue;
+      const category = classifyStationInspectionActivity(insp);
       if (category) point[category] += 1;
     }
     weeks.push(point);
