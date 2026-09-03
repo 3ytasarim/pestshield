@@ -5,7 +5,7 @@ import { Minus, Pause, Play, Plus, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const VIDEO_ID = "IYt_8JVW3w8";
+const VIDEO_ID = "gNBep5eEy7Q";
 const VOLUME_STEP = 10;
 const DEFAULT_VOLUME = 40;
 
