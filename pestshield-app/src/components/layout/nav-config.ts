@@ -115,6 +115,7 @@ export const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { label: "QR Kontrol", href: "/dashboard/tech/scan", icon: QrCode },
+        { label: "Takvim", href: "/dashboard/tech/calendar", icon: Calendar },
         { label: "İstasyonlar", href: "/dashboard/tech/stations", icon: MapPin },
         { label: "Hizmetler", href: "/dashboard/tech/services", icon: Wrench },
         { label: "Günlük Rapor", href: "/dashboard/tech/daily-reports", icon: FileClock },

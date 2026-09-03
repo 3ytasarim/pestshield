@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileClock, FileText, LayoutGrid, MapPin, MoreHorizontal, QrCode, ShieldCheck, UserRound, Wrench } from "lucide-react";
+import { Calendar, FileClock, FileText, LayoutGrid, MapPin, MoreHorizontal, QrCode, ShieldCheck, UserRound, Wrench } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ const PRIMARY_TABS = [
 /** Alt gezinme çubuğunda tek tek sığmayan diğer teknisyen sayfaları — "Daha" sayfasında listelenir. */
 const MORE_ITEMS = [
   { href: "/dashboard/tech/scan", label: "QR Kontrol", icon: QrCode },
+  { href: "/dashboard/tech/calendar", label: "Takvim", icon: Calendar },
   { href: "/dashboard/tech/services", label: "Hizmetler", icon: Wrench },
   { href: "/dashboard/tech/daily-reports", label: "Günlük Rapor", icon: FileClock },
   { href: "/dashboard/tech/technical-reports", label: "Teknik Rapor", icon: FileText },
