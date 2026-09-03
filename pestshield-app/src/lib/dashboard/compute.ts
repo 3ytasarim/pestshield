@@ -1,9 +1,8 @@
 import type {
   Customer as PrismaCustomer,
   Offer as PrismaOffer,
+  PeriyotOccurrence as PrismaPeriyotOccurrence,
   ServiceOrder as PrismaServiceOrder,
-  Station as PrismaStation,
-  StationCheck as PrismaStationCheck,
   StationInspection as PrismaStationInspection,
   WorkOrder as PrismaWorkOrder,
   Technician as PrismaTechnician,
@@ -25,12 +24,6 @@ type WorkOrderWithRelations = PrismaWorkOrder & {
   customer: Pick<PrismaCustomer, "companyName"> | null;
   technician: Pick<PrismaTechnician, "name"> | null;
 };
-type StationCheckWithRelations = PrismaStationCheck & {
-  technician: Pick<PrismaTechnician, "name"> | null;
-  station: Pick<PrismaStation, "type" | "customerId"> & {
-    customer: Pick<PrismaCustomer, "companyName">;
-  };
-};
 
 const WORK_ORDER_STATUS_LABEL: Record<string, string> = {
   planned: "Planlandı",
@@ -42,9 +35,15 @@ const WORK_ORDER_STATUS_LABEL: Record<string, string> = {
 
 type StationInspectionWithOccurrence = Pick<
   PrismaStationInspection,
-  "stationType" | "tuketim" | "hareket" | "tur1" | "tur2" | "sayim"
+  "stationType" | "tuketim" | "hareket" | "tur1" | "tur2" | "sayim" | "periyotOccurrenceId"
 > & {
-  periyotOccurrence: { periodDate: string };
+  periyotOccurrence: { periodDate: string; personnelName: string; customer: { companyName: string } };
+};
+
+/** "Tamamlandı" — Ek-1 formu doldurulmuş mu (bkz. GET /api/crm/periyot/occurrences'ta
+ * kullanılan aynı `hasEk1Form = !!ek1Form` sinyali, burada da AYNI tanım kullanılıyor). */
+type PeriyotOccurrenceWithEk1 = Pick<PrismaPeriyotOccurrence, "periodDate"> & {
+  ek1Form: { id: string } | null;
 };
 
 /** Bir istasyon denetimi kaydından, "Haşere Aktivite Trendi" grafiğinin dört kategorisinden
@@ -144,8 +143,8 @@ export function computePendingCollections(): PendingCollectionsSummary {
 }
 
 export function computeCriticalRisks(
-  stations: Pick<PrismaStation, "nextCheckDue">[],
-  stationChecks: Pick<PrismaStationCheck, "activityLevel" | "checkedAt" | "activityFound">[],
+  occurrences: PeriyotOccurrenceWithEk1[],
+  inspections: StationInspectionWithOccurrence[],
 ): CriticalRisksSummary {
   const today = todayStr();
   const thirtyDaysAgo = new Date();
@@ -153,10 +152,19 @@ export function computeCriticalRisks(
   const thirtyDaysAgoStr = toLocalDateStr(thirtyDaysAgo);
 
   return {
-    highPestActivity: stationChecks.filter(
-      (c) => c.activityFound && (c.activityLevel === "medium" || c.activityLevel === "high") && c.checkedAt >= thirtyDaysAgoStr,
-    ).length,
-    overdueStationChecks: stations.filter((s) => s.nextCheckDue < today).length,
+    // Eski StationCheck.activityLevel (none/low/medium/high) yeni modelde yok — İstasyonlar
+    // formu sabit seçim listeleri kullanıyor, seviye ayrımı yapmıyor (bkz.
+    // classifyStationInspectionActivity). Bu yüzden "orta/yüksek" ayrımı değil, son 30
+    // günde AKTİVİTE TESPİT EDİLEN tüm denetimler sayılıyor.
+    highPestActivity: inspections.filter((i) => {
+      const date = i.periyotOccurrence.periodDate;
+      return date >= thirtyDaysAgoStr && date <= today && classifyStationInspectionActivity(i) !== null;
+    }).length,
+    // "Kontrol süresi geçmiş istasyon" artık KrokiStation'da tutulmuyor (bkz. tarihsiz
+    // model) — mevcut, aynı kaydı ifade eden "Gecikmiş Servis" tanımıyla AYNI mantık
+    // kullanılıyor (bkz. src/lib/ai/alerts/engine.ts evaluateOverdueService): planlanan
+    // tarihi geçmiş ama Ek-1'i doldurulmamış periyot ziyaretleri.
+    overdueStationChecks: occurrences.filter((o) => o.periodDate < today && !o.ek1Form).length,
     // Denetim/Fotoğraf modülleri henüz taşınmadı — takip edilebilir veri yok.
     missingPhotos: 0,
     openCorrectiveActions: 0,
@@ -206,7 +214,7 @@ export function computeRecentActivity(
   customers: Pick<PrismaCustomer, "id" | "companyName" | "createdAt">[],
   offers: (Pick<PrismaOffer, "createdAt" | "status"> & { customer: Pick<PrismaCustomer, "companyName"> })[],
   workOrders: WorkOrderWithRelations[],
-  stationChecks: StationCheckWithRelations[],
+  stationInspections: StationInspectionWithOccurrence[],
 ): ActivityItem[] {
   const list: { date: Date; item: ActivityItem }[] = [];
 
@@ -246,15 +254,21 @@ export function computeRecentActivity(
       },
     });
   }
-  for (const sc of stationChecks) {
+  // Bir periyot ziyaretinde genelde birden çok istasyon denetleniyor — akışı aynı
+  // ziyaretin istasyon sayısı kadar tekrarlamamak için periyotOccurrence başına TEK
+  // aktivite kaydı üretiliyor.
+  const seenOccurrences = new Set<string>();
+  for (const insp of stationInspections) {
+    if (seenOccurrences.has(insp.periyotOccurrenceId)) continue;
+    seenOccurrences.add(insp.periyotOccurrenceId);
     list.push({
-      date: new Date(sc.checkedAt),
+      date: new Date(insp.periyotOccurrence.periodDate),
       item: {
-        id: `check-${sc.id}`,
+        id: `station-insp-${insp.periyotOccurrenceId}`,
         type: "station_checked",
-        message: `${sc.station.customer.companyName} - istasyon kontrol edildi`,
-        actor: sc.technician?.name ?? "Sistem",
-        timeAgo: formatTimeAgo(sc.checkedAt),
+        message: `${insp.periyotOccurrence.customer.companyName} - istasyon kontrolü yapıldı`,
+        actor: insp.periyotOccurrence.personnelName || "Sistem",
+        timeAgo: formatTimeAgo(insp.periyotOccurrence.periodDate),
       },
     });
   }
@@ -329,12 +343,12 @@ export function computePestActivityTrend(inspections: StationInspectionWithOccur
 }
 
 export function computeAuditReadiness(
-  stations: Pick<PrismaStation, "nextCheckDue">[],
+  occurrences: PeriyotOccurrenceWithEk1[],
   workOrders: Pick<PrismaWorkOrder, "status" | "hasReport">[],
   openCorrectiveActionCount: number,
 ): AuditReadiness {
   const today = todayStr();
-  const stationsUpToDate = stations.length > 0 && stations.every((s) => s.nextCheckDue >= today);
+  const stationsUpToDate = occurrences.length > 0 && occurrences.every((o) => o.periodDate >= today || o.ek1Form);
   const completedOrders = workOrders.filter((o) => o.status === "completed");
   const reportsComplete = completedOrders.length > 0 && completedOrders.every((o) => o.hasReport);
 
