@@ -86,7 +86,10 @@ export function TechHomeClient({ userName, orders }: TechHomeClientProps) {
                     <p className="truncate text-xs text-muted-foreground">{order.serviceType}</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-xs font-medium text-foreground">{formatDate(order.plannedDate)}</p>
+                    <p className="text-xs font-medium text-foreground">
+                      {formatDate(order.plannedDate)}
+                      {order.plannedStartTime && <span className="text-muted-foreground"> · {order.plannedStartTime}</span>}
+                    </p>
                     <p className="text-[10px] text-muted-foreground">{order.orderNo}</p>
                   </div>
                 </CardContent>
