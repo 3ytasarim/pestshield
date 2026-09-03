@@ -88,6 +88,8 @@ export const companySettingsSchema = z.object({
   contractLetterheadImage: z.string().nullable().optional(),
   offerLetterheadImage: z.string().nullable().optional(),
   tahsilatLetterheadImage: z.string().nullable().optional(),
+  offerTemplateDocx: z.string().nullable().optional(),
+  offerTemplateDocxName: z.string().nullable().optional(),
   permitDate: z.string().optional(),
   permitNumber: z.string().optional(),
   activityField: z.string().optional(),

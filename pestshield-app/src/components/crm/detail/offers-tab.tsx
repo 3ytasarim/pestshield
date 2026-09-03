@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Check,
+  Download,
   FileSpreadsheet,
   FileText,
   MoreHorizontal,
@@ -43,7 +44,7 @@ import { OfferStatusBadge } from "@/components/crm/crm-badges";
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { OfferForm } from "@/components/crm/detail/offer-form";
 import { EmptyState } from "@/components/crm/detail/empty-state";
-import { printOffer } from "@/components/crm/detail/print-offer";
+import { printOffer, downloadOfferDocx } from "@/components/crm/detail/print-offer";
 import type { Customer, Offer } from "@/lib/mock/crm";
 import type { OfferFormValues } from "@/lib/validations/crm";
 
@@ -171,6 +172,17 @@ export function OffersTab({ customerId, customer }: { customerId: string; custom
                         <DropdownMenuItem onClick={() => customer && printOffer(customer, offer)}>
                           <FileText className="size-3.5" />
                           PDF Oluştur
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (!customer) return;
+                            downloadOfferDocx(customer, offer).catch((error) =>
+                              toast.error(error instanceof Error ? error.message : "Word şablonu indirilemedi"),
+                            );
+                          }}
+                        >
+                          <Download className="size-3.5" />
+                          Word Şablonundan İndir (.docx)
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => updateStatus(offer, "sent", "Teklif gönderildi")}>
                           <Send className="size-3.5" />

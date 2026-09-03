@@ -20,6 +20,7 @@ import {
   type LetterheadMode,
 } from "@/lib/company-settings";
 import { rasterizeTemplateFile } from "@/lib/pdf/template-rasterize";
+import { readImageFile } from "@/lib/file-utils";
 import {
   getCertificateTemplate,
   readSealFile,
@@ -85,6 +86,12 @@ export function CompanySettingsPage() {
     offer: false,
     tahsilat: false,
   });
+  // Teklif için yüklenen ORİJİNAL .docx baytları — undefined: bu oturumda değiştirilmedi
+  // (Kaydet'te gönderilmez, sunucudaki mevcut şablona dokunulmaz), null: kaldırıldı,
+  // string: yeni yüklendi. offerTemplateDocxName sadece gösterim içindir.
+  const [offerTemplateDocxDataUrl, setOfferTemplateDocxDataUrl] = useState<string | null | undefined>(undefined);
+  const [offerTemplateDocxName, setOfferTemplateDocxName] = useState<string | null>(null);
+  const [showOfferFields, setShowOfferFields] = useState(false);
   const templateInputRefs = useRef<Record<TemplateKey, HTMLInputElement | null>>({ contract: null, offer: null, tahsilat: null });
   const [permitDate, setPermitDate] = useState(() => getCompanySettings().permitDate);
   const [permitNumber, setPermitNumber] = useState(() => getCompanySettings().permitNumber);
@@ -135,6 +142,7 @@ export function CompanySettingsPage() {
           contractLetterheadImage: data.contractLetterheadImage ?? null,
           offerLetterheadImage: data.offerLetterheadImage ?? null,
           tahsilatLetterheadImage: data.tahsilatLetterheadImage ?? null,
+          offerTemplateDocxName: data.offerTemplateDocxName ?? null,
           permitDate: data.permitDate ?? "",
           permitNumber: data.permitNumber ?? "",
           activityField: data.activityField ?? "",
@@ -164,6 +172,7 @@ export function CompanySettingsPage() {
           offer: next.offerLetterheadImage,
           tahsilat: next.tahsilatLetterheadImage,
         });
+        setOfferTemplateDocxName(next.offerTemplateDocxName);
         setPermitDate(next.permitDate);
         setPermitNumber(next.permitNumber);
         setActivityField(next.activityField);
@@ -248,6 +257,25 @@ export function CompanySettingsPage() {
     try {
       const dataUrl = await rasterizeTemplateFile(file);
       setTemplateImages((prev) => ({ ...prev, [key]: dataUrl }));
+
+      if (key === "offer") {
+        const isDocx =
+          file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          file.name.toLowerCase().endsWith(".docx");
+        if (isDocx) {
+          // Rasterize edilmiş görselin yanında ORİJİNAL .docx baytlarını da saklıyoruz —
+          // bu, "Word Şablonundan İndir" ile yer tutucuların gerçek verilerle doldurulup
+          // birebir aynı formatta bir çıktı üretilmesinde kullanılıyor (bkz. docx-merge.ts).
+          const rawDataUrl = await readImageFile(file, 10);
+          setOfferTemplateDocxDataUrl(rawDataUrl);
+          setOfferTemplateDocxName(file.name);
+        } else {
+          // PDF yüklendiğinde (sadece arkaplan görseli olarak kullanılabilir) önceki
+          // Word şablonu artık geçerli değil — doldurma özelliği devre dışı kalır.
+          setOfferTemplateDocxDataUrl(null);
+          setOfferTemplateDocxName(null);
+        }
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Şablon yüklenemedi");
     } finally {
@@ -259,6 +287,10 @@ export function CompanySettingsPage() {
 
   function handleTemplateRemove(key: TemplateKey) {
     setTemplateImages((prev) => ({ ...prev, [key]: null }));
+    if (key === "offer") {
+      setOfferTemplateDocxDataUrl(null);
+      setOfferTemplateDocxName(null);
+    }
   }
 
   async function handleSave() {
@@ -288,6 +320,10 @@ export function CompanySettingsPage() {
           contractLetterheadImage: templateImages.contract,
           offerLetterheadImage: templateImages.offer,
           tahsilatLetterheadImage: templateImages.tahsilat,
+          // undefined ise JSON.stringify bu alanları hiç göndermez — sunucu da o zaman
+          // mevcut kayıtlı Word şablonuna dokunmaz (bkz. company-settings/route.ts PATCH).
+          offerTemplateDocx: offerTemplateDocxDataUrl,
+          offerTemplateDocxName: offerTemplateDocxDataUrl !== undefined ? offerTemplateDocxName : undefined,
           permitDate: permitDate.trim(),
           permitNumber: permitNumber.trim(),
           activityField: activityField.trim(),
@@ -299,7 +335,9 @@ export function CompanySettingsPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.message ?? "Kaydedilemedi");
+        // Hosting/proxy istek gövdesi sınırını aşarsa JSON değil HTML/boş bir hata
+        // sayfası dönebilir — bu durumda en azından HTTP durum kodunu gösteriyoruz.
+        throw new Error(data?.message ?? `Kaydedilemedi (HTTP ${res.status})`);
       }
       const data = await res.json();
       const next: CompanySettings = {
@@ -319,6 +357,7 @@ export function CompanySettingsPage() {
         contractLetterheadImage: data.contractLetterheadImage ?? null,
         offerLetterheadImage: data.offerLetterheadImage ?? null,
         tahsilatLetterheadImage: data.tahsilatLetterheadImage ?? null,
+        offerTemplateDocxName: data.offerTemplateDocxName ?? null,
         permitDate: data.permitDate ?? "",
         permitNumber: data.permitNumber ?? "",
         activityField: data.activityField ?? "",
@@ -330,6 +369,8 @@ export function CompanySettingsPage() {
       };
       saveCompanySettings(next);
       setSettings(next);
+      setOfferTemplateDocxName(next.offerTemplateDocxName);
+      setOfferTemplateDocxDataUrl(undefined);
       toast.success("Şirket ayarları kaydedildi");
       window.dispatchEvent(new Event("pestshield:company-settings-updated"));
     } catch (error) {
@@ -765,6 +806,39 @@ export function CompanySettingsPage() {
                     onChange={(e) => handleTemplateSelect(def.key, e.target.files?.[0])}
                   />
                   <p className="text-center text-[10px] text-muted-foreground">{def.hint}</p>
+                  {def.key === "offer" && (
+                    <div className="flex w-full flex-col items-center gap-1.5">
+                      {offerTemplateDocxName && (
+                        <p className="text-center text-[10px] font-medium text-success">
+                          Word şablonu: {offerTemplateDocxName} — yer tutucularla otomatik doldurulacak
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowOfferFields((v) => !v)}
+                        className="text-[10px] font-medium text-primary underline-offset-2 hover:underline"
+                      >
+                        {showOfferFields ? "Kullanılabilir alanları gizle" : "Kullanılabilir alanları göster"}
+                      </button>
+                      {showOfferFields && (
+                        <div className="w-full space-y-1.5 rounded-lg bg-muted/40 p-2.5 text-left text-[10px] text-muted-foreground">
+                          <p>
+                            Word şablonunuza aşağıdaki yer tutucuları yazın, teklif oluşturulunca gerçek verilerle
+                            değiştirilir:
+                          </p>
+                          <p className="font-mono break-all">
+                            {"{teklif_no} {teklif_baslik} {teklif_tarihi} {gecerlilik_tarihi} {genel_toplam} {para_birimi} {bugun} {musteri_adi} {musteri_yetkili} {musteri_unvan} {musteri_adres} {musteri_vergi_no} {musteri_vergi_dairesi} {firma_adi} {firma_yetkili} {firma_adres} {firma_vergi_no} {firma_vergi_dairesi} {firma_iban} {firma_telefon}"}
+                          </p>
+                          <p>
+                            Kalem tablosu için: bir tablo satırının ilk hücresine <code>{"{#kalemler}"}</code>, aynı
+                            satırın son hücresine <code>{"{/kalemler}"}</code> yazın — satır içinde{" "}
+                            <code>{"{aciklama} {birim_fiyat} {adet} {tutar}"}</code> kullanılabilir; o satır kalem
+                            sayısı kadar otomatik çoğalır.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

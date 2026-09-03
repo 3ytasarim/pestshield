@@ -311,6 +311,15 @@ model User {
   offerLetterheadImage    String?
   tahsilatLetterheadImage String?
 
+  /// Teklif için yüklenen ORİJİNAL .docx şablonu (base64 data URL) — yukarıdaki
+  /// offerLetterheadImage'dan farklı olarak arkaplan görseli değil, içindeki
+  /// {yer_tutucu} etiketlerinin gerçek teklif verisiyle doldurulup birebir aynı
+  /// bir .docx üretilmesinde kullanılır (bkz. src/lib/pdf/docx-merge.ts). Ağır
+  /// olduğu için genel Şirket Ayarları GET yanıtına dahil edilmez, sadece
+  /// /api/account/company-settings/offer-template-docx üzerinden okunur.
+  offerTemplateDocx     String? @db.Text
+  offerTemplateDocxName String?
+
   /// Biyosidal ürün uygulama ruhsatı - EK-1 formunun "Uygulamayı Yapana Ait
   /// Bilgiler" bölümüne otomatik yazılır.
   permitDate    String?

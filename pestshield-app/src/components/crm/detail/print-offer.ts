@@ -1,6 +1,7 @@
 import { formatCurrency, formatDate } from "@/components/crm/crm-format";
 import { getCompanySettings } from "@/lib/company-settings";
 import { escapeHtml, footerBrandLabel, LETTERHEAD_STYLES, openPrintWindow, renderLetterhead, renderSignatures } from "@/lib/pdf/shared";
+import { mergeDocxTemplate } from "@/lib/pdf/docx-merge";
 import type { Customer, Offer } from "@/lib/mock/crm";
 
 const STATUS_LABELS: Record<Offer["status"], string> = {
@@ -80,4 +81,59 @@ export function printOffer(customer: Customer, offer: Offer) {
 </html>`;
 
   openPrintWindow(html);
+}
+
+/** Şirket Ayarları'nda yüklenen Teklif .docx şablonundaki {yer_tutucu} etiketlerini
+ * bu teklifin gerçek verileriyle doldurup indirir — kullanıcının kendi Word
+ * belgesiyle birebir aynı formatta bir çıktı üretir (bkz. docx-merge.ts). */
+export async function downloadOfferDocx(customer: Customer, offer: Offer) {
+  const res = await fetch("/api/account/company-settings/offer-template-docx");
+  const data = res.ok ? ((await res.json()) as { dataUrl: string | null }) : { dataUrl: null };
+  if (!data.dataUrl) {
+    throw new Error("Önce Şirket Ayarları'ndan Teklif için bir Word (.docx) şablonu yükleyin");
+  }
+
+  const company = getCompanySettings();
+  const genelToplam = formatCurrency(offer.amount, offer.currency);
+
+  const blob = await mergeDocxTemplate(data.dataUrl, {
+    teklif_no: offer.offerNo,
+    teklif_baslik: offer.title,
+    teklif_tarihi: formatDate(offer.createdAt),
+    gecerlilik_tarihi: formatDate(offer.validUntil),
+    genel_toplam: genelToplam,
+    para_birimi: offer.currency,
+    bugun: formatDate(new Date().toISOString()),
+
+    musteri_adi: customer.companyName,
+    musteri_yetkili: customer.contactName,
+    musteri_unvan: customer.contactTitle,
+    musteri_adres: [customer.addressLine, customer.district, customer.city].filter(Boolean).join(", "),
+    musteri_vergi_no: customer.taxNumber,
+    musteri_vergi_dairesi: customer.taxOffice,
+
+    firma_adi: company.companyName,
+    firma_yetkili: company.authorizedName,
+    firma_adres: [company.address, company.district, company.city].filter(Boolean).join(", "),
+    firma_vergi_no: company.taxNumber,
+    firma_vergi_dairesi: company.taxOffice,
+    firma_iban: company.iban,
+    firma_telefon: company.phone,
+
+    kalemler: offer.items.map((item) => ({
+      aciklama: item.description,
+      birim_fiyat: formatCurrency(item.unitPrice, offer.currency),
+      adet: item.quantity,
+      tutar: formatCurrency(item.unitPrice * item.quantity, offer.currency),
+    })),
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `Teklif-${offer.offerNo}.docx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }

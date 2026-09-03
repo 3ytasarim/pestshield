@@ -20,6 +20,7 @@ function serialize(user: {
   contractLetterheadImage: string | null;
   offerLetterheadImage: string | null;
   tahsilatLetterheadImage: string | null;
+  offerTemplateDocxName: string | null;
   permitDate: string | null;
   permitNumber: string | null;
   activityField: string | null;
@@ -46,6 +47,9 @@ function serialize(user: {
     contractLetterheadImage: user.contractLetterheadImage,
     offerLetterheadImage: user.offerLetterheadImage,
     tahsilatLetterheadImage: user.tahsilatLetterheadImage,
+    // Ham .docx baytları (offerTemplateDocx) bilerek burada dönmüyor — ağır, sadece
+    // /api/account/company-settings/offer-template-docx üzerinden istek anında okunuyor.
+    offerTemplateDocxName: user.offerTemplateDocxName,
     permitDate: user.permitDate ?? "",
     permitNumber: user.permitNumber ?? "",
     activityField: user.activityField ?? "",
@@ -83,34 +87,51 @@ export async function PATCH(request: Request) {
   }
 
   const values = parsed.data;
-  const user = await prisma.user.update({
-    where: { id: ownerId },
-    data: {
-      companyName: values.companyName,
-      shortName: values.shortName || null,
-      name: values.authorizedName || null,
-      address: values.address || null,
-      country: values.country || null,
-      city: values.city || null,
-      district: values.district || null,
-      phone: values.phone || null,
-      authorizedPhone: values.authorizedPhone || null,
-      logoUrl: values.logo ?? null,
-      reportLogoUrl: values.reportLogo ?? null,
-      letterheadImage: values.letterheadImage ?? null,
-      letterheadMode: values.letterheadMode ?? "header",
-      contractLetterheadImage: values.contractLetterheadImage ?? null,
-      offerLetterheadImage: values.offerLetterheadImage ?? null,
-      tahsilatLetterheadImage: values.tahsilatLetterheadImage ?? null,
-      permitDate: values.permitDate || null,
-      permitNumber: values.permitNumber || null,
-      activityField: values.activityField || null,
-      taxNumber: values.taxNumber || null,
-      taxOffice: values.taxOffice || null,
-      iban: values.iban || null,
-      currency: values.currency || "TRY",
-    },
-  });
+  let user;
+  try {
+    user = await prisma.user.update({
+      where: { id: ownerId },
+      data: {
+        companyName: values.companyName,
+        shortName: values.shortName || null,
+        name: values.authorizedName || null,
+        address: values.address || null,
+        country: values.country || null,
+        city: values.city || null,
+        district: values.district || null,
+        phone: values.phone || null,
+        authorizedPhone: values.authorizedPhone || null,
+        logoUrl: values.logo ?? null,
+        reportLogoUrl: values.reportLogo ?? null,
+        letterheadImage: values.letterheadImage ?? null,
+        letterheadMode: values.letterheadMode ?? "header",
+        contractLetterheadImage: values.contractLetterheadImage ?? null,
+        offerLetterheadImage: values.offerLetterheadImage ?? null,
+        tahsilatLetterheadImage: values.tahsilatLetterheadImage ?? null,
+        // "Değişmediyse dokunma" — istemci bu turda .docx şablonunu yükleyip/kaldırmadıysa
+        // alan hiç gönderilmez (undefined kalır), burada da mevcut kayda dokunulmaz. Aksi
+        // halde sadece başka bir alanı güncelleyip Kaydet'e basmak önceden yüklenmiş
+        // şablonu sessizce silerdi.
+        ...(values.offerTemplateDocx !== undefined
+          ? { offerTemplateDocx: values.offerTemplateDocx, offerTemplateDocxName: values.offerTemplateDocxName ?? null }
+          : {}),
+        permitDate: values.permitDate || null,
+        permitNumber: values.permitNumber || null,
+        activityField: values.activityField || null,
+        taxNumber: values.taxNumber || null,
+        taxOffice: values.taxOffice || null,
+        iban: values.iban || null,
+        currency: values.currency || "TRY",
+      },
+    });
+  } catch (err) {
+    // Büyük şablon görüntüleri (base64) bazı ortamlarda istek/gövde sınırına takılabiliyor —
+    // burada asıl hatayı yutmadan, tarayıcıda okunabilir bir mesaja çeviriyoruz.
+    return NextResponse.json(
+      { message: err instanceof Error ? `Kaydedilemedi: ${err.message}` : "Kaydedilemedi." },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json(serialize(user));
 }

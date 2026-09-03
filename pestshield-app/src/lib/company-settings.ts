@@ -36,6 +36,10 @@ export interface CompanySettings {
   contractLetterheadImage: string | null;
   offerLetterheadImage: string | null;
   tahsilatLetterheadImage: string | null;
+  /// Teklif için yüklenen orijinal .docx şablonunun dosya adı — sadece gösterim
+  /// içindir, ham baytlar ağır olduğu için bu genel ayar nesnesinde tutulmaz
+  /// (bkz. /api/account/company-settings/offer-template-docx).
+  offerTemplateDocxName: string | null;
   permitDate: string;
   permitNumber: string;
   activityField: string;
@@ -63,6 +67,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   contractLetterheadImage: null,
   offerLetterheadImage: null,
   tahsilatLetterheadImage: null,
+  offerTemplateDocxName: null,
   permitDate: "",
   permitNumber: "",
   activityField: "",
