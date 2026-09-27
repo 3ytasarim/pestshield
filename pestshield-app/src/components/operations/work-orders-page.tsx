@@ -4,11 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { toast } from "sonner";
-import { AlertTriangle, Calendar, ClipboardList, FileCheck, Pencil, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Calendar, ClipboardList, FileCheck, Pencil, Plus, Search, Trash2, UserPlus } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxItem } from "@/components/ui/combobox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +34,7 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import { WorkOrderStatusBadge } from "@/components/crm/crm-badges";
 import { WorkOrderForm } from "@/components/crm/detail/work-order-form";
+import { QuickCustomerDialog } from "@/components/calendar/quick-customer-dialog";
 import type { WorkOrder, WorkOrderStatus } from "@/lib/mock/crm";
 import type { Technician } from "@/lib/mock/operations";
 import type { WorkOrderFormValues } from "@/lib/validations/crm";
@@ -47,16 +57,63 @@ export function WorkOrdersPage({ initialOrders }: { initialOrders: WorkOrderWith
   const [search, setSearch] = useState("");
   const [orders, setOrders] = useState(initialOrders);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [customers, setCustomers] = useState<{ id: string; companyName: string; contactName: string; contactPhone: string }[]>([]);
   const [editingOrder, setEditingOrder] = useState<WorkOrderWithCustomer | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WorkOrderWithCustomer | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pickCustomerOpen, setPickCustomerOpen] = useState(false);
+  const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
+  const [createFormOpen, setCreateFormOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/operations/technicians")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { technicians: Technician[] } | null) => setTechnicians(data?.technicians ?? []))
       .catch(() => setTechnicians([]));
+    fetch("/api/crm/customers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { customers: { id: string; companyName: string; contactName: string; contactPhone: string }[] } | null) =>
+        setCustomers(data?.customers ?? []),
+      )
+      .catch(() => setCustomers([]));
   }, []);
+
+  const customerItems = useMemo(() => customers.map((c) => ({ value: c.id, label: c.companyName })), [customers]);
+
+  function openCreateFlow() {
+    setPickedCustomerId(null);
+    setPickCustomerOpen(true);
+  }
+
+  function handleCustomerCreated(customer: { id: string; companyName: string }) {
+    setCustomers((prev) => [{ ...customer, contactName: "", contactPhone: "" }, ...prev]);
+    setPickedCustomerId(customer.id);
+  }
+
+  function confirmCustomerPick() {
+    if (!pickedCustomerId) return;
+    setPickCustomerOpen(false);
+    setCreateFormOpen(true);
+  }
+
+  async function handleCreate(values: WorkOrderFormValues) {
+    if (!pickedCustomerId) return;
+    const res = await fetch("/api/crm/work-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, customerId: pickedCustomerId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.message ?? "İş emri oluşturulamadı");
+      return;
+    }
+    const customer = customers.find((c) => c.id === pickedCustomerId) ?? null;
+    const newOrder: WorkOrderWithCustomer = { ...data.workOrder, customer };
+    setOrders((prev) => [newOrder, ...prev]);
+    toast.success("İş emri oluşturuldu");
+  }
 
   async function handleUpdate(values: WorkOrderFormValues) {
     if (!editingOrder) return;
@@ -118,10 +175,16 @@ export function WorkOrdersPage({ initialOrders }: { initialOrders: WorkOrderWith
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-col gap-1.5"
+        className="flex flex-wrap items-center justify-between gap-3"
       >
-        <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">İş Emirleri</h1>
-        <p className="max-w-xl text-sm text-muted-foreground">Tüm müşterilere ait servis iş emirlerinin durum panosu.</p>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground">İş Emirleri</h1>
+          <p className="max-w-xl text-sm text-muted-foreground">Tüm müşterilere ait servis iş emirlerinin durum panosu.</p>
+        </div>
+        <Button onClick={openCreateFlow}>
+          <Plus className="size-4" />
+          İş Emri Oluştur
+        </Button>
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -230,6 +293,59 @@ export function WorkOrdersPage({ initialOrders }: { initialOrders: WorkOrderWith
           })}
         </div>
       )}
+
+      <Dialog open={pickCustomerOpen} onOpenChange={setPickCustomerOpen}>
+        <DialogContent className="max-w-md sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="size-4.5 text-primary" />
+              Müşteri Seçin
+            </DialogTitle>
+            <DialogDescription>İş emri oluşturmak istediğiniz müşteriyi seçin.</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="outline"
+              title="Yeni Müşteri Ekle"
+              onClick={() => setQuickAddOpen(true)}
+            >
+              <UserPlus className="size-4" />
+            </Button>
+            <Combobox
+              items={customerItems}
+              value={customerItems.find((c) => c.value === pickedCustomerId) ?? null}
+              onValueChange={(selected) => setPickedCustomerId(selected?.value ?? null)}
+            >
+              <div className="w-full">
+                <ComboboxInput placeholder="Müşteri seçin…" />
+              </div>
+              <ComboboxContent>
+                {(option: { value: string; label: string }) => (
+                  <ComboboxItem key={option.value} value={option}>
+                    {option.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxContent>
+            </Combobox>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPickCustomerOpen(false)}>
+              Vazgeç
+            </Button>
+            <Button type="button" disabled={!pickedCustomerId} onClick={confirmCustomerPick}>
+              Devam Et
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <QuickCustomerDialog open={quickAddOpen} onOpenChange={setQuickAddOpen} onCreated={handleCustomerCreated} />
+
+      <WorkOrderForm open={createFormOpen} onOpenChange={setCreateFormOpen} onSubmit={handleCreate} technicians={technicians} />
 
       <WorkOrderForm
         open={!!editingOrder}

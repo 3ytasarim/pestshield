@@ -25,6 +25,9 @@ export interface CompanySettings {
   phone: string;
   authorizedPhone: string;
   logo: string | null;
+  /// Sekme ikonu (favicon) — firma logosundan (logo) AYRI ve bağımsız bir görsel, boşsa
+  /// düşülmez (varsayılan PestShield favicon kalır). Sadece standalone dağıtımlarda kullanılır.
+  favicon: string | null;
   /// Programın ürettiği raporların (DÖF, Risk, Trend vb.) üst kısmında büyük gösterilecek
   /// ayrı bir logo — boşsa `logo`ya (küçük) düşülür.
   reportLogo: string | null;
@@ -61,6 +64,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   phone: "",
   authorizedPhone: "",
   logo: null,
+  favicon: null,
   reportLogo: null,
   letterheadImage: null,
   letterheadMode: "header",
@@ -101,6 +105,11 @@ export function resetCompanySettings() {
 /** Seçilen logo dosyasını base64 data URL'e çevirir (5MB üstü reddedilir). */
 export function readLogoFile(file: File): Promise<string> {
   return readImageFile(file, 5);
+}
+
+/** Seçilen favicon dosyasını base64 data URL'e çevirir (2MB üstü reddedilir — favicon küçük olmalı). */
+export function readFaviconFile(file: File): Promise<string> {
+  return readImageFile(file, 2);
 }
 
 /** Seçilen antetli kağıt görselini base64 data URL'e çevirir (8MB üstü reddedilir — tam sayfa görseller daha büyük olabilir). */

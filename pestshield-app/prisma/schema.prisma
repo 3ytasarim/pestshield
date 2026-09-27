@@ -297,6 +297,11 @@ model User {
   authorizedPhone String?
   /// Firma logosu — base64 data URL (bkz. src/lib/file-utils.ts readImageFile).
   logoUrl         String?
+  /// Sekme ikonu (favicon) — base64 data URL. Bilerek logoUrl'den AYRI bir alan: favicon
+  /// firma logosunun küçültülmüş hali DEĞİL, kendi başına yüklenen bir görsel — SADECE
+  /// standalone (tek firmalı) dağıtımlarda kullanılır, boşsa varsayılan PestShield favicon
+  /// kalır (bkz. src/app/layout.tsx generateMetadata). Multi-tenant'ta hiç kullanılmaz.
+  faviconUrl      String?
   /// Rapor logosu — base64 data URL. Programın ürettiği raporların (DÖF, Risk, Trend vb.)
   /// üst kısmında büyük/belirgin gösterilir; boşsa logoUrl'e (küçük) düşülür.
   reportLogoUrl   String?

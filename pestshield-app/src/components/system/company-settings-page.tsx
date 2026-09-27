@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Award, Building2, CheckCircle2, CreditCard, FileBarChart, FileImage, FileText, Globe, ImagePlus, KeyRound, Landmark, Loader2, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
+import { AppWindow, Award, Building2, CheckCircle2, CreditCard, FileBarChart, FileImage, FileText, Globe, ImagePlus, KeyRound, Landmark, Loader2, MapPin, Phone, Save, ShieldCheck, Stamp, Trash2, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { GLASS_CARD } from "@/components/dashboard/shared";
 import { formatDate } from "@/components/crm/crm-format";
 import {
   getCompanySettings,
+  readFaviconFile,
   readLetterheadFile,
   readLogoFile,
   readReportLogoFile,
@@ -70,6 +71,8 @@ export function CompanySettingsPage() {
   const [phone, setPhone] = useState(() => getCompanySettings().phone);
   const [authorizedPhone, setAuthorizedPhone] = useState(() => getCompanySettings().authorizedPhone);
   const [logo, setLogo] = useState<string | null>(() => getCompanySettings().logo);
+  const [favicon, setFavicon] = useState<string | null>(() => getCompanySettings().favicon);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   const [reportLogo, setReportLogo] = useState<string | null>(() => getCompanySettings().reportLogo);
   const reportLogoInputRef = useRef<HTMLInputElement>(null);
   const [letterheadImage, setLetterheadImage] = useState<string | null>(() => getCompanySettings().letterheadImage);
@@ -136,6 +139,7 @@ export function CompanySettingsPage() {
           phone: data.phone ?? "",
           authorizedPhone: data.authorizedPhone ?? "",
           logo: data.logo ?? null,
+          favicon: data.favicon ?? null,
           reportLogo: data.reportLogo ?? null,
           letterheadImage: data.letterheadImage ?? null,
           letterheadMode: data.letterheadMode === "background" ? "background" : "header",
@@ -164,6 +168,7 @@ export function CompanySettingsPage() {
         setPhone(next.phone);
         setAuthorizedPhone(next.authorizedPhone);
         setLogo(next.logo);
+        setFavicon(next.favicon);
         setReportLogo(next.reportLogo);
         setLetterheadImage(next.letterheadImage);
         setLetterheadMode(next.letterheadMode);
@@ -206,6 +211,25 @@ export function CompanySettingsPage() {
   function handleRemoveLogo() {
     setLogo(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleFaviconSelect(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Lütfen bir görsel dosyası seçin (PNG, JPG, SVG)");
+      return;
+    }
+    try {
+      const dataUrl = await readFaviconFile(file);
+      setFavicon(dataUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Favicon yüklenemedi");
+    }
+  }
+
+  function handleRemoveFavicon() {
+    setFavicon(null);
+    if (faviconInputRef.current) faviconInputRef.current.value = "";
   }
 
   async function handleReportLogoSelect(file: File | undefined) {
@@ -314,6 +338,7 @@ export function CompanySettingsPage() {
           phone: phone.trim(),
           authorizedPhone: authorizedPhone.trim(),
           logo,
+          favicon,
           reportLogo,
           letterheadImage,
           letterheadMode,
@@ -351,6 +376,7 @@ export function CompanySettingsPage() {
         phone: data.phone ?? "",
         authorizedPhone: data.authorizedPhone ?? "",
         logo: data.logo ?? null,
+        favicon: data.favicon ?? null,
         reportLogo: data.reportLogo ?? null,
         letterheadImage: data.letterheadImage ?? null,
         letterheadMode: data.letterheadMode === "background" ? "background" : "header",
@@ -652,6 +678,66 @@ export function CompanySettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {IS_STANDALONE && (
+        <Card className={cn(GLASS_CARD, "rounded-2xl")}>
+          <CardContent className="flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <AppWindow className="size-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Favicon</p>
+                <p className="text-xs text-muted-foreground">
+                  Tarayıcı sekmesinde görünen küçük ikon — firma logonuzdan bağımsızdır, boş bırakırsanız varsayılan
+                  PestShield ikonu kalır.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div
+                className={cn(
+                  "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/30",
+                  favicon && "border-solid border-primary/20 bg-white",
+                )}
+              >
+                {favicon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={favicon} alt="Favicon" className="size-full object-contain p-1.5" />
+                ) : (
+                  <AppWindow className="size-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-1.5">
+                  <Button size="sm" variant="outline" onClick={() => faviconInputRef.current?.click()}>
+                    {favicon ? "Değiştir" : "Favicon Yükle"}
+                  </Button>
+                  {favicon && (
+                    <Button size="icon-sm" variant="outline" className="text-destructive hover:bg-destructive/10" onClick={handleRemoveFavicon} aria-label="Favicon'u kaldır">
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">PNG, JPG, SVG veya ICO · maks. 2MB · kare ve sade bir görsel önerilir</p>
+              </div>
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept="image/*,.ico"
+                className="hidden"
+                onChange={(e) => handleFaviconSelect(e.target.files?.[0])}
+              />
+            </div>
+
+            <Button onClick={handleSave} loading={saving} className="w-fit">
+              <Save className="size-4" />
+              Kaydet
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className={cn(GLASS_CARD, "rounded-2xl")}>
         <CardContent className="flex flex-col gap-5">
