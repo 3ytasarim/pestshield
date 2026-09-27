@@ -1,6 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider   = "prisma-client-js"
+  output     = "../src/generated/prisma"
+  // Standart "library" motoru native bir Rust binary'si (.so.node) yükleyip başlatıyor —
+  // pakispco.com.tr sunucusunda bu native motorun kendi async çalışma zamanı (tokio) ile
+  // temel bir uyumsuzluk var (bkz. 2026-09-27: "timer has gone away" panik / sorgu öncesi
+  // sonsuz takılma), driver adapter (pg) kullansak bile devreye giriyor. "client" motor tipi
+  // + queryCompiler bunu tamamen ortadan kaldırıyor: native binary yerine WASM kullanır.
+  engineType = "client"
 }
 
 datasource db {
@@ -287,28 +293,28 @@ model User {
 
   /// Firma kaydı akışıyla oluşturulan müşteri hesapları için serbest metin
   /// firma adı. Tam ilişkisel Company modeli sonraki bir sprintte eklenecek.
-  companyName     String?
-  shortName       String?
-  address         String?
-  country         String?
-  city            String?
-  district        String?
-  phone           String?
-  authorizedPhone String?
+  companyName             String?
+  shortName               String?
+  address                 String?
+  country                 String?
+  city                    String?
+  district                String?
+  phone                   String?
+  authorizedPhone         String?
   /// Firma logosu — base64 data URL (bkz. src/lib/file-utils.ts readImageFile).
-  logoUrl         String?
+  logoUrl                 String?
   /// Sekme ikonu (favicon) — base64 data URL. Bilerek logoUrl'den AYRI bir alan: favicon
   /// firma logosunun küçültülmüş hali DEĞİL, kendi başına yüklenen bir görsel — SADECE
   /// standalone (tek firmalı) dağıtımlarda kullanılır, boşsa varsayılan PestShield favicon
   /// kalır (bkz. src/app/layout.tsx generateMetadata). Multi-tenant'ta hiç kullanılmaz.
-  faviconUrl      String?
+  faviconUrl              String?
   /// Rapor logosu — base64 data URL. Programın ürettiği raporların (DÖF, Risk, Trend vb.)
   /// üst kısmında büyük/belirgin gösterilir; boşsa logoUrl'e (küçük) düşülür.
-  reportLogoUrl   String?
+  reportLogoUrl           String?
   /// Antetli kağıt görseli — base64 data URL. Raporlarda/tekliflerde logo yerine/yanında kullanılır.
-  letterheadImage String?
+  letterheadImage         String?
   /// "header" (üst başlık bandı) | "background" (tam sayfa arkaplan)
-  letterheadMode  String?  @default("header")
+  letterheadMode          String? @default("header")
   /// Sözleşme/Teklif/Tahsilat Raporu için yüklenen PDF/DOCX şablonunun (tarayıcıda render
   /// edilmiş) tam sayfa PNG görüntüsü — base64 data URL. Doluysa o belge türünde antetli
   /// kağıt üst-bant/arkaplan ayarının yerine geçer, tam sayfa arkaplan olarak kullanılır.
@@ -363,58 +369,58 @@ model User {
   licenseCodesTargeted LicenseCode[] @relation("LicenseCodeTarget")
   licenseCodesRedeemed LicenseCode[] @relation("LicenseCodeRedeemer")
 
-  customers          Customer[]
-  branches           Branch[]
-  contacts           Contact[]
-  addresses          Address[]
-  locations          Location[]
-  contracts          Contract[]
-  offers             Offer[]
-  offerItems         OfferItem[]
-  serviceOrders      ServiceOrder[]
-  serviceOrderItems  ServiceOrderItem[]
-  techniciansOwned   Technician[]                  @relation("TechnicianOwner")
-  technicianProfile  Technician?                   @relation("TechnicianUser")
-  vehicles           Vehicle[]
-  checklistTemplates ChecklistTemplate[]
-  stations           Station[]
-  stationChecks      StationCheck[]
-  workOrders         WorkOrder[]
-  technicianWorkdays TechnicianWorkday[]
-  locationPings      TechnicianLocationPing[]
-  workdayEvents      WorkdayEvent[]
-  invoices           Invoice[]
-  collections        Collection[]
-  bankAccounts       BankAccount[]
-  bankTransactions   BankTransaction[]
-  warehouses         Warehouse[]
-  products           Product[]
-  stockTransactions  StockTransaction[]
-  checklistItems     ComplianceChecklistItem[]
-  auditRecords       AuditRecord[]
-  correctiveActions  CorrectiveAction[]
-  risks              Risk[]
-  periyotBatches     PeriyotBatch[]
-  periyotOccurrences PeriyotOccurrence[]
-  biocidalUsages     PeriyotBiocidalProductUsage[]
-  krokiSketches      KrokiSketch[]
-  krokiStations      KrokiStation[]
-  stationInspections StationInspection[]
-  ek1Forms           Ek1Form[]
-  periyotCapaNotes   PeriyotCapaNote[]
-  parasutIntegration ParasutIntegration?
+  customers                 Customer[]
+  branches                  Branch[]
+  contacts                  Contact[]
+  addresses                 Address[]
+  locations                 Location[]
+  contracts                 Contract[]
+  offers                    Offer[]
+  offerItems                OfferItem[]
+  serviceOrders             ServiceOrder[]
+  serviceOrderItems         ServiceOrderItem[]
+  techniciansOwned          Technician[]                  @relation("TechnicianOwner")
+  technicianProfile         Technician?                   @relation("TechnicianUser")
+  vehicles                  Vehicle[]
+  checklistTemplates        ChecklistTemplate[]
+  stations                  Station[]
+  stationChecks             StationCheck[]
+  workOrders                WorkOrder[]
+  technicianWorkdays        TechnicianWorkday[]
+  locationPings             TechnicianLocationPing[]
+  workdayEvents             WorkdayEvent[]
+  invoices                  Invoice[]
+  collections               Collection[]
+  bankAccounts              BankAccount[]
+  bankTransactions          BankTransaction[]
+  warehouses                Warehouse[]
+  products                  Product[]
+  stockTransactions         StockTransaction[]
+  checklistItems            ComplianceChecklistItem[]
+  auditRecords              AuditRecord[]
+  correctiveActions         CorrectiveAction[]
+  risks                     Risk[]
+  periyotBatches            PeriyotBatch[]
+  periyotOccurrences        PeriyotOccurrence[]
+  biocidalUsages            PeriyotBiocidalProductUsage[]
+  krokiSketches             KrokiSketch[]
+  krokiStations             KrokiStation[]
+  stationInspections        StationInspection[]
+  ek1Forms                  Ek1Form[]
+  periyotCapaNotes          PeriyotCapaNote[]
+  parasutIntegration        ParasutIntegration?
   googleCalendarIntegration GoogleCalendarIntegration?
-  documents          Document[]
-  technicianDocuments TechnicianDocument[]
-  vehicleDocuments    VehicleDocument[]
-  dailyReports        DailyReport[]
-  technicalReports    TechnicalReport[]
-  companyRolesOwned  CompanyRole[] @relation("CompanyRoleOwner")
-  companyUsersOwned  CompanyUser[] @relation("CompanyUserOwner")
-  pestSpeciesEntries    PestSpeciesEntry[]
-  equipmentGuideEntries EquipmentGuideEntry[]
-  companyUserProfile CompanyUser?  @relation("CompanyUserLogin")
-  customerProfile    Customer?     @relation("CustomerUser")
+  documents                 Document[]
+  technicianDocuments       TechnicianDocument[]
+  vehicleDocuments          VehicleDocument[]
+  dailyReports              DailyReport[]
+  technicalReports          TechnicalReport[]
+  companyRolesOwned         CompanyRole[]                 @relation("CompanyRoleOwner")
+  companyUsersOwned         CompanyUser[]                 @relation("CompanyUserOwner")
+  pestSpeciesEntries        PestSpeciesEntry[]
+  equipmentGuideEntries     EquipmentGuideEntry[]
+  companyUserProfile        CompanyUser?                  @relation("CompanyUserLogin")
+  customerProfile           Customer?                     @relation("CustomerUser")
 
   supportTicketsOwned   SupportTicket[]        @relation("SupportTicketOwner")
   supportTicketsOpened  SupportTicket[]        @relation("SupportTicketOpener")
@@ -425,7 +431,7 @@ model User {
   smtpIntegration       SmtpIntegration?
   whatsAppIntegration   WhatsAppIntegration?
 
-  generatedReports      GeneratedReport[]
+  generatedReports GeneratedReport[]
 
   @@map("users")
 }
@@ -574,26 +580,26 @@ model Customer {
   userId String? @unique
   user   User?   @relation("CustomerUser", fields: [userId], references: [id], onDelete: SetNull)
 
-  branches           Branch[]
-  contacts           Contact[]
-  addresses          Address[]
-  locations          Location[]
-  contracts          Contract[]
-  offers             Offer[]
-  serviceOrders      ServiceOrder[]
-  stations           Station[]
-  workOrders         WorkOrder[]
-  invoices           Invoice[]
-  collections        Collection[]
-  auditRecords       AuditRecord[]
-  correctiveActions  CorrectiveAction[]
-  risks              Risk[]
+  branches                 Branch[]
+  contacts                 Contact[]
+  addresses                Address[]
+  locations                Location[]
+  contracts                Contract[]
+  offers                   Offer[]
+  serviceOrders            ServiceOrder[]
+  stations                 Station[]
+  workOrders               WorkOrder[]
+  invoices                 Invoice[]
+  collections              Collection[]
+  auditRecords             AuditRecord[]
+  correctiveActions        CorrectiveAction[]
+  risks                    Risk[]
   complianceChecklistItems ComplianceChecklistItem[]
   workdayEvents            WorkdayEvent[]
-  periyotOccurrences PeriyotOccurrence[]
-  supportTickets     SupportTicket[]
-  generatedReports   GeneratedReport[]
-  technicalReports   TechnicalReport[]
+  periyotOccurrences       PeriyotOccurrence[]
+  supportTickets           SupportTicket[]
+  generatedReports         GeneratedReport[]
+  technicalReports         TechnicalReport[]
 
   @@index([ownerId])
   @@map("customers")
@@ -964,7 +970,7 @@ model WorkdayEvent {
   workday   TechnicianWorkday @relation(fields: [workdayId], references: [id], onDelete: Cascade)
 
   type       WorkdayEventType
-  occurredAt DateTime @default(now())
+  occurredAt DateTime         @default(now())
 
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -1074,32 +1080,32 @@ model WorkOrder {
   technicianId String?
   technician   Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
 
-  orderNo         String
-  serviceType     String
-  plannedDate     String
+  orderNo          String
+  serviceType      String
+  plannedDate      String
   /// "HH:mm" — boşsa iş emri tüm gün olarak kabul edilir (Google Takvim'e tüm-gün etkinlik olarak yazılır).
   plannedStartTime String?
   /// "HH:mm" — plannedStartTime doluysa ve bu boşsa süre 1 saat kabul edilir.
   plannedEndTime   String?
-  completedDate   String?
-  status          WorkOrderStatus @default(planned)
-  riskFinding     String?
-  hasReport       Boolean         @default(false)
-  productsUsed    String[]        @default([])
-  stationsChecked Int             @default(0)
-  technicianNote  String          @default("")
-  customerSigned  Boolean         @default(false)
+  completedDate    String?
+  status           WorkOrderStatus @default(planned)
+  riskFinding      String?
+  hasReport        Boolean         @default(false)
+  productsUsed     String[]        @default([])
+  stationsChecked  Int             @default(0)
+  technicianNote   String          @default("")
+  customerSigned   Boolean         @default(false)
 
   /// Ofisin teknisyene bıraktığı sevkiyat notu (kapı kodu, evcil hayvan uyarısı vb.) — technicianNote'tan
   /// farklı olarak teknisyenin YAZDIĞI değil, teknisyene YAZILAN nottur.
-  dispatchNote String @default("")
+  dispatchNote   String  @default("")
   /// false ise bu iş emri Google Takvim'e senkronize edilmez (bkz. google-calendar/sync.ts).
   syncToCalendar Boolean @default(true)
   /// Aynı hafta içinde planlanan bir tekrar uygulama varsa tarihi.
-  followUpDate String?
+  followUpDate   String?
 
   /// Bu iş emrine karşılık gelen Google Takvim etkinliğinin id'si (bkz. google-calendar/sync.ts).
-  googleEventId String?
+  googleEventId    String?
   /// "Bekleyen İçe Aktarımlar"dan onaylanan bir etkinlikte, teknisyenin Google Takvim'de yazdığı
   /// ORİJİNAL başlık — doluysa syncWorkOrderToCalendar summary olarak BUNU kullanır (serviceType —
   /// companyName üretmez), aksi halde teknisyenin takvimindeki başlığı kendi ürettiğimiz farklı bir
@@ -1639,10 +1645,10 @@ model Document {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  name         String
-  fileDataUrl  String @db.Text
-  fileName     String
-  fileSizeKb   Int    @default(0)
+  name        String
+  fileDataUrl String @db.Text
+  fileName    String
+  fileSizeKb  Int    @default(0)
 
   createdAt DateTime @default(now())
 
@@ -1822,7 +1828,7 @@ model SupportTicketMessage {
   ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   authorUserId String
-  author       User @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  author       User   @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
   /// Gönderim anındaki rol (ADMIN/CLIENT/CUSTOMER) — geçmişte kimin yazdığını göstermek için sabitlenir.
   authorRole   Role
 
@@ -1847,12 +1853,12 @@ enum MessageTemplateTrigger {
 /// Firmanın İş Emri gibi olaylarda müşterisine otomatik gönderilecek mail/WhatsApp
 /// içeriğini kendi yazıp düzenlediği şablon. (ownerId, channel, trigger) başına tek satır.
 model MessageTemplate {
-  id       String                  @id @default(uuid())
+  id       String                 @id @default(uuid())
   ownerId  String
-  owner    User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner    User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   channel  MessageTemplateChannel
   trigger  MessageTemplateTrigger
-  isActive Boolean                 @default(true)
+  isActive Boolean                @default(true)
 
   /// Sadece channel=email.
   subject String?
@@ -1929,7 +1935,7 @@ model MessageSendLog {
   trigger     MessageTemplateTrigger
   workOrderId String?
 
-  recipient String
+  recipient    String
   /// "sent" | "failed" | "skipped_no_recipient" | "skipped_not_configured"
   status       String
   errorMessage String?
@@ -1968,9 +1974,9 @@ model GeneratedReport {
 /// (bkz. src/lib/tenant.ts isMultiTenant()). Superadmin panelinden ("Paket Modülleri")
 /// düzenlenebilir; ilk erişimde 3 satır idempotent olarak seed edilir.
 model Plan {
-  id      String  @id @default(uuid())
-  key     PlanKey @unique
-  name    String
+  id   String  @id @default(uuid())
+  key  PlanKey @unique
+  name String
 
   maxUsers     Int? // null = sınırsız
   maxCustomers Int? // null = sınırsız
@@ -1994,14 +2000,14 @@ model PestSpeciesEntry {
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   name           String
-  scientificName String        @default("")
+  scientificName String       @default("")
   category       PestCategory
-  riskLevel      RiskLevel     @default(medium)
-  activeSeason   String        @default("")
-  icon           PestIconKey   @default(roach)
+  riskLevel      RiskLevel    @default(medium)
+  activeSeason   String       @default("")
+  icon           PestIconKey  @default(roach)
 
   /// Açıklama + kontrol yöntemi — TipTap zengin metin (resim dahil, base64 data URL).
-  contentHtml String @db.Text @default("")
+  contentHtml String @default("") @db.Text
 
   guides EquipmentGuideEntry[] @relation("GuideTargetSpecies")
 
@@ -2023,11 +2029,11 @@ model EquipmentGuideEntry {
   title    String
 
   /// Açıklama + kullanım notu — TipTap zengin metin (resim dahil, base64 data URL).
-  contentHtml String @db.Text @default("")
+  contentHtml String @default("") @db.Text
 
-  targetSpecies         PestSpeciesEntry[] @relation("GuideTargetSpecies")
+  targetSpecies          PestSpeciesEntry[] @relation("GuideTargetSpecies")
   /// Envanter ürün adı eşleştirme anahtar kelimeleri (bkz. getRelatedProducts).
-  relatedProductKeywords String[]          @default([])
+  relatedProductKeywords String[]           @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
