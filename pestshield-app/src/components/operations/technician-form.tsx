@@ -103,8 +103,8 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(submit)} className="@container flex flex-1 flex-col overflow-hidden">
-          <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-4">
+        <form onSubmit={handleSubmit(submit)} className="@container flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto p-4">
             <TextField label="Ad Soyad" required registration={register("name")} error={errors.name?.message} />
             <div className="grid grid-cols-1 gap-3.5 @sm:grid-cols-2">
               <TextField label="Telefon" required registration={register("phone")} error={errors.phone?.message} />
