@@ -20,7 +20,11 @@ import { cn } from "@/lib/utils";
 interface EntityDocument {
   id: string;
   name: string;
-  fileDataUrl: string;
+  // fileDataUrl BİLEREK yok — liste API'si artık bunu döndürmüyor (bkz.
+  // technicians/[id]/documents ve vehicles/[id]/documents route'ları),
+  // çünkü bu bileşen zaten hiç kullanmıyordu; her belgenin birkaç MB'lık
+  // base64 içeriğini boşuna çekip listeyi saniyeler süren bir isteğe
+  // çeviriyordu.
   fileName: string;
   fileSizeKb: number;
   createdAt: string;

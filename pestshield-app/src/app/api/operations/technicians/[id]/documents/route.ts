@@ -13,8 +13,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ message: "Teknisyen bulunamadı" }, { status: 404 });
   }
 
+  // fileDataUrl (base64 dosya içeriği, birkaç MB olabilir) BİLEREK seçilmiyor —
+  // bu liste sadece ad/boyut gösteriyor, fileDataUrl hiç kullanılmıyordu ve
+  // listeyi gereksiz yere saniyeler süren bir sorguya çeviriyordu.
   const documents = await prisma.technicianDocument.findMany({
     where: { technicianId: id, ownerId },
+    select: { id: true, name: true, fileName: true, fileSizeKb: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ documents });
