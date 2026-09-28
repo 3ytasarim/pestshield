@@ -92,7 +92,7 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] w-full max-w-md flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+      <DialogContent className="flex max-h-[92vh] w-full max-w-3xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border/60 p-4 pb-3.5">
           <DialogTitle className="flex items-center gap-2">
             <HardHat className="size-4.5 text-primary" />
@@ -105,49 +105,56 @@ export function TechnicianForm({ open, onOpenChange, onSubmit, editing }: Techni
 
         <form onSubmit={handleSubmit(submit)} className="@container flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto p-4">
-            <TextField label="Ad Soyad" required registration={register("name")} error={errors.name?.message} />
-            <div className="grid grid-cols-1 gap-3.5 @sm:grid-cols-2">
-              <TextField label="Telefon" required registration={register("phone")} error={errors.phone?.message} />
-              <TextField label="E-posta" type="email" required registration={register("email")} error={errors.email?.message} />
-            </div>
-            <div>
-              <TextField
-                label={isEditing ? "Yeni Şifre (opsiyonel)" : "Şifre"}
-                type="password"
-                required={!isEditing}
-                registration={register("password")}
-                error={errors.password?.message}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                {isEditing ? "Boş bırakılırsa şifre değişmez." : "Teknisyen bu e-posta ve şifreyle mobil panele giriş yapabilecek."}
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-3.5 @sm:grid-cols-2">
-              <TextField label="Ehliyet No" required registration={register("licenseNumber")} error={errors.licenseNumber?.message} />
-              <TextField label="Geçerlilik Tarihi" type="date" required registration={register("licenseExpiry")} error={errors.licenseExpiry?.message} />
-            </div>
-            <div>
-              <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
-              {isEditing && <p className="mt-1 text-xs text-muted-foreground">&quot;Pasif&quot; seçilirse teknisyen mobil panele giriş yapamaz.</p>}
+            {/* Geniş ekranda iki sütun yan yana — popup'ın tamamının tek ekrana, kaydırmadan sığması için. */}
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3.5 @2xl:grid-cols-2">
+              <div className="flex flex-col gap-3.5">
+                <TextField label="Ad Soyad" required registration={register("name")} error={errors.name?.message} />
+                <div className="grid grid-cols-1 gap-3.5 @sm:grid-cols-2">
+                  <TextField label="Telefon" required registration={register("phone")} error={errors.phone?.message} />
+                  <TextField label="E-posta" type="email" required registration={register("email")} error={errors.email?.message} />
+                </div>
+                <div>
+                  <TextField
+                    label={isEditing ? "Yeni Şifre (opsiyonel)" : "Şifre"}
+                    type="password"
+                    required={!isEditing}
+                    registration={register("password")}
+                    error={errors.password?.message}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {isEditing ? "Boş bırakılırsa şifre değişmez." : "Teknisyen bu e-posta ve şifreyle mobil panele giriş yapabilecek."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3.5">
+                <div className="grid grid-cols-1 gap-3.5 @sm:grid-cols-2">
+                  <TextField label="Ehliyet No" required registration={register("licenseNumber")} error={errors.licenseNumber?.message} />
+                  <TextField label="Geçerlilik Tarihi" type="date" required registration={register("licenseExpiry")} error={errors.licenseExpiry?.message} />
+                </div>
+                <div>
+                  <SelectField label="Durum" name="status" control={control} options={STATUS_OPTIONS} error={errors.status?.message} />
+                  {isEditing && <p className="mt-1 text-xs text-muted-foreground">&quot;Pasif&quot; seçilirse teknisyen mobil panele giriş yapamaz.</p>}
+                </div>
+                {isEditing && calendarOptions.length > 0 && (
+                  <div>
+                    <SelectField
+                      label="Google Takvimi Eşleştirmesi (opsiyonel)"
+                      name="googleCalendarId"
+                      control={control}
+                      options={[{ value: "none", label: "Eşleştirilmedi" }, ...calendarOptions]}
+                      error={errors.googleCalendarId?.message}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Sadece bu teknisyene özel bir eşleştirmedir; ana Google Calendar bağlantınızı (Entegrasyonlar sayfasındaki hesabınızı)
+                      etkilemez — burada &quot;Eşleştirilmedi&quot; seçmek yalnızca bu teknisyenin takvim önerisini kapatır.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {isEditing && editing && <EntityDocumentsSection apiBase={`/api/operations/technicians/${editing.id}/documents`} />}
-
-            {isEditing && calendarOptions.length > 0 && (
-              <div>
-                <SelectField
-                  label="Google Takvimi Eşleştirmesi (opsiyonel)"
-                  name="googleCalendarId"
-                  control={control}
-                  options={[{ value: "none", label: "Eşleştirilmedi" }, ...calendarOptions]}
-                  error={errors.googleCalendarId?.message}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Sadece bu teknisyene özel bir eşleştirmedir; ana Google Calendar bağlantınızı (Entegrasyonlar sayfasındaki hesabınızı)
-                  etkilemez — burada &quot;Eşleştirilmedi&quot; seçmek yalnızca bu teknisyenin takvim önerisini kapatır.
-                </p>
-              </div>
-            )}
           </div>
 
           <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl">
