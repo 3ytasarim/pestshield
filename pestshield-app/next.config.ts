@@ -1,5 +1,13 @@
 import type { NextConfig } from "next";
 
+// Next.js'in Rust tabanlı derleyicisi (SWC/lightningcss), `rayon` paralel iş
+// parçacığı havuzunu CPU çekirdek sayısı kadar (bu sunucuda 40) açmaya
+// çalışıyor — paylaşımlı hosting'in süreç/kaynak kısıtı altında bu "Resource
+// temporarily unavailable" panik hatasıyla build'i çökertiyor. Tek thread'e
+// sabitliyoruz; zaten yukarıdaki experimental.cpus=1 ile build tek süreçte
+// sıralı çalışıyor, ek paralellik gerekmiyor.
+process.env.RAYON_NUM_THREADS = process.env.RAYON_NUM_THREADS || "1";
+
 const nextConfig: NextConfig = {
   // NOT: "standalone" kasıtlı olarak KULLANILMIYOR. LiteSpeed'in Node
   // adaptörü (lsnode.js) uygulama giriş dosyasını doğrudan çalıştırmak yerine
@@ -14,6 +22,18 @@ const nextConfig: NextConfig = {
   experimental: {
     cpus: 1,
     workerThreads: false,
+  },
+  // `next build`, kaynak koddan bağımsız ayrı bir worker process'te ESLint +
+  // TypeScript tip kontrolünü tekrar çalıştırıyor — bu paylaşımlı sunucuda
+  // bellek baskısı altında bu worker "SIGABRT" ile çöküp build'i çökertiyor.
+  // Bu kontroller zaten her push öncesi yerelde (`tsc --noEmit` + `eslint`)
+  // ayrıca ve güvenilir şekilde çalıştırılıyor — build sırasında tekrarı
+  // gereksiz, bu sunucuda ise doğrudan risk. Devre dışı bırakılıyor.
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   },
   // Next.js'in yerleşik next/image optimizasyonu, .next/cache/images altına
   // resimleri islerken ayri worker thread'ler kullanir (experimental.cpus/
