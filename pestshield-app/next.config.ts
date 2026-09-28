@@ -7,6 +7,12 @@ import type { NextConfig } from "next";
 // sabitliyoruz; zaten yukarıdaki experimental.cpus=1 ile build tek süreçte
 // sıralı çalışıyor, ek paralellik gerekmiyor.
 process.env.RAYON_NUM_THREADS = process.env.RAYON_NUM_THREADS || "1";
+// Aynı kaynak kısıtı "Generating static pages" aşamasında da vuruyor — orada
+// çöken thread havuzu rayon değil, doğrudan Node'un kendi libuv thread pool'u
+// ("pthread_create: Resource temporarily unavailable"). Aynı şekilde 1'e
+// sabitliyoruz; bu build tek CPU'da sıralı çalıştığı için ek thread'e zaten
+// ihtiyaç yok.
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "1";
 
 const nextConfig: NextConfig = {
   // NOT: "standalone" kasıtlı olarak KULLANILMIYOR. LiteSpeed'in Node
